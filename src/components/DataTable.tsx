@@ -1,12 +1,12 @@
 "use client";
 
-import type { Member, StatusValue } from "@/app/page";
+import type { Member, StatusValue } from "@/lib/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 interface DataTableProps {
   data: Member[];
-  onUpdate: (id: string, field: string, value: StatusValue) => void;
+  onUpdate?: (id: string, field: string, value: StatusValue) => void;
   totalCount: number;
 }
 
@@ -17,7 +17,7 @@ function StatusBadge({
   onChange,
 }: {
   value: StatusValue;
-  onChange: (v: StatusValue) => void;
+  onChange?: (v: StatusValue) => void;
 }) {
   const colors = {
     Sudah: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -25,6 +25,14 @@ function StatusBadge({
   };
 
   const colorClass = value ? colors[value] : "bg-gray-50 text-gray-400 border-gray-200";
+
+  if (!onChange) {
+    return (
+      <span className={`text-xs font-medium px-2 py-1 rounded-md border inline-block ${colorClass}`}>
+        {value || "-"}
+      </span>
+    );
+  }
 
   return (
     <select
@@ -125,25 +133,25 @@ export function DataTable({ data, onUpdate, totalCount }: DataTableProps) {
                 <td className="px-3 py-2 text-center">
                   <StatusBadge
                     value={member.status_dpt}
-                    onChange={(v) => onUpdate(member.id, "status_dpt", v)}
+                    onChange={onUpdate ? (v) => onUpdate(member.id, "status_dpt", v) : undefined}
                   />
                 </td>
                 <td className="px-3 py-2 text-center">
                   <StatusBadge
                     value={member.sudah_dikontak}
-                    onChange={(v) => onUpdate(member.id, "sudah_dikontak", v)}
+                    onChange={onUpdate ? (v) => onUpdate(member.id, "sudah_dikontak", v) : undefined}
                   />
                 </td>
                 <td className="px-3 py-2 text-center">
                   <StatusBadge
                     value={member.masuk_grup}
-                    onChange={(v) => onUpdate(member.id, "masuk_grup", v)}
+                    onChange={onUpdate ? (v) => onUpdate(member.id, "masuk_grup", v) : undefined}
                   />
                 </td>
                 <td className="px-3 py-2 text-center">
                   <StatusBadge
                     value={member.vote}
-                    onChange={(v) => onUpdate(member.id, "vote", v)}
+                    onChange={onUpdate ? (v) => onUpdate(member.id, "vote", v) : undefined}
                   />
                 </td>
               </tr>

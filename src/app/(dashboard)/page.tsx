@@ -2,28 +2,14 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRole } from "@/lib/RoleContext";
 import { StatsCards } from "@/components/StatsCards";
 import { AngkatanChart } from "@/components/AngkatanChart";
 import { ProgressChart } from "@/components/ProgressChart";
 import { DataTable } from "@/components/DataTable";
-import { Search, Filter, Download, LogOut, Loader2 } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-
-export type StatusValue = "Sudah" | "Belum" | null;
-
-export interface Member {
-  id: string;
-  no: number;
-  nama: string;
-  angkatan: number;
-  no_hp: string;
-  pic: string | null;
-  status_dpt: StatusValue;
-  sudah_dikontak: StatusValue;
-  masuk_grup: StatusValue;
-  vote: StatusValue;
-}
+import { VotePredictionTable } from "@/components/VotePredictionTable";
+import { Search, Filter, Download, Loader2 } from "lucide-react";
+import type { Member, StatusValue } from "@/lib/types";
 
 export default function Dashboard() {
   const [data, setData] = useState<Member[]>([]);
@@ -32,20 +18,11 @@ export default function Dashboard() {
   const [filterAngkatan, setFilterAngkatan] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterField, setFilterField] = useState<string>("status_dpt");
-  const [userEmail, setUserEmail] = useState<string>("");
-  const router = useRouter();
+  const { canEdit: userCanEdit } = useRole();
 
   useEffect(() => {
     fetchMembers();
-    fetchUser();
   }, []);
-
-  const fetchUser = async () => {
-    const { data } = await supabase.auth.getUser();
-    if (data.user) {
-      setUserEmail(data.user.email || "");
-    }
-  };
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -115,7 +92,6 @@ export default function Dashboard() {
   }, [data]);
 
   const updateMember = useCallback(async (id: string, field: string, value: StatusValue) => {
-    // Optimistic update
     setData((prev) =>
       prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
     );
@@ -126,16 +102,9 @@ export default function Dashboard() {
       .eq("id", id);
 
     if (error) {
-      // Revert on error
       fetchMembers();
     }
   }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  };
 
   const exportCSV = () => {
     const headers = ["No", "Nama", "Angkatan", "No HP", "PIC", "Status DPT", "Sudah Dikontak", "Masuk Grup", "Vote"];
@@ -164,54 +133,32 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header with brand */}
-      <header className="sticky top-0 z-50 bg-[#0B27BC] text-white shadow-lg">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3">
+    <div className="bg-background">
+      {/* Page Header */}
+      <header className="sticky top-0 z-40 bg-[#0B27BC] text-white shadow-lg">
+        <div className="px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Image
-                src="/images/logo-light.png"
-                alt="IKASTARA KITA"
-                width={120}
-                height={40}
-                className="rounded"
-              />
-              <div>
-                <h1 className="text-lg sm:text-xl font-bold text-white">
-                  Dashboard Pemenangan
-                </h1>
-                <p className="text-xs text-white/70">
-                  Ikastara Kita &mdash; Aditya Syarief &bull; Asah &bull; Asih &bull; Asuh
-                </p>
-              </div>
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-white">
+                Dashboard Pemenangan
+              </h1>
+              <p className="text-xs text-white/70">
+                Ikastara Kita &mdash; Aditya Syarief
+              </p>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={exportCSV}
-                className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Export CSV
-              </button>
-              <div className="flex items-center gap-2">
-                <span className="hidden sm:block text-xs text-white/70">{userEmail}</span>
-                <button
-                  onClick={handleLogout}
-                  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-                  title="Logout"
-                >
-                  <LogOut className="w-4 h-4 text-white/80" />
-                </button>
-              </div>
-            </div>
+            <button
+              onClick={exportCSV}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Export CSV</span>
+            </button>
           </div>
         </div>
-        {/* Pink accent bar */}
         <div className="h-1 bg-gradient-to-r from-[#fcb7c3] via-[#FE8DA1] to-[#fcb7c3]" />
       </header>
 
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="px-4 sm:px-6 py-6 space-y-6">
         {/* Stats Cards */}
         <StatsCards stats={stats} />
 
@@ -220,6 +167,9 @@ export default function Dashboard() {
           <ProgressChart stats={stats} />
           <AngkatanChart data={angkatanStats} />
         </div>
+
+        {/* Vote Prediction Table */}
+        <VotePredictionTable data={angkatanStats} totalStats={stats} />
 
         {/* Filters */}
         <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
@@ -271,22 +221,13 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Mobile export button */}
-        <button
-          onClick={exportCSV}
-          className="sm:hidden w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0B27BC] rounded-lg"
-        >
-          <Download className="w-4 h-4" />
-          Export CSV
-        </button>
-
         {/* Data Table */}
         <DataTable
           data={filteredData}
-          onUpdate={updateMember}
+          onUpdate={userCanEdit ? updateMember : undefined}
           totalCount={data.length}
         />
-      </main>
+      </div>
     </div>
   );
 }
