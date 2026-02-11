@@ -1,24 +1,16 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRole } from "@/lib/RoleContext";
 import { StatsCards } from "@/components/StatsCards";
 import { AngkatanChart } from "@/components/AngkatanChart";
 import { ProgressChart } from "@/components/ProgressChart";
-import { DataTable } from "@/components/DataTable";
-import { VotePredictionTable } from "@/components/VotePredictionTable";
-import { Search, Filter, Download, Loader2 } from "lucide-react";
-import type { Member, StatusValue } from "@/lib/types";
+import { Download, Loader2 } from "lucide-react";
+import type { Member } from "@/lib/types";
 
 export default function Dashboard() {
   const [data, setData] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterAngkatan, setFilterAngkatan] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterField, setFilterField] = useState<string>("status_dpt");
-  const { canEdit: userCanEdit } = useRole();
 
   useEffect(() => {
     fetchMembers();
@@ -36,31 +28,6 @@ export default function Dashboard() {
     }
     setLoading(false);
   };
-
-  const angkatanList = useMemo(() => {
-    return Array.from(new Set(data.map((m) => m.angkatan))).sort((a, b) => a - b);
-  }, [data]);
-
-  const filteredData = useMemo(() => {
-    return data.filter((m) => {
-      const matchesSearch =
-        searchQuery === "" ||
-        m.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (m.no_hp && m.no_hp.includes(searchQuery)) ||
-        (m.pic && m.pic.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      const matchesAngkatan =
-        filterAngkatan === "all" || m.angkatan === Number(filterAngkatan);
-
-      const statusKey = filterField as keyof Member;
-      const matchesStatus =
-        filterStatus === "all" ||
-        (filterStatus === "empty" && (m[statusKey] === null || m[statusKey] === "")) ||
-        m[statusKey] === filterStatus;
-
-      return matchesSearch && matchesAngkatan && matchesStatus;
-    });
-  }, [data, searchQuery, filterAngkatan, filterStatus, filterField]);
 
   const stats = useMemo(() => {
     const total = data.length;
@@ -91,24 +58,9 @@ export default function Dashboard() {
       }));
   }, [data]);
 
-  const updateMember = useCallback(async (id: string, field: string, value: StatusValue) => {
-    setData((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
-    );
-
-    const { error } = await supabase
-      .from("members")
-      .update({ [field]: value })
-      .eq("id", id);
-
-    if (error) {
-      fetchMembers();
-    }
-  }, []);
-
   const exportCSV = () => {
     const headers = ["No", "Nama", "Angkatan", "No HP", "PIC", "Status DPT", "Sudah Dikontak", "Masuk Grup", "Vote"];
-    const rows = filteredData.map((m) => [
+    const rows = data.map((m) => [
       m.no, m.nama, m.angkatan, m.no_hp, m.pic || "", m.status_dpt || "", m.sudah_dikontak || "", m.masuk_grup || "", m.vote || "",
     ]);
     const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
@@ -167,66 +119,6 @@ export default function Dashboard() {
           <ProgressChart stats={stats} />
           <AngkatanChart data={angkatanStats} />
         </div>
-
-        {/* Vote Prediction Table */}
-        <VotePredictionTable data={angkatanStats} totalStats={stats} />
-
-        {/* Filters */}
-        <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-4 h-4 text-[#0B27BC]" />
-            <h3 className="font-semibold text-sm text-foreground">Filter & Pencarian</h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Cari nama, no HP, PIC..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
-              />
-            </div>
-            <select
-              value={filterAngkatan}
-              onChange={(e) => setFilterAngkatan(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
-            >
-              <option value="all">Semua Angkatan</option>
-              {angkatanList.map((a) => (
-                <option key={a} value={a}>TN {a}</option>
-              ))}
-            </select>
-            <select
-              value={filterField}
-              onChange={(e) => { setFilterField(e.target.value); setFilterStatus("all"); }}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
-            >
-              <option value="status_dpt">Status DPT</option>
-              <option value="sudah_dikontak">Sudah Dikontak</option>
-              <option value="masuk_grup">Masuk Grup</option>
-              <option value="vote">Vote</option>
-            </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
-            >
-              <option value="all">Semua Status</option>
-              <option value="Sudah">Sudah</option>
-              <option value="Belum">Belum</option>
-              <option value="empty">Belum diisi</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Data Table */}
-        <DataTable
-          data={filteredData}
-          onUpdate={userCanEdit ? updateMember : undefined}
-          totalCount={data.length}
-        />
       </div>
     </div>
   );

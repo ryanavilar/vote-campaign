@@ -7,6 +7,7 @@ import { useState } from "react";
 interface DataTableProps {
   data: Member[];
   onUpdate?: (id: string, field: string, value: StatusValue) => void;
+  onRowClick?: (id: string) => void;
   totalCount: number;
 }
 
@@ -38,6 +39,7 @@ function StatusBadge({
     <select
       value={value || ""}
       onChange={(e) => onChange((e.target.value || null) as StatusValue)}
+      onClick={(e) => e.stopPropagation()}
       className={`text-xs font-medium px-2 py-1 rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#0B27BC]/30 ${colorClass}`}
     >
       <option value="">-</option>
@@ -47,7 +49,7 @@ function StatusBadge({
   );
 }
 
-export function DataTable({ data, onUpdate, totalCount }: DataTableProps) {
+export function DataTable({ data, onUpdate, onRowClick, totalCount }: DataTableProps) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(data.length / PAGE_SIZE);
   const pageData = data.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -116,7 +118,8 @@ export function DataTable({ data, onUpdate, totalCount }: DataTableProps) {
             {pageData.map((member) => (
               <tr
                 key={member.id}
-                className="hover:bg-[#0B27BC]/[0.02] transition-colors"
+                onClick={onRowClick ? () => onRowClick(member.id) : undefined}
+                className={`hover:bg-[#0B27BC]/[0.02] transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
               >
                 <td className="px-3 py-2 text-muted-foreground">{member.no}</td>
                 <td className="px-3 py-2 font-medium text-foreground">
