@@ -7,6 +7,9 @@ export interface Member {
   angkatan: number;
   no_hp: string;
   pic: string | null;
+  email: string | null;
+  domisili: string | null;
+  harapan: string | null;
   status_dpt: StatusValue;
   sudah_dikontak: StatusValue;
   masuk_grup: StatusValue;

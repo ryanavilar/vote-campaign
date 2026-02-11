@@ -24,6 +24,8 @@ import {
   X,
   Search,
   ClipboardList,
+  ExternalLink,
+  Link as LinkIcon,
 } from "lucide-react";
 import type { Event, EventAttendance, Member } from "@/lib/types";
 
@@ -65,6 +67,7 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
@@ -128,6 +131,18 @@ export default function EventDetailPage() {
       setTimeout(() => setCodeCopied(false), 2000);
     } catch {
       showToast("Gagal menyalin kode", "error");
+    }
+  };
+
+  const handleCopyFormLink = async () => {
+    if (!event?.checkin_code) return;
+    try {
+      const url = `${window.location.origin}/form/${event.checkin_code}`;
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      showToast("Gagal menyalin link", "error");
     }
   };
 
@@ -445,6 +460,58 @@ export default function EventDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Public Form Link Card */}
+        {event.checkin_code &&
+          event.status !== "Dibatalkan" &&
+          event.status !== "Selesai" && (
+            <div className="bg-white rounded-xl border border-border p-4 sm:p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4 text-[#0B27BC]" />
+                  Link Formulir Publik
+                </h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCopyFormLink}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-[#0B27BC] bg-[#0B27BC]/10 rounded-lg hover:bg-[#0B27BC]/20 transition-colors"
+                  >
+                    {linkCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        Tersalin
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        Salin Link
+                      </>
+                    )}
+                  </button>
+                  <a
+                    href={`/form/${event.checkin_code}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091fa0] transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Buka
+                  </a>
+                </div>
+              </div>
+              <div className="px-3 py-2.5 bg-gray-50 rounded-lg border border-dashed border-border">
+                <p className="text-xs text-muted-foreground font-mono break-all">
+                  {typeof window !== "undefined"
+                    ? `${window.location.origin}/form/${event.checkin_code}`
+                    : `/form/${event.checkin_code}`}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Bagikan link ini agar anggota bisa mendaftar kegiatan secara
+                mandiri.
+              </p>
+            </div>
+          )}
 
         {/* Attendance Count Card */}
         <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
