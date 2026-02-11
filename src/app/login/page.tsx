@@ -28,8 +28,8 @@ export default function LoginPage() {
       setError("Email atau password salah. Silakan coba lagi.");
       setLoading(false);
     } else {
-      router.push("/");
-      router.refresh();
+      // Force full page reload so middleware can properly set auth cookies
+      window.location.href = "/";
     }
   };
 
@@ -47,8 +47,8 @@ export default function LoginPage() {
             <Image
               src="/images/logo-dark.png"
               alt="IKASTARA KITA"
-              width={80}
-              height={80}
+              width={200}
+              height={68}
               className="mb-4"
             />
             <h1 className="text-2xl font-bold text-[#0B27BC]">

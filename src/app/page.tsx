@@ -173,7 +173,7 @@ export default function Dashboard() {
               <Image
                 src="/images/logo-light.png"
                 alt="IKASTARA KITA"
-                width={40}
+                width={120}
                 height={40}
                 className="rounded"
               />
