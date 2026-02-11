@@ -46,8 +46,8 @@ export function AngkatanChart({ data }: AngkatanChartProps) {
               contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="total" name="Total" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="vote" name="Vote" fill="#22c55e" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="total" name="Total" fill="#0B27BC" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="vote" name="Vote" fill="#FE8DA1" radius={[2, 2, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -20,8 +20,8 @@ interface ProgressChartProps {
 }
 
 const COLORS = {
-  sudah: "#22c55e",
-  belum: "#e5e7eb",
+  sudah: "#0B27BC",
+  belum: "#eef1f8",
 };
 
 export function ProgressChart({ stats }: ProgressChartProps) {

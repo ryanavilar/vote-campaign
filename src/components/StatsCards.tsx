@@ -13,14 +13,16 @@ interface StatsProps {
 }
 
 export function StatsCards({ stats }: StatsProps) {
+  const safePercent = (n: number) => stats.total > 0 ? Math.round((n / stats.total) * 100) : 0;
+
   const cards = [
     {
       label: "Total Anggota",
       value: stats.total,
       icon: Users,
-      color: "bg-blue-500",
-      bgColor: "bg-blue-50",
-      textColor: "text-blue-700",
+      color: "bg-[#0B27BC]",
+      bgColor: "bg-[#0B27BC]/10",
+      textColor: "text-[#0B27BC]",
     },
     {
       label: "Status DPT",
@@ -30,37 +32,37 @@ export function StatsCards({ stats }: StatsProps) {
       color: "bg-emerald-500",
       bgColor: "bg-emerald-50",
       textColor: "text-emerald-700",
-      percentage: Math.round((stats.dptSudah / stats.total) * 100),
+      percentage: safePercent(stats.dptSudah),
     },
     {
       label: "Sudah Dikontak",
       value: stats.kontakSudah,
       sub: `${stats.total - stats.kontakSudah} belum`,
       icon: Phone,
-      color: "bg-amber-500",
-      bgColor: "bg-amber-50",
-      textColor: "text-amber-700",
-      percentage: Math.round((stats.kontakSudah / stats.total) * 100),
+      color: "bg-[#FE8DA1]",
+      bgColor: "bg-[#FE8DA1]/10",
+      textColor: "text-[#84303F]",
+      percentage: safePercent(stats.kontakSudah),
     },
     {
       label: "Masuk Grup",
       value: stats.grupSudah,
       sub: `${stats.total - stats.grupSudah} belum`,
       icon: UserCheck,
-      color: "bg-violet-500",
-      bgColor: "bg-violet-50",
-      textColor: "text-violet-700",
-      percentage: Math.round((stats.grupSudah / stats.total) * 100),
+      color: "bg-[#0B27BC]",
+      bgColor: "bg-[#0B27BC]/10",
+      textColor: "text-[#0B27BC]",
+      percentage: safePercent(stats.grupSudah),
     },
     {
       label: "Sudah Vote",
       value: stats.voteSudah,
       sub: `${stats.total - stats.voteSudah} belum`,
       icon: Vote,
-      color: "bg-rose-500",
-      bgColor: "bg-rose-50",
-      textColor: "text-rose-700",
-      percentage: Math.round((stats.voteSudah / stats.total) * 100),
+      color: "bg-[#84303F]",
+      bgColor: "bg-[#84303F]/10",
+      textColor: "text-[#84303F]",
+      percentage: safePercent(stats.voteSudah),
     },
   ];
 

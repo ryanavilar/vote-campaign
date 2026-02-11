@@ -1,12 +1,12 @@
 "use client";
 
-import { type Member, type StatusValue } from "@/lib/data";
+import type { Member, StatusValue } from "@/app/page";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 interface DataTableProps {
   data: Member[];
-  onUpdate: (no: number, field: keyof Member, value: StatusValue) => void;
+  onUpdate: (id: string, field: string, value: StatusValue) => void;
   totalCount: number;
 }
 
@@ -22,14 +22,15 @@ function StatusBadge({
   const colors = {
     Sudah: "bg-emerald-100 text-emerald-700 border-emerald-200",
     Belum: "bg-red-100 text-red-700 border-red-200",
-    "": "bg-gray-50 text-gray-400 border-gray-200",
   };
+
+  const colorClass = value ? colors[value] : "bg-gray-50 text-gray-400 border-gray-200";
 
   return (
     <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as StatusValue)}
-      className={`text-xs font-medium px-2 py-1 rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary/30 ${colors[value]}`}
+      value={value || ""}
+      onChange={(e) => onChange((e.target.value || null) as StatusValue)}
+      className={`text-xs font-medium px-2 py-1 rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#0B27BC]/30 ${colorClass}`}
     >
       <option value="">-</option>
       <option value="Sudah">Sudah</option>
@@ -76,29 +77,29 @@ export function DataTable({ data, onUpdate, totalCount }: DataTableProps) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-muted/50">
-              <th className="px-3 py-2.5 text-left font-semibold text-xs text-muted-foreground uppercase tracking-wider w-10">
+            <tr className="bg-[#0B27BC]/5">
+              <th className="px-3 py-2.5 text-left font-semibold text-xs text-[#0B27BC]/70 uppercase tracking-wider w-10">
                 No
               </th>
-              <th className="px-3 py-2.5 text-left font-semibold text-xs text-muted-foreground uppercase tracking-wider min-w-[180px]">
+              <th className="px-3 py-2.5 text-left font-semibold text-xs text-[#0B27BC]/70 uppercase tracking-wider min-w-[180px]">
                 Nama
               </th>
-              <th className="px-3 py-2.5 text-center font-semibold text-xs text-muted-foreground uppercase tracking-wider w-20">
+              <th className="px-3 py-2.5 text-center font-semibold text-xs text-[#0B27BC]/70 uppercase tracking-wider w-20">
                 TN
               </th>
-              <th className="px-3 py-2.5 text-left font-semibold text-xs text-muted-foreground uppercase tracking-wider w-[140px]">
+              <th className="px-3 py-2.5 text-left font-semibold text-xs text-[#0B27BC]/70 uppercase tracking-wider w-[140px]">
                 No. HP
               </th>
-              <th className="px-3 py-2.5 text-center font-semibold text-xs text-muted-foreground uppercase tracking-wider w-[100px]">
+              <th className="px-3 py-2.5 text-center font-semibold text-xs text-[#0B27BC]/70 uppercase tracking-wider w-[100px]">
                 Status DPT
               </th>
-              <th className="px-3 py-2.5 text-center font-semibold text-xs text-muted-foreground uppercase tracking-wider w-[100px]">
+              <th className="px-3 py-2.5 text-center font-semibold text-xs text-[#0B27BC]/70 uppercase tracking-wider w-[100px]">
                 Dikontak
               </th>
-              <th className="px-3 py-2.5 text-center font-semibold text-xs text-muted-foreground uppercase tracking-wider w-[100px]">
+              <th className="px-3 py-2.5 text-center font-semibold text-xs text-[#0B27BC]/70 uppercase tracking-wider w-[100px]">
                 Masuk Grup
               </th>
-              <th className="px-3 py-2.5 text-center font-semibold text-xs text-muted-foreground uppercase tracking-wider w-[100px]">
+              <th className="px-3 py-2.5 text-center font-semibold text-xs text-[#0B27BC]/70 uppercase tracking-wider w-[100px]">
                 Vote
               </th>
             </tr>
@@ -106,43 +107,43 @@ export function DataTable({ data, onUpdate, totalCount }: DataTableProps) {
           <tbody className="divide-y divide-border">
             {pageData.map((member) => (
               <tr
-                key={member.no}
-                className="hover:bg-muted/30 transition-colors"
+                key={member.id}
+                className="hover:bg-[#0B27BC]/[0.02] transition-colors"
               >
                 <td className="px-3 py-2 text-muted-foreground">{member.no}</td>
                 <td className="px-3 py-2 font-medium text-foreground">
                   {member.nama}
                 </td>
                 <td className="px-3 py-2 text-center">
-                  <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-[#0B27BC]/10 text-[#0B27BC] text-xs font-medium">
                     TN{member.angkatan}
                   </span>
                 </td>
                 <td className="px-3 py-2 text-muted-foreground font-mono text-xs">
-                  {member.noHp}
+                  {member.no_hp}
                 </td>
                 <td className="px-3 py-2 text-center">
                   <StatusBadge
-                    value={member.statusDpt}
-                    onChange={(v) => onUpdate(member.no, "statusDpt", v)}
+                    value={member.status_dpt}
+                    onChange={(v) => onUpdate(member.id, "status_dpt", v)}
                   />
                 </td>
                 <td className="px-3 py-2 text-center">
                   <StatusBadge
-                    value={member.sudahDikontak}
-                    onChange={(v) => onUpdate(member.no, "sudahDikontak", v)}
+                    value={member.sudah_dikontak}
+                    onChange={(v) => onUpdate(member.id, "sudah_dikontak", v)}
                   />
                 </td>
                 <td className="px-3 py-2 text-center">
                   <StatusBadge
-                    value={member.masukGrup}
-                    onChange={(v) => onUpdate(member.no, "masukGrup", v)}
+                    value={member.masuk_grup}
+                    onChange={(v) => onUpdate(member.id, "masuk_grup", v)}
                   />
                 </td>
                 <td className="px-3 py-2 text-center">
                   <StatusBadge
                     value={member.vote}
-                    onChange={(v) => onUpdate(member.no, "vote", v)}
+                    onChange={(v) => onUpdate(member.id, "vote", v)}
                   />
                 </td>
               </tr>
