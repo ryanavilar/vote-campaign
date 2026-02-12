@@ -129,38 +129,43 @@ export async function POST(request: Request) {
       memberId = newMember.id;
     }
 
-    // Handle referral
+    // Handle referral — always store the free text, and also try to match by name
     if (referral_name && referral_name.trim()) {
+      const trimmed = referral_name.trim();
+      const updateFields: Record<string, string> = { referral_name: trimmed };
+
       const { data: referrer } = await supabaseAdmin
         .from("members")
         .select("id")
-        .ilike("nama", referral_name.trim())
+        .ilike("nama", trimmed)
         .limit(1);
 
       if (referrer && referrer.length > 0) {
-        await supabaseAdmin
-          .from("members")
-          .update({ referred_by: referrer[0].id })
-          .eq("id", memberId);
+        updateFields.referred_by = referrer[0].id;
       }
+
+      await supabaseAdmin
+        .from("members")
+        .update(updateFields)
+        .eq("id", memberId);
     }
 
-    // For event registration, create attendance record
-    if (type === "event" && eventData && will_attend) {
-      const { error: attendanceError } = await supabaseAdmin
-        .from("event_attendance")
+    // For event registration, store RSVP (not actual attendance/check-in)
+    if (type === "event" && eventData) {
+      const { error: regError } = await supabaseAdmin
+        .from("event_registrations")
         .upsert(
           {
             event_id: eventData.id,
             member_id: memberId,
-            catatan: "Registrasi via formulir publik",
+            will_attend: !!will_attend,
           },
           { onConflict: "event_id,member_id" }
         );
 
-      if (attendanceError) {
+      if (regError) {
         // Non-fatal — member was still created
-        console.error("Attendance error:", attendanceError.message);
+        console.error("Registration error:", regError.message);
       }
     }
 

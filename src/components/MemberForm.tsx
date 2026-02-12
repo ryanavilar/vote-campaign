@@ -6,7 +6,7 @@ import type { Member } from "@/lib/types";
 
 interface MemberFormProps {
   member?: Member;
-  allMembers: Member[];
+  allMembers?: Member[];
   onSave: (data: Partial<Member>) => void;
   onCancel: () => void;
 }
@@ -18,10 +18,8 @@ export function MemberForm({ member, allMembers, onSave, onCancel }: MemberFormP
   const [angkatan, setAngkatan] = useState<number>(member?.angkatan || 1);
   const [noHp, setNoHp] = useState(member?.no_hp || "");
   const [pic, setPic] = useState(member?.pic || "");
-  const [referredBy, setReferredBy] = useState(member?.referred_by || "");
+  const [referralName, setReferralName] = useState(member?.referral_name || "");
   const [loading, setLoading] = useState(false);
-
-  const referrerOptions = allMembers.filter((m) => m.id !== member?.id);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +33,7 @@ export function MemberForm({ member, allMembers, onSave, onCancel }: MemberFormP
         angkatan,
         no_hp: noHp.trim(),
         pic: pic.trim() || null,
-        referred_by: referredBy || null,
+        referral_name: referralName.trim() || null,
       });
     } finally {
       setLoading(false);
@@ -110,23 +108,18 @@ export function MemberForm({ member, allMembers, onSave, onCancel }: MemberFormP
           />
         </div>
 
-        {/* Referred By */}
+        {/* Referral Name */}
         <div>
           <label className="block text-sm font-medium text-foreground mb-1">
             Direferensikan Oleh
           </label>
-          <select
-            value={referredBy}
-            onChange={(e) => setReferredBy(e.target.value)}
-            className="w-full px-4 py-3 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
-          >
-            <option value="">-- Tidak ada --</option>
-            {referrerOptions.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nama} (TN{m.angkatan})
-              </option>
-            ))}
-          </select>
+          <input
+            type="text"
+            value={referralName}
+            onChange={(e) => setReferralName(e.target.value)}
+            placeholder="Ketik nama yang mereferensikan"
+            className="w-full px-4 py-3 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
+          />
         </div>
       </div>
 

@@ -1,6 +1,14 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getUserRole, canManageUsers } from "@/lib/roles";
+import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function GET() {
   const supabase = await createSupabaseServerClient();
@@ -26,11 +34,7 @@ export async function GET() {
   }
 
   // Use service role client to list all auth users
-  const { createClient } = await import("@supabase/supabase-js");
-  const adminClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const adminClient = getAdminClient();
 
   const {
     data: { users },
@@ -179,4 +183,51 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(data, { status: 201 });
+}
+
+export async function DELETE(request: NextRequest) {
+  const supabase = await createSupabaseServerClient();
+  const currentRole = await getUserRole(supabase);
+
+  if (!canManageUsers(currentRole)) {
+    return NextResponse.json(
+      { error: "Tidak memiliki akses untuk menghapus pengguna" },
+      { status: 403 }
+    );
+  }
+
+  const body = await request.json();
+  const { user_id } = body;
+
+  if (!user_id) {
+    return NextResponse.json(
+      { error: "user_id wajib diisi" },
+      { status: 400 }
+    );
+  }
+
+  // Prevent self-deletion
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user?.id === user_id) {
+    return NextResponse.json(
+      { error: "Tidak dapat menghapus akun sendiri" },
+      { status: 400 }
+    );
+  }
+
+  // Delete role assignment
+  await supabase.from("user_roles").delete().eq("user_id", user_id);
+
+  // Delete auth user
+  const adminClient = getAdminClient();
+  const { error } = await adminClient.auth.admin.deleteUser(user_id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
 }

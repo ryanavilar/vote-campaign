@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Calendar, UserCheck, Users, Trophy } from "lucide-react";
+import { LayoutDashboard, Calendar, UserCheck, Users, Trophy, MessageSquare } from "lucide-react";
 import { useRole } from "@/lib/RoleContext";
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "koordinator" as const },
   { icon: Users, label: "Anggota", path: "/anggota" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard" },
+  { icon: MessageSquare, label: "Harapan", path: "/harapan" },
 ];
 
 export function BottomNav() {

@@ -9,6 +9,7 @@ import {
   UserCheck,
   Users,
   Trophy,
+  MessageSquare,
   Settings,
   LogOut,
   ChevronLeft,
@@ -24,6 +25,7 @@ const navItems = [
   { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "koordinator" as const },
   { icon: Users, label: "Anggota", path: "/anggota", minRole: "viewer" as const },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer" as const },
+  { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer" as const },
 ];
 
 const adminItems = [

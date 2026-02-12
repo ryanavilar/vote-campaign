@@ -5,8 +5,57 @@ import { supabase } from "@/lib/supabase";
 import { StatsCards } from "@/components/StatsCards";
 import { AngkatanChart } from "@/components/AngkatanChart";
 import { ProgressChart } from "@/components/ProgressChart";
-import { Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Link2, Copy, Check, ExternalLink } from "lucide-react";
 import type { Member } from "@/lib/types";
+
+function FormLinkRow({
+  label,
+  description,
+  path,
+  copied,
+  onCopy,
+}: {
+  label: string;
+  description: string;
+  path: string;
+  copied: string | null;
+  onCopy: (url: string) => void;
+}) {
+  const fullUrl = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
+  const isCopied = copied === fullUrl;
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-3 rounded-lg bg-gray-50 border border-border">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-xs font-mono text-[#0B27BC] mt-1 truncate">{fullUrl}</p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          onClick={() => onCopy(fullUrl)}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+            isCopied
+              ? "bg-emerald-100 text-emerald-700"
+              : "bg-[#0B27BC] text-white hover:bg-[#091fa0]"
+          }`}
+        >
+          {isCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+          {isCopied ? "Tersalin!" : "Salin Link"}
+        </button>
+        <a
+          href={path}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          <ExternalLink className="w-3 h-3" />
+          Buka
+        </a>
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [data, setData] = useState<Member[]>([]);
@@ -73,6 +122,14 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   };
 
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+
+  const copyToClipboard = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedLink(url);
+    setTimeout(() => setCopiedLink(null), 2000);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -113,6 +170,23 @@ export default function Dashboard() {
       <div className="px-4 sm:px-6 py-6 space-y-6">
         {/* Stats Cards */}
         <StatsCards stats={stats} />
+
+        {/* Public Form Links */}
+        <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Link2 className="w-4 h-4 text-[#0B27BC]" />
+            <h3 className="font-semibold text-sm text-foreground">Link Formulir Publik</h3>
+          </div>
+          <div className="space-y-3">
+            <FormLinkRow
+              label="Form Dukungan"
+              description="Formulir pendaftaran dukungan untuk Aditya Syarief"
+              path="/form/dukungan"
+              copied={copiedLink}
+              onCopy={copyToClipboard}
+            />
+          </div>
+        </div>
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

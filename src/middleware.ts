@@ -33,11 +33,13 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Allow access to login page, API routes, and public forms
+  // Allow access to login page, API routes, public forms, auth callback, and onboarding
   if (
     request.nextUrl.pathname === "/login" ||
     request.nextUrl.pathname.startsWith("/api/") ||
-    request.nextUrl.pathname.startsWith("/form")
+    request.nextUrl.pathname.startsWith("/form") ||
+    request.nextUrl.pathname.startsWith("/auth/callback") ||
+    request.nextUrl.pathname === "/onboarding"
   ) {
     return supabaseResponse;
   }

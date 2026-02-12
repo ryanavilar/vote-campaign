@@ -19,6 +19,7 @@ import {
   CheckCircle,
   XCircle,
   Link2,
+  MessageSquare,
 } from "lucide-react";
 import type { Member, StatusValue, EventAttendance, Event } from "@/lib/types";
 
@@ -71,7 +72,6 @@ export default function MemberDetailPage() {
   const [member, setMember] = useState<Member | null>(null);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [referredMembers, setReferredMembers] = useState<Member[]>([]);
-  const [referrer, setReferrer] = useState<Member | null>(null);
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceWithEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -117,24 +117,6 @@ export default function MemberDetailPage() {
     if (referred) setReferredMembers(referred);
   }, [id]);
 
-  const fetchReferrer = useCallback(
-    async (referredById: string | null) => {
-      if (!referredById) {
-        setReferrer(null);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("members")
-        .select("*")
-        .eq("id", referredById)
-        .single();
-
-      setReferrer(data || null);
-    },
-    []
-  );
-
   const fetchAttendance = useCallback(async () => {
     if (!id) return;
 
@@ -155,13 +137,6 @@ export default function MemberDetailPage() {
     }
     loadAll();
   }, [fetchMember, fetchAllMembers, fetchReferralData, fetchAttendance]);
-
-  // Fetch referrer once member is loaded
-  useEffect(() => {
-    if (member) {
-      fetchReferrer(member.referred_by);
-    }
-  }, [member, fetchReferrer]);
 
   const handleToggleStatus = async (field: string) => {
     if (!member || updatingField) return;
@@ -201,7 +176,7 @@ export default function MemberDetailPage() {
     }
   };
 
-  const handleUpdateReferrer = async (referredById: string | null) => {
+  const handleUpdateReferralName = async (name: string) => {
     if (!member) return;
 
     try {
@@ -210,8 +185,8 @@ export default function MemberDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: member.id,
-          field: "referred_by",
-          value: referredById,
+          field: "referral_name",
+          value: name.trim() || null,
         }),
       });
 
@@ -220,9 +195,7 @@ export default function MemberDetailPage() {
         showToast(result.error || "Gagal mengubah referral", "error");
       } else {
         showToast("Referral berhasil diubah", "success");
-        setMember((prev) => (prev ? { ...prev, referred_by: referredById } : prev));
-        fetchReferrer(referredById);
-        fetchReferralData();
+        setMember((prev) => (prev ? { ...prev, referral_name: name.trim() || null } : prev));
       }
     } catch {
       showToast("Terjadi kesalahan jaringan", "error");
@@ -232,7 +205,7 @@ export default function MemberDetailPage() {
   const handleSaveEdit = async (data: Partial<Member>) => {
     if (!member) return;
 
-    const fields = ["nama", "angkatan", "no_hp", "pic", "referred_by"] as const;
+    const fields = ["nama", "angkatan", "no_hp", "pic", "referral_name"] as const;
     let hasError = false;
 
     for (const field of fields) {
@@ -429,29 +402,27 @@ export default function MemberDetailPage() {
                 Referral
               </h3>
 
-              {/* Referred by */}
+              {/* Referral name (free text) */}
               <div className="mb-4">
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                   Direferensikan oleh
                 </label>
                 {userCanEdit ? (
-                  <select
-                    value={member.referred_by || ""}
-                    onChange={(e) => handleUpdateReferrer(e.target.value || null)}
+                  <input
+                    type="text"
+                    defaultValue={member.referral_name || ""}
+                    onBlur={(e) => {
+                      const newVal = e.target.value.trim();
+                      if (newVal !== (member.referral_name || "")) {
+                        handleUpdateReferralName(newVal);
+                      }
+                    }}
+                    placeholder="Ketik nama yang mereferensikan..."
                     className="w-full px-3 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
-                  >
-                    <option value="">-- Tidak ada --</option>
-                    {allMembers
-                      .filter((m) => m.id !== member.id)
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.nama} (TN{m.angkatan})
-                        </option>
-                      ))}
-                  </select>
+                  />
                 ) : (
                   <p className="text-sm text-foreground">
-                    {referrer ? `${referrer.nama} (TN${referrer.angkatan})` : "Tidak ada"}
+                    {member.referral_name || "Tidak ada"}
                   </p>
                 )}
               </div>
@@ -488,6 +459,19 @@ export default function MemberDetailPage() {
                 )}
               </div>
             </div>
+
+            {/* Harapan untuk Ikastara */}
+            {member.harapan && (
+              <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
+                <h3 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-[#0B27BC]" />
+                  Harapan untuk Ikastara
+                </h3>
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                  {member.harapan}
+                </p>
+              </div>
+            )}
 
             {/* Attendance History */}
             <div className="bg-white rounded-xl border border-border p-4 shadow-sm">

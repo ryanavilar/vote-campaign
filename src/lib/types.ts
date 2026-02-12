@@ -15,6 +15,7 @@ export interface Member {
   masuk_grup: StatusValue;
   vote: StatusValue;
   referred_by: string | null;
+  referral_name: string | null;
 }
 
 export interface Event {
@@ -40,5 +41,14 @@ export interface EventAttendance {
   checked_in_by: string | null;
   catatan: string | null;
   created_at: string;
+  member?: Member;
+}
+
+export interface EventRegistration {
+  id: string;
+  event_id: string;
+  member_id: string;
+  will_attend: boolean;
+  registered_at: string;
   member?: Member;
 }

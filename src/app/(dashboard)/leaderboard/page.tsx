@@ -103,13 +103,14 @@ export default function LeaderboardPage() {
     fetchData();
   }, []);
 
-  // Compute referral counts per member name
+  // Compute referral counts per referral_name (free text from form)
   const referralCountMap = useMemo(() => {
     const map = new Map<string, number>();
     members.forEach((m) => {
-      if (m.referred_by) {
-        const current = map.get(m.referred_by) || 0;
-        map.set(m.referred_by, current + 1);
+      const name = m.referral_name?.trim();
+      if (name) {
+        const current = map.get(name) || 0;
+        map.set(name, current + 1);
       }
     });
     return map;
@@ -119,6 +120,7 @@ export default function LeaderboardPage() {
   const loyalitasData = useMemo(() => {
     return members
       .map((member) => {
+        // Count how many people listed this member's name as referral
         const referralCount = referralCountMap.get(member.nama) || 0;
         const engagementScore = computeEngagementScore(member, referralCount);
         const attendanceRate =
@@ -135,7 +137,7 @@ export default function LeaderboardPage() {
       .sort((a, b) => b.engagementScore - a.engagementScore);
   }, [members, referralCountMap, totalEvents]);
 
-  // Referral data: members grouped by referred_by
+  // Referral data: members grouped by referral_name (free text)
   const referralData = useMemo(() => {
     const referrerMap = new Map<
       string,
@@ -143,21 +145,24 @@ export default function LeaderboardPage() {
     >();
 
     members.forEach((m) => {
-      if (m.referred_by) {
-        const existing = referrerMap.get(m.referred_by) || {
+      const refName = m.referral_name?.trim();
+      if (refName) {
+        const existing = referrerMap.get(refName) || {
           names: [],
           count: 0,
         };
         existing.names.push(m.nama);
         existing.count += 1;
-        referrerMap.set(m.referred_by, existing);
+        referrerMap.set(refName, existing);
       }
     });
 
     const entries: ReferralEntry[] = [];
     referrerMap.forEach((value, referrerName) => {
-      // Find the referrer member to get their angkatan
-      const referrerMember = members.find((m) => m.nama === referrerName);
+      // Try to find the referrer member to get their angkatan
+      const referrerMember = members.find(
+        (m) => m.nama.toLowerCase() === referrerName.toLowerCase()
+      );
       entries.push({
         referrer_name: referrerName,
         referrer_angkatan: referrerMember?.angkatan || 0,

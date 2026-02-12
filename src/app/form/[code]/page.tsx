@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import {
   Loader2,
   CheckCircle,
@@ -136,10 +137,10 @@ export default function EventFormPage() {
   // Loading state
   if (eventLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#0B27BC] via-[#0B27BC] to-blue-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#fcb7c3] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-white" />
-          <p className="text-sm text-white/70">Memuat kegiatan...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-[#0B27BC]" />
+          <p className="text-sm text-[#84303F]/70">Memuat kegiatan...</p>
         </div>
       </div>
     );
@@ -148,9 +149,9 @@ export default function EventFormPage() {
   // Event not found / error
   if (eventError || !event) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#0B27BC] via-[#0B27BC] to-blue-900 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#fcb7c3] flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
-          <div className="bg-white rounded-2xl p-8 shadow-xl space-y-4">
+          <div className="bg-white rounded-2xl p-8 shadow-[0_10px_40px_-10px_rgba(11,39,188,0.12)] space-y-4">
             <div className="mx-auto w-14 h-14 rounded-full bg-red-100 flex items-center justify-center">
               <AlertCircle className="w-7 h-7 text-red-600" />
             </div>
@@ -162,9 +163,25 @@ export default function EventFormPage() {
                 "Kode kegiatan tidak valid atau kegiatan sudah berakhir."}
             </p>
           </div>
-          <p className="text-white/50 text-xs mt-4">
-            Ikastara Kita &mdash; Aditya Syarief
-          </p>
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <a
+              href="https://instagram.com/ikastarakita"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-[#84303F]/60 hover:text-[#84303F] transition-colors"
+            >
+              @ikastarakita
+            </a>
+            <span className="text-[#84303F]/30">&middot;</span>
+            <a
+              href="https://ikastarakita.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-[#84303F]/60 hover:text-[#84303F] transition-colors"
+            >
+              ikastarakita.com
+            </a>
+          </div>
         </div>
       </div>
     );
@@ -173,13 +190,13 @@ export default function EventFormPage() {
   // Success state
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#0B27BC] via-[#0B27BC] to-blue-900 flex items-center justify-center px-4">
-        <div className="w-full max-w-md text-center space-y-6">
-          <div className="bg-white rounded-2xl p-8 shadow-xl space-y-5">
-            <div className="mx-auto w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#fcb7c3] flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md text-center space-y-5">
+          <div className="bg-white rounded-2xl p-8 shadow-[0_10px_40px_-10px_rgba(11,39,188,0.12)] space-y-5">
+            <div className="mx-auto w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center">
               <CheckCircle className="w-8 h-8 text-emerald-600" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900">
+            <h2 className="text-xl font-bold text-[#0B27BC]">
               {form.will_attend === "ya"
                 ? "Pendaftaran Berhasil!"
                 : "Terima Kasih!"}
@@ -197,82 +214,115 @@ export default function EventFormPage() {
               )}
             </p>
             {event && (
-              <div className="bg-gray-50 rounded-xl p-4 text-left space-y-2">
+              <div className="bg-[#fcb7c3]/20 rounded-xl p-4 text-left space-y-2">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="w-4 h-4 shrink-0 text-[#0B27BC]" />
+                  <Calendar className="w-4 h-4 shrink-0 text-[#FE8DA1]" />
                   <span>{formatTanggal(event.tanggal)}</span>
                 </div>
                 {event.lokasi && (
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPin className="w-4 h-4 shrink-0 text-[#0B27BC]" />
+                    <MapPin className="w-4 h-4 shrink-0 text-[#FE8DA1]" />
                     <span>{event.lokasi}</span>
                   </div>
                 )}
               </div>
             )}
           </div>
-          <p className="text-white/50 text-xs">
-            Ikastara Kita &mdash; Aditya Syarief
-          </p>
+          <div className="flex items-center justify-center gap-3">
+            <a
+              href="https://instagram.com/ikastarakita"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-[#84303F]/60 hover:text-[#84303F] transition-colors"
+            >
+              @ikastarakita
+            </a>
+            <span className="text-[#84303F]/30">&middot;</span>
+            <a
+              href="https://ikastarakita.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-[#84303F]/60 hover:text-[#84303F] transition-colors"
+            >
+              ikastarakita.com
+            </a>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0B27BC] via-[#0B27BC] to-blue-900">
-      {/* Header */}
-      <div className="px-4 pt-8 pb-4 text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 rounded-full mb-4">
-          <Calendar className="w-4 h-4 text-[#FE8DA1]" />
-          <span className="text-xs font-medium text-white/90">
-            Pendaftaran Kegiatan
-          </span>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          {event.nama}
-        </h1>
-        <p className="text-sm text-white/70 max-w-sm mx-auto">
-          Ikastara Kita &mdash; Aditya Syarief
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Hero — Pink background */}
+      <div className="bg-[#fcb7c3] relative overflow-hidden">
+        {/* Decorative glow */}
+        <div className="absolute top-0 right-0 w-72 h-72 bg-[#FE8DA1]/40 rounded-full blur-3xl -translate-y-1/3 translate-x-1/4" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#0B27BC]/10 rounded-full blur-3xl translate-y-1/3 -translate-x-1/4" />
 
-      <div className="px-4 pb-8">
-        <div className="max-w-lg mx-auto space-y-4">
-          {/* Event Info Card */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm text-white/80">
-                <Calendar className="w-4 h-4 shrink-0 text-[#FE8DA1]" />
-                <span>{formatTanggal(event.tanggal)}</span>
-              </div>
-              {event.lokasi && (
-                <div className="flex items-center gap-2 text-sm text-white/80">
-                  <MapPin className="w-4 h-4 shrink-0 text-[#FE8DA1]" />
-                  <span>{event.lokasi}</span>
-                </div>
-              )}
-              {event.deskripsi && (
-                <p className="text-sm text-white/60 pt-1">{event.deskripsi}</p>
-              )}
-            </div>
+        <div className="max-w-lg mx-auto px-5 pt-6 pb-6 relative">
+          {/* Logo */}
+          <Image
+            src="https://ikastarakita.com/wp-content/uploads/2026/02/logo-ikastara-small.png"
+            alt="Ikastara Kita"
+            width={120}
+            height={40}
+            className="mb-3"
+            unoptimized
+          />
+
+          {/* Event badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/60 backdrop-blur-sm rounded-full mb-3">
+            <Calendar className="w-3.5 h-3.5 text-[#0B27BC]" />
+            <span className="text-[10px] font-semibold text-[#0B27BC] uppercase tracking-wide">
+              Pendaftaran Kegiatan
+            </span>
           </div>
 
-          {/* Form Card */}
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-            <div className="h-1 bg-gradient-to-r from-[#FE8DA1] via-[#fcb7c3] to-[#FE8DA1]" />
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0B27BC] leading-tight mb-2">
+            {event.nama}
+          </h1>
+          <p className="text-xs text-[#84303F]/70">
+            Ikastara Kita &mdash; Aditya Syarief
+          </p>
 
-            <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-5">
-              {error && (
-                <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                  {error}
-                </div>
-              )}
+          {/* Event Info */}
+          <div className="mt-4 bg-white/60 backdrop-blur-sm rounded-xl p-3.5 space-y-2">
+            <div className="flex items-center gap-2 text-sm text-[#84303F]">
+              <Calendar className="w-4 h-4 shrink-0 text-[#FE8DA1]" />
+              <span>{formatTanggal(event.tanggal)}</span>
+            </div>
+            {event.lokasi && (
+              <div className="flex items-center gap-2 text-sm text-[#84303F]">
+                <MapPin className="w-4 h-4 shrink-0 text-[#FE8DA1]" />
+                <span>{event.lokasi}</span>
+              </div>
+            )}
+            {event.deskripsi && (
+              <p className="text-xs text-[#84303F]/60 pt-0.5">{event.deskripsi}</p>
+            )}
+          </div>
+        </div>
+      </div>
 
-              {/* Nama Lengkap */}
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-gray-700">
-                  Nama Lengkap <span className="text-red-500">*</span>
+      {/* Form Section */}
+      <div className="max-w-lg mx-auto px-4 -mt-3 relative z-10 pb-8">
+        <div className="bg-white rounded-2xl shadow-[0_10px_40px_-10px_rgba(11,39,188,0.08)] overflow-hidden">
+          {/* Pink accent line */}
+          <div className="h-1 bg-gradient-to-r from-[#FE8DA1] via-[#fcb7c3] to-[#FE8DA1]" />
+
+          <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+            {error && (
+              <div className="px-4 py-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
+            {/* Nama + Angkatan */}
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Nama Lengkap <span className="text-[#FE8DA1]">*</span>
                 </label>
                 <input
                   type="text"
@@ -280,24 +330,22 @@ export default function EventFormPage() {
                   value={form.nama}
                   onChange={handleChange}
                   required
-                  placeholder="Masukkan nama lengkap Anda"
-                  className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] transition-colors"
+                  placeholder="Nama lengkap"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FE8DA1]/30 focus:border-[#FE8DA1] transition-colors placeholder:text-gray-300"
                 />
               </div>
-
-              {/* Angkatan */}
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-gray-700">
-                  Angkatan <span className="text-red-500">*</span>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Angkatan <span className="text-[#FE8DA1]">*</span>
                 </label>
                 <select
                   name="angkatan"
                   value={form.angkatan}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] transition-colors bg-white"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FE8DA1]/30 focus:border-[#FE8DA1] transition-colors bg-white"
                 >
-                  <option value="">Pilih angkatan</option>
+                  <option value="">Pilih</option>
                   {ANGKATAN_OPTIONS.map((n) => (
                     <option key={n} value={n}>
                       TN{n}
@@ -305,97 +353,126 @@ export default function EventFormPage() {
                   ))}
                 </select>
               </div>
-
-              {/* No WhatsApp */}
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-gray-700">
-                  Nomor WhatsApp <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  name="no_hp"
-                  value={form.no_hp}
-                  onChange={handleChange}
-                  required
-                  placeholder="08xxxxxxxxxx"
-                  className="w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] transition-colors"
-                />
-              </div>
-
-              {/* Kehadiran */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Apakah Anda akan hadir?{" "}
-                  <span className="text-red-500">*</span>
-                </label>
-                <div className="flex gap-3">
-                  <label
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${
-                      form.will_attend === "ya"
-                        ? "border-[#0B27BC] bg-[#0B27BC]/5 text-[#0B27BC]"
-                        : "border-gray-200 text-gray-500 hover:border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="will_attend"
-                      value="ya"
-                      checked={form.will_attend === "ya"}
-                      onChange={handleChange}
-                      className="sr-only"
-                    />
-                    <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm font-medium">Ya, saya hadir</span>
-                  </label>
-                  <label
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${
-                      form.will_attend === "tidak"
-                        ? "border-gray-600 bg-gray-50 text-gray-700"
-                        : "border-gray-200 text-gray-500 hover:border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="will_attend"
-                      value="tidak"
-                      checked={form.will_attend === "tidak"}
-                      onChange={handleChange}
-                      className="sr-only"
-                    />
-                    <span className="text-sm font-medium">
-                      Tidak bisa hadir
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#0B27BC] text-white font-semibold rounded-xl hover:bg-[#091fa0] transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Mengirim...
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-4 h-4" />
-                    Daftar Sekarang
-                  </>
-                )}
-              </button>
-            </form>
-
-            <div className="px-5 sm:px-6 pb-5 sm:pb-6">
-              <p className="text-center text-xs text-gray-400">
-                Data Anda dijaga kerahasiaannya dan hanya digunakan untuk
-                keperluan kegiatan Ikastara Kita.
-              </p>
             </div>
+
+            {/* No WhatsApp */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                No. WhatsApp <span className="text-[#FE8DA1]">*</span>
+              </label>
+              <input
+                type="tel"
+                name="no_hp"
+                value={form.no_hp}
+                onChange={handleChange}
+                required
+                placeholder="08xxxxxxxxxx"
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FE8DA1]/30 focus:border-[#FE8DA1] transition-colors placeholder:text-gray-300"
+              />
+            </div>
+
+            {/* Kehadiran */}
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-gray-600">
+                Apakah Anda akan hadir? <span className="text-[#FE8DA1]">*</span>
+              </label>
+              <div className="flex gap-3">
+                <label
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    form.will_attend === "ya"
+                      ? "border-[#FE8DA1] bg-[#FE8DA1]/5 text-[#84303F]"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="will_attend"
+                    value="ya"
+                    checked={form.will_attend === "ya"}
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">Ya, saya hadir</span>
+                </label>
+                <label
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    form.will_attend === "tidak"
+                      ? "border-gray-600 bg-gray-50 text-gray-700"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="will_attend"
+                    value="tidak"
+                    checked={form.will_attend === "tidak"}
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                  <span className="text-sm font-medium">Tidak bisa hadir</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-[#0B27BC] text-white font-semibold rounded-xl hover:bg-[#091fa0] active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed text-sm shadow-lg shadow-[#0B27BC]/20"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Mengirim...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4" />
+                  Daftar Sekarang
+                </>
+              )}
+            </button>
+
+            <p className="text-center text-[11px] text-gray-400 pt-1">
+              Data dijaga kerahasiaannya dan hanya untuk keperluan Ikastara Kita.
+            </p>
+          </form>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center pt-5 pb-2 space-y-1.5">
+          <div className="flex items-center justify-center gap-3">
+            <a
+              href="https://instagram.com/ikastarakita"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-gray-400 hover:text-[#0B27BC] transition-colors"
+            >
+              @ikastarakita
+            </a>
+            <span className="text-gray-300">&middot;</span>
+            <a
+              href="https://ikastarakita.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-gray-400 hover:text-[#0B27BC] transition-colors"
+            >
+              ikastarakita.com
+            </a>
+            <span className="text-gray-300">&middot;</span>
+            <a
+              href="https://wa.me/6285752929399"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] text-gray-400 hover:text-[#0B27BC] transition-colors"
+            >
+              0857-5292-9399
+            </a>
           </div>
+          <p className="text-[10px] text-gray-300">
+            Untuk alumni, oleh alumni, dan demi masa depan Taruna Nusantara.
+          </p>
         </div>
       </div>
     </div>

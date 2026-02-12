@@ -1,9 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
-import { Shield, Loader2, Users, AlertTriangle } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import {
+  Shield,
+  Loader2,
+  Users,
+  AlertTriangle,
+  Plus,
+  Trash2,
+  Search,
+  X,
+  Mail,
+  KeyRound,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 interface UserWithRole {
   user_id: string;
@@ -19,6 +33,23 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Invite form state
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("viewer");
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+  // Delete state
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Password change state
+  const [passwordUserId, setPasswordUserId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     if (!roleLoading && canManageUsers) {
@@ -27,6 +58,16 @@ export default function AdminUsersPage() {
       setLoading(false);
     }
   }, [roleLoading, canManageUsers]);
+
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return users;
+    const q = searchQuery.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.email.toLowerCase().includes(q) ||
+        u.role.toLowerCase().includes(q)
+    );
+  }, [users, searchQuery]);
 
   async function fetchUsers() {
     setLoading(true);
@@ -61,7 +102,6 @@ export default function AdminUsersPage() {
         throw new Error(errorData.error || "Gagal mengubah role");
       }
 
-      // Update local state
       setUsers((prev) =>
         prev.map((u) =>
           u.user_id === userId ? { ...u, role: newRole } : u
@@ -74,6 +114,106 @@ export default function AdminUsersPage() {
       showToast(message, "error");
     } finally {
       setUpdatingUserId(null);
+    }
+  }
+
+  async function handleInvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+
+    setInviteLoading(true);
+    try {
+      const response = await fetch("/api/roles/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal mengundang pengguna");
+      }
+
+      showToast(data.message || "Undangan berhasil dikirim", "success");
+      setShowInviteForm(false);
+      setInviteEmail("");
+      setInviteRole("viewer");
+      await fetchUsers();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Gagal mengundang pengguna";
+      showToast(message, "error");
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteUserId) return;
+
+    setDeleteLoading(true);
+    try {
+      const response = await fetch("/api/roles", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: deleteUserId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal menghapus pengguna");
+      }
+
+      setUsers((prev) => prev.filter((u) => u.user_id !== deleteUserId));
+      showToast("Pengguna berhasil dihapus", "success");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Gagal menghapus pengguna";
+      showToast(message, "error");
+    } finally {
+      setDeleteLoading(false);
+      setDeleteUserId(null);
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!passwordUserId || !newPassword.trim()) return;
+
+    if (newPassword.length < 6) {
+      showToast("Password minimal 6 karakter", "error");
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const response = await fetch("/api/roles/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: passwordUserId,
+          new_password: newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal mengubah password");
+      }
+
+      showToast("Password berhasil diubah", "success");
+      setPasswordUserId(null);
+      setNewPassword("");
+      setShowNewPassword(false);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Gagal mengubah password";
+      showToast(message, "error");
+    } finally {
+      setPasswordLoading(false);
     }
   }
 
@@ -99,7 +239,6 @@ export default function AdminUsersPage() {
     }
   }
 
-  // Loading state while checking role
   if (roleLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -111,7 +250,6 @@ export default function AdminUsersPage() {
     );
   }
 
-  // Access denied
   if (!canManageUsers) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -131,29 +269,93 @@ export default function AdminUsersPage() {
     );
   }
 
+  const deleteUser = users.find((u) => u.user_id === deleteUserId);
+
   return (
     <div className="bg-background min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-[#0B27BC] text-white shadow-lg">
         <div className="px-4 sm:px-6 py-3">
-          <div className="flex items-center gap-3">
-            <Shield className="w-5 h-5 text-[#FE8DA1]" />
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold text-white">
-                Manajemen Pengguna
-              </h1>
-              <p className="text-xs text-white/70">
-                Kelola role dan akses pengguna
-              </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Shield className="w-5 h-5 text-[#FE8DA1]" />
+              <div>
+                <h1 className="text-lg sm:text-xl font-bold text-white">
+                  Manajemen Pengguna
+                </h1>
+                <p className="text-xs text-white/70">
+                  Kelola role dan akses pengguna
+                </p>
+              </div>
             </div>
+            <button
+              onClick={() => setShowInviteForm(!showInviteForm)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Undang User</span>
+              <span className="sm:hidden">Undang</span>
+            </button>
           </div>
         </div>
         <div className="h-1 bg-gradient-to-r from-[#fcb7c3] via-[#FE8DA1] to-[#fcb7c3]" />
       </header>
 
-      <div className="px-4 sm:px-6 py-6 space-y-6">
-        {/* Summary card */}
-        <div className="flex items-center gap-4">
+      <div className="px-4 sm:px-6 py-6 space-y-4">
+        {/* Invite Form */}
+        {showInviteForm && (
+          <div className="bg-white rounded-xl border border-border p-4 sm:p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Mail className="w-4 h-4 text-[#0B27BC]" />
+                Undang Pengguna Baru
+              </h3>
+              <button
+                onClick={() => setShowInviteForm(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="email@contoh.com"
+                required
+                className="flex-1 px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
+              />
+              <select
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value)}
+                className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white capitalize"
+              >
+                <option value="viewer">Viewer</option>
+                <option value="koordinator">Koordinator</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button
+                type="submit"
+                disabled={inviteLoading}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091fa0] transition-colors disabled:opacity-50"
+              >
+                {inviteLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Mail className="w-4 h-4" />
+                )}
+                Kirim Undangan
+              </button>
+            </form>
+            <p className="text-xs text-muted-foreground mt-2">
+              Email undangan akan dikirim ke alamat di atas.
+            </p>
+          </div>
+        )}
+
+        {/* Summary + Search */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="bg-white rounded-xl border border-border shadow-sm p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-[#0B27BC]/10">
               <Users className="w-5 h-5 text-[#0B27BC]" />
@@ -164,6 +366,16 @@ export default function AdminUsersPage() {
               </p>
               <p className="text-xs text-muted-foreground">Total Pengguna</p>
             </div>
+          </div>
+          <div className="relative flex-1 w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari email atau role..."
+              className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
+            />
           </div>
         </div>
 
@@ -188,24 +400,29 @@ export default function AdminUsersPage() {
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden md:table-cell">
                     Login Terakhir
                   </th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-600 w-24">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {users.length === 0 ? (
+                {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center">
+                    <td colSpan={6} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Users className="w-8 h-8 text-gray-300" />
                         <p className="text-sm text-muted-foreground">
-                          Belum ada pengguna terdaftar
+                          {searchQuery
+                            ? "Tidak ada pengguna yang cocok"
+                            : "Belum ada pengguna terdaftar"}
                         </p>
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  users.map((user, index) => (
+                  filteredUsers.map((user, index) => (
+                    <React.Fragment key={user.user_id}>
                     <tr
-                      key={user.user_id}
                       className="border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors"
                     >
                       <td className="px-4 py-3 text-gray-500">{index + 1}</td>
@@ -244,7 +461,101 @@ export default function AdminUsersPage() {
                       <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
                         {formatDate(user.last_sign_in_at)}
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => {
+                              setPasswordUserId(
+                                passwordUserId === user.user_id
+                                  ? null
+                                  : user.user_id
+                              );
+                              setNewPassword("");
+                              setShowNewPassword(false);
+                            }}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              passwordUserId === user.user_id
+                                ? "text-[#0B27BC] bg-[#0B27BC]/10"
+                                : "text-[#0B27BC] hover:bg-[#0B27BC]/10"
+                            }`}
+                            title="Ubah password"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteUserId(user.user_id)}
+                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                            title="Hapus pengguna"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
+                    {/* Password change row */}
+                    {passwordUserId === user.user_id && (
+                      <tr className="bg-[#0B27BC]/5 border-b border-border">
+                        <td colSpan={6} className="px-4 py-3">
+                          <form
+                            onSubmit={handleResetPassword}
+                            className="flex flex-col sm:flex-row items-start sm:items-center gap-3"
+                          >
+                            <span className="text-xs font-medium text-[#0B27BC] whitespace-nowrap">
+                              Password baru untuk {user.email}:
+                            </span>
+                            <div className="relative flex-1 w-full sm:w-auto">
+                              <input
+                                type={showNewPassword ? "text" : "password"}
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                placeholder="Minimal 6 karakter"
+                                required
+                                className="w-full px-3 py-1.5 pr-9 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setShowNewPassword(!showNewPassword)
+                                }
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                              >
+                                {showNewPassword ? (
+                                  <EyeOff className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Eye className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="submit"
+                                disabled={passwordLoading}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091fa0] transition-colors disabled:opacity-50"
+                              >
+                                {passwordLoading ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <KeyRound className="w-3 h-3" />
+                                )}
+                                Simpan
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPasswordUserId(null);
+                                  setNewPassword("");
+                                  setShowNewPassword(false);
+                                }}
+                                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          </form>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   ))
                 )}
               </tbody>
@@ -252,6 +563,18 @@ export default function AdminUsersPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        open={!!deleteUserId}
+        title="Hapus Pengguna"
+        message={`Apakah Anda yakin ingin menghapus pengguna "${deleteUser?.email || ""}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmLabel="Hapus Pengguna"
+        variant="danger"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteUserId(null)}
+        loading={deleteLoading}
+      />
     </div>
   );
 }

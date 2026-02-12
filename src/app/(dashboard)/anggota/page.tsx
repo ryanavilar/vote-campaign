@@ -28,15 +28,29 @@ export default function AnggotaPage() {
   const { showToast } = useToast();
   const router = useRouter();
 
+  const [attendanceCounts, setAttendanceCounts] = useState<Record<string, number>>({});
+
   const fetchMembers = useCallback(async () => {
     setLoading(true);
-    const { data: members, error } = await supabase
-      .from("members")
-      .select("*")
-      .order("no", { ascending: true });
+    const [membersRes, attendanceRes] = await Promise.all([
+      supabase
+        .from("members")
+        .select("*")
+        .order("no", { ascending: true }),
+      supabase
+        .from("event_attendance")
+        .select("member_id"),
+    ]);
 
-    if (!error && members) {
-      setData(members);
+    if (!membersRes.error && membersRes.data) {
+      setData(membersRes.data);
+    }
+    if (!attendanceRes.error && attendanceRes.data) {
+      const counts: Record<string, number> = {};
+      for (const row of attendanceRes.data) {
+        counts[row.member_id] = (counts[row.member_id] || 0) + 1;
+      }
+      setAttendanceCounts(counts);
     }
     setLoading(false);
   }, []);
@@ -238,6 +252,8 @@ export default function AnggotaPage() {
         {/* Data Table with inline editing + row click to detail */}
         <DataTable
           data={filteredData}
+          allData={data}
+          attendanceCounts={attendanceCounts}
           onUpdate={userCanEdit ? updateMember : undefined}
           onRowClick={(id) => router.push(`/anggota/${id}`)}
           totalCount={data.length}

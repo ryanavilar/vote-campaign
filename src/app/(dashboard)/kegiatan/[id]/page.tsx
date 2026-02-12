@@ -27,7 +27,7 @@ import {
   ExternalLink,
   Link as LinkIcon,
 } from "lucide-react";
-import type { Event, EventAttendance, Member } from "@/lib/types";
+import type { Event, EventAttendance, EventRegistration, Member } from "@/lib/types";
 
 const STATUS_BADGE_COLORS: Record<Event["status"], string> = {
   Terjadwal: "bg-blue-100 text-blue-700",
@@ -81,6 +81,10 @@ export default function EventDetailPage() {
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [removeLoading, setRemoveLoading] = useState<string | null>(null);
 
+  // RSVP registrations state
+  const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
+  const [checkinFilter, setCheckinFilter] = useState<"all" | "rsvp">("all");
+
   const fetchEvent = useCallback(async () => {
     try {
       const res = await fetch(`/api/events/${id}`);
@@ -114,14 +118,25 @@ export default function EventDetailPage() {
     }
   }, []);
 
+  const fetchRegistrations = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/events/${id}/registrations`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setRegistrations(data);
+    } catch {
+      // silently fail
+    }
+  }, [id]);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchEvent(), fetchAttendance(), fetchMembers()]);
+      await Promise.all([fetchEvent(), fetchAttendance(), fetchMembers(), fetchRegistrations()]);
       setLoading(false);
     };
     loadData();
-  }, [fetchEvent, fetchAttendance, fetchMembers]);
+  }, [fetchEvent, fetchAttendance, fetchMembers, fetchRegistrations]);
 
   const handleCopyCode = async () => {
     if (!event?.checkin_code) return;
@@ -269,13 +284,17 @@ export default function EventDetailPage() {
 
   // Filter members for check-in dropdown (exclude already checked-in members)
   const checkedInMemberIds = new Set(attendance.map((a) => a.member_id));
-  const filteredMembers = members.filter(
-    (m) =>
-      !checkedInMemberIds.has(m.id) &&
-      (memberSearch === "" ||
-        m.nama.toLowerCase().includes(memberSearch.toLowerCase()) ||
-        String(m.angkatan).includes(memberSearch))
-  );
+  const rsvpMemberIds = new Set(registrations.map((r) => r.member_id));
+  const filteredMembers = members.filter((m) => {
+    if (checkedInMemberIds.has(m.id)) return false;
+    if (checkinFilter === "rsvp" && !rsvpMemberIds.has(m.id)) return false;
+    if (checkinFilter === "all" && memberSearch === "") return false;
+    if (memberSearch !== "" &&
+      !m.nama.toLowerCase().includes(memberSearch.toLowerCase()) &&
+      !String(m.angkatan).includes(memberSearch)
+    ) return false;
+    return true;
+  });
 
   if (loading) {
     return (
@@ -516,16 +535,26 @@ export default function EventDetailPage() {
         {/* Attendance Count Card */}
         <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-lg bg-[#FE8DA1]/20">
-                <Users className="w-5 h-5 text-[#84303F]" />
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-lg bg-[#FE8DA1]/20">
+                  <Users className="w-5 h-5 text-[#84303F]" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {attendance.length}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Total Hadir</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-foreground">
-                  {attendance.length}
-                </p>
-                <p className="text-xs text-muted-foreground">Total Hadir</p>
-              </div>
+              {registrations.length > 0 && (
+                <div className="pl-4 border-l border-border">
+                  <p className="text-2xl font-bold text-[#0B27BC]">
+                    {registrations.length}
+                  </p>
+                  <p className="text-xs text-muted-foreground">RSVP Hadir</p>
+                </div>
+              )}
             </div>
             {userCanEdit &&
               event.status !== "Dibatalkan" &&
@@ -561,6 +590,32 @@ export default function EventDetailPage() {
               </button>
             </div>
 
+            {/* RSVP Filter Toggle */}
+            {registrations.length > 0 && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setCheckinFilter("all"); setSelectedMember(null); }}
+                  className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                    checkinFilter === "all"
+                      ? "bg-[#0B27BC] text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  Semua Anggota
+                </button>
+                <button
+                  onClick={() => { setCheckinFilter("rsvp"); setSelectedMember(null); setMemberSearch(""); }}
+                  className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                    checkinFilter === "rsvp"
+                      ? "bg-[#0B27BC] text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  RSVP Hadir ({registrations.length})
+                </button>
+              </div>
+            )}
+
             {/* Member Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -571,7 +626,7 @@ export default function EventDetailPage() {
                   setMemberSearch(e.target.value);
                   setSelectedMember(null);
                 }}
-                placeholder="Cari nama anggota..."
+                placeholder={checkinFilter === "rsvp" ? "Cari dari daftar RSVP..." : "Cari nama anggota..."}
                 className="w-full pl-9 pr-3 py-2.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
               />
             </div>
@@ -594,11 +649,13 @@ export default function EventDetailPage() {
                 </button>
               </div>
             ) : (
-              memberSearch.length > 0 && (
+              (memberSearch.length > 0 || checkinFilter === "rsvp") && (
                 <div className="max-h-48 overflow-y-auto border border-border rounded-lg divide-y divide-border">
                   {filteredMembers.length === 0 ? (
                     <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                      Tidak ada anggota ditemukan
+                      {checkinFilter === "rsvp"
+                        ? "Semua anggota RSVP sudah check-in"
+                        : "Tidak ada anggota ditemukan"}
                     </div>
                   ) : (
                     filteredMembers.slice(0, 20).map((member) => (

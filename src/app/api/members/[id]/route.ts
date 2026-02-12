@@ -1,6 +1,12 @@
+import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getUserRole, canDelete } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+);
 
 export async function GET(
   _request: NextRequest,
@@ -37,20 +43,25 @@ export async function DELETE(
     );
   }
 
-  // Delete related attendance records first
-  await supabase
+  // Delete related records using service role client (bypasses RLS)
+  await supabaseAdmin
     .from("event_attendance")
     .delete()
     .eq("member_id", id);
 
+  await supabaseAdmin
+    .from("event_registrations")
+    .delete()
+    .eq("member_id", id);
+
   // Clear referred_by references pointing to this member
-  await supabase
+  await supabaseAdmin
     .from("members")
     .update({ referred_by: null })
     .eq("referred_by", id);
 
   // Delete the member
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from("members")
     .delete()
     .eq("id", id);

@@ -28,13 +28,26 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { nama, angkatan, no_hp, pic, referred_by } = body;
+  const { nama, angkatan, no_hp, pic, referral_name } = body;
 
   if (!nama || !angkatan) {
     return NextResponse.json(
       { error: "Nama dan angkatan wajib diisi" },
       { status: 400 }
     );
+  }
+
+  // Auto-match referred_by from referral_name
+  let referredBy: string | null = null;
+  if (referral_name?.trim()) {
+    const { data: referrer } = await supabase
+      .from("members")
+      .select("id")
+      .ilike("nama", referral_name.trim())
+      .limit(1);
+    if (referrer && referrer.length > 0) {
+      referredBy = referrer[0].id;
+    }
   }
 
   // Get the next "no" value
@@ -55,7 +68,8 @@ export async function POST(request: NextRequest) {
       angkatan: Number(angkatan),
       no_hp: no_hp || "",
       pic: pic || null,
-      referred_by: referred_by || null,
+      referral_name: referral_name?.trim() || null,
+      referred_by: referredBy,
       status_dpt: null,
       sudah_dikontak: null,
       masuk_grup: null,
@@ -91,7 +105,7 @@ export async function PATCH(request: NextRequest) {
     "masuk_grup",
     "vote",
     "pic",
-    "referred_by",
+    "referral_name",
     "nama",
     "angkatan",
     "no_hp",
@@ -101,9 +115,26 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Invalid field" }, { status: 400 });
   }
 
+  // When referral_name changes, auto-match referred_by
+  const updateData: Record<string, unknown> = { [field]: value };
+  if (field === "referral_name") {
+    const trimmed = typeof value === "string" ? value.trim() : "";
+    if (trimmed) {
+      const { data: referrer } = await supabase
+        .from("members")
+        .select("id")
+        .ilike("nama", trimmed)
+        .neq("id", id)
+        .limit(1);
+      updateData.referred_by = referrer && referrer.length > 0 ? referrer[0].id : null;
+    } else {
+      updateData.referred_by = null;
+    }
+  }
+
   const { data, error } = await supabase
     .from("members")
-    .update({ [field]: value })
+    .update(updateData)
     .eq("id", id)
     .select()
     .single();
