@@ -8,7 +8,7 @@ import { useRole } from "@/lib/RoleContext";
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Calendar, label: "Kegiatan", path: "/kegiatan" },
-  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "koordinator" as const },
+  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" as const },
   { icon: Users, label: "Anggota", path: "/anggota" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard" },
   { icon: MessageSquare, label: "Harapan", path: "/harapan" },
@@ -23,9 +23,9 @@ export function BottomNav() {
     return pathname.startsWith(path);
   };
 
-  const canSee = (minRole?: "koordinator" | "admin") => {
+  const canSee = (minRole?: "campaigner" | "admin") => {
     if (!minRole) return true;
-    if (minRole === "koordinator") return role === "admin" || role === "koordinator";
+    if (minRole === "campaigner") return role === "admin" || role === "campaigner";
     if (minRole === "admin") return role === "admin";
     return false;
   };

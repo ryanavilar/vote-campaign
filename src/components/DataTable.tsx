@@ -1,6 +1,7 @@
 "use client";
 
 import type { Member, StatusValue } from "@/lib/types";
+import { formatNum } from "@/lib/format";
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, X } from "lucide-react";
 import { useState, useMemo } from "react";
 
@@ -178,7 +179,7 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onRowClic
           <h3 className="font-semibold text-foreground text-sm">
             Data Anggota{" "}
             <span className="font-normal text-muted-foreground">
-              ({data.length} dari {totalCount})
+              ({formatNum(data.length)} dari {formatNum(totalCount)})
             </span>
           </h3>
           <div className="flex items-center gap-2 text-sm">

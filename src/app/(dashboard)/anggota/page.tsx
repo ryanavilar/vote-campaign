@@ -13,7 +13,9 @@ import {
   Loader2,
   Filter,
   Download,
+  Copy,
 } from "lucide-react";
+import { formatNum } from "@/lib/format";
 import type { Member, StatusValue } from "@/lib/types";
 
 export default function AnggotaPage() {
@@ -24,7 +26,9 @@ export default function AnggotaPage() {
   const [filterField, setFilterField] = useState<string>("status_dpt");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
-  const { canEdit: userCanEdit } = useRole();
+  const [filterDuplicates, setFilterDuplicates] = useState(false);
+  const { canEdit: userCanEdit, role, userId, loading: roleLoading } = useRole();
+  const isCampaigner = role === "campaigner";
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -32,11 +36,17 @@ export default function AnggotaPage() {
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
+    let membersQuery = supabase
+      .from("members")
+      .select("*")
+      .order("no", { ascending: true });
+
+    if (isCampaigner && userId) {
+      membersQuery = membersQuery.eq("assigned_to", userId);
+    }
+
     const [membersRes, attendanceRes] = await Promise.all([
-      supabase
-        .from("members")
-        .select("*")
-        .order("no", { ascending: true }),
+      membersQuery,
       supabase
         .from("event_attendance")
         .select("member_id"),
@@ -53,15 +63,35 @@ export default function AnggotaPage() {
       setAttendanceCounts(counts);
     }
     setLoading(false);
-  }, []);
+  }, [isCampaigner, userId]);
 
   useEffect(() => {
+    if (roleLoading) return;
     fetchMembers();
-  }, [fetchMembers]);
+  }, [fetchMembers, roleLoading]);
 
   const angkatanList = useMemo(() => {
     return Array.from(new Set(data.map((m) => m.angkatan))).sort((a, b) => a - b);
   }, [data]);
+
+  // Compute duplicate phones across all data
+  const duplicatePhones = useMemo(() => {
+    const phoneMap = new Map<string, number>();
+    for (const m of data) {
+      const phone = m.no_hp?.trim();
+      if (!phone) continue;
+      phoneMap.set(phone, (phoneMap.get(phone) || 0) + 1);
+    }
+    const dupes = new Set<string>();
+    for (const [phone, count] of phoneMap) {
+      if (count > 1) dupes.add(phone);
+    }
+    return dupes;
+  }, [data]);
+
+  const duplicateMemberCount = useMemo(() => {
+    return data.filter((m) => m.no_hp && duplicatePhones.has(m.no_hp.trim())).length;
+  }, [data, duplicatePhones]);
 
   const filteredData = useMemo(() => {
     return data.filter((m) => {
@@ -81,9 +111,12 @@ export default function AnggotaPage() {
         (filterStatus === "empty" && (m[statusKey] === null || m[statusKey] === "")) ||
         m[statusKey] === filterStatus;
 
-      return matchesSearch && matchesAngkatan && matchesStatus;
+      const matchesDuplicate =
+        !filterDuplicates || (m.no_hp && duplicatePhones.has(m.no_hp.trim()));
+
+      return matchesSearch && matchesAngkatan && matchesStatus && matchesDuplicate;
     });
-  }, [data, searchQuery, filterAngkatan, filterStatus, filterField]);
+  }, [data, searchQuery, filterAngkatan, filterStatus, filterField, filterDuplicates, duplicatePhones]);
 
   const handleCreateMember = async (memberData: Partial<Member>) => {
     try {
@@ -160,7 +193,7 @@ export default function AnggotaPage() {
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-white">Data Anggota</h1>
               <p className="text-xs text-white/70">
-                {data.length} anggota terdaftar
+                {formatNum(data.length)} anggota {isCampaigner ? "ditugaskan" : "terdaftar"}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -171,7 +204,7 @@ export default function AnggotaPage() {
                 <Download className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Export CSV</span>
               </button>
-              {userCanEdit && (
+              {userCanEdit && !isCampaigner && (
                 <button
                   onClick={() => setShowForm(!showForm)}
                   className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors"
@@ -247,6 +280,21 @@ export default function AnggotaPage() {
               <option value="empty">Belum diisi</option>
             </select>
           </div>
+          {duplicateMemberCount > 0 && (
+            <div className="mt-3">
+              <button
+                onClick={() => setFilterDuplicates(!filterDuplicates)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  filterDuplicates
+                    ? "bg-[#FE8DA1] text-white"
+                    : "bg-[#FE8DA1]/10 text-[#84303F] hover:bg-[#FE8DA1]/20 border border-[#FE8DA1]/30"
+                }`}
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Duplikat No. HP ({formatNum(duplicateMemberCount)})
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Data Table with inline editing + row click to detail */}

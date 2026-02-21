@@ -8,6 +8,7 @@ import {
   Legend,
   Tooltip,
 } from "recharts";
+import { formatNum } from "@/lib/format";
 
 interface ProgressChartProps {
   stats: {
@@ -68,14 +69,14 @@ export function ProgressChart({ stats }: ProgressChartProps) {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value) => [String(value), ""]}
+                      formatter={(value) => [formatNum(Number(value)), ""]}
                       contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
               <p className="text-lg font-bold text-foreground">{pct}%</p>
-              <p className="text-xs text-muted-foreground">{cat.sudah}/{stats.total}</p>
+              <p className="text-xs text-muted-foreground">{formatNum(cat.sudah)}/{formatNum(stats.total)}</p>
             </div>
           );
         })}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 import { Trophy, Users, Loader2, Medal } from "lucide-react";
+import { useRole } from "@/lib/RoleContext";
 import { EmptyState } from "@/components/EmptyState";
 import { EngagementBadge } from "@/components/EngagementBadge";
 import type { Member } from "@/lib/types";
@@ -46,16 +47,26 @@ export default function LeaderboardPage() {
   const [members, setMembers] = useState<MemberWithAttendance[]>([]);
   const [totalEvents, setTotalEvents] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { role, userId, loading: roleLoading } = useRole();
+  const isCampaigner = role === "campaigner";
 
   useEffect(() => {
+    if (roleLoading) return;
+
     async function fetchData() {
       setLoading(true);
 
-      // Fetch all members
-      const { data: membersData, error: membersError } = await supabase
+      // Fetch members (scoped for campaigner)
+      let membersQuery = supabase
         .from("members")
         .select("*")
         .order("nama", { ascending: true });
+
+      if (isCampaigner && userId) {
+        membersQuery = membersQuery.eq("assigned_to", userId);
+      }
+
+      const { data: membersData, error: membersError } = await membersQuery;
 
       if (membersError) {
         console.error("Error fetching members:", membersError);
@@ -101,7 +112,7 @@ export default function LeaderboardPage() {
     }
 
     fetchData();
-  }, []);
+  }, [roleLoading, isCampaigner, userId]);
 
   // Compute referral counts per referral_name (free text from form)
   const referralCountMap = useMemo(() => {

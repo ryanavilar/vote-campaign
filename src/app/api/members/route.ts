@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { nama, angkatan, no_hp, pic, referral_name } = body;
+  const { nama, angkatan, no_hp, pic, referral_name, alumni_id } = body;
 
   if (!nama || !angkatan) {
     return NextResponse.json(
@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
       pic: pic || null,
       referral_name: referral_name?.trim() || null,
       referred_by: referredBy,
+      alumni_id: alumni_id || null,
       status_dpt: null,
       sudah_dikontak: null,
       masuk_grup: null,
@@ -109,6 +110,8 @@ export async function PATCH(request: NextRequest) {
     "nama",
     "angkatan",
     "no_hp",
+    "assigned_to",
+    "alumni_id",
   ];
 
   if (!allowedFields.includes(field)) {

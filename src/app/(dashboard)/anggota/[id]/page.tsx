@@ -20,6 +20,7 @@ import {
   XCircle,
   Link2,
   MessageSquare,
+  UserPlus,
 } from "lucide-react";
 import type { Member, StatusValue, EventAttendance, Event } from "@/lib/types";
 
@@ -66,13 +67,15 @@ interface AttendanceWithEvent extends EventAttendance {
 export default function MemberDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { canEdit: userCanEdit, canDelete: userCanDelete } = useRole();
+  const { canEdit: userCanEdit, canDelete: userCanDelete, canManageUsers, role, userId } = useRole();
+  const isCampaigner = role === "campaigner";
   const { showToast } = useToast();
 
   const [member, setMember] = useState<Member | null>(null);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [referredMembers, setReferredMembers] = useState<Member[]>([]);
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceWithEvent[]>([]);
+  const [campaigners, setCampaigners] = useState<{ user_id: string; email: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -129,14 +132,44 @@ export default function MemberDetailPage() {
     if (data) setAttendanceHistory(data);
   }, [id]);
 
+  const fetchCampaigners = useCallback(async () => {
+    if (!canManageUsers) return;
+    try {
+      const res = await fetch("/api/assignments");
+      if (res.ok) {
+        const data = await res.json();
+        setCampaigners(data.campaigners || []);
+      }
+    } catch { /* ignore */ }
+  }, [canManageUsers]);
+
   useEffect(() => {
     async function loadAll() {
       setLoading(true);
-      await Promise.all([fetchMember(), fetchAllMembers(), fetchReferralData(), fetchAttendance()]);
+      await Promise.all([fetchMember(), fetchAllMembers(), fetchReferralData(), fetchAttendance(), fetchCampaigners()]);
       setLoading(false);
     }
     loadAll();
-  }, [fetchMember, fetchAllMembers, fetchReferralData, fetchAttendance]);
+  }, [fetchMember, fetchAllMembers, fetchReferralData, fetchAttendance, fetchCampaigners]);
+
+  const handleUpdateAssignment = async (assignedTo: string | null) => {
+    if (!member) return;
+    try {
+      const res = await fetch("/api/members", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: member.id, field: "assigned_to", value: assignedTo || null }),
+      });
+      if (!res.ok) {
+        showToast("Gagal mengubah penugasan", "error");
+      } else {
+        showToast("Penugasan berhasil diubah", "success");
+        setMember((prev) => (prev ? { ...prev, assigned_to: assignedTo } : prev));
+      }
+    } catch {
+      showToast("Terjadi kesalahan jaringan", "error");
+    }
+  };
 
   const handleToggleStatus = async (field: string) => {
     if (!member || updatingField) return;
@@ -294,7 +327,7 @@ export default function MemberDetailPage() {
               <h1 className="text-lg font-bold text-white truncate">Detail Anggota</h1>
             </div>
             <div className="flex items-center gap-2">
-              {userCanEdit && (
+              {userCanEdit && (!isCampaigner || member?.assigned_to === userId) && (
                 <button
                   onClick={() => setEditMode(!editMode)}
                   className="p-2 rounded-lg hover:bg-white/10 transition-colors"
@@ -302,7 +335,7 @@ export default function MemberDetailPage() {
                   <Pencil className="w-4 h-4" />
                 </button>
               )}
-              {userCanDelete && (
+              {userCanDelete && !isCampaigner && (
                 <button
                   onClick={() => setDeleteDialogOpen(true)}
                   className="p-2 rounded-lg hover:bg-red-500/20 transition-colors"
@@ -354,6 +387,29 @@ export default function MemberDetailPage() {
                         <span>PIC: {member.pic}</span>
                       </div>
                     )}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <UserPlus className="w-3.5 h-3.5" />
+                      {canManageUsers ? (
+                        <select
+                          value={member.assigned_to || ""}
+                          onChange={(e) => handleUpdateAssignment(e.target.value || null)}
+                          className="px-2 py-1 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
+                        >
+                          <option value="">Belum ditugaskan</option>
+                          {campaigners.map((c) => (
+                            <option key={c.user_id} value={c.user_id}>
+                              {c.email}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span>
+                          {member.assigned_to
+                            ? campaigners.find((c) => c.user_id === member.assigned_to)?.email || "Ditugaskan"
+                            : "Belum ditugaskan"}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -366,25 +422,25 @@ export default function MemberDetailPage() {
                 <StatusToggle
                   label="Status DPT"
                   value={member.status_dpt}
-                  canToggle={userCanEdit && updatingField !== "status_dpt"}
+                  canToggle={userCanEdit && (!isCampaigner || member.assigned_to === userId) && updatingField !== "status_dpt"}
                   onToggle={() => handleToggleStatus("status_dpt")}
                 />
                 <StatusToggle
                   label="Sudah Dikontak"
                   value={member.sudah_dikontak}
-                  canToggle={userCanEdit && updatingField !== "sudah_dikontak"}
+                  canToggle={userCanEdit && (!isCampaigner || member.assigned_to === userId) && updatingField !== "sudah_dikontak"}
                   onToggle={() => handleToggleStatus("sudah_dikontak")}
                 />
                 <StatusToggle
                   label="Masuk Grup"
                   value={member.masuk_grup}
-                  canToggle={userCanEdit && updatingField !== "masuk_grup"}
+                  canToggle={userCanEdit && (!isCampaigner || member.assigned_to === userId) && updatingField !== "masuk_grup"}
                   onToggle={() => handleToggleStatus("masuk_grup")}
                 />
                 <StatusToggle
                   label="Vote"
                   value={member.vote}
-                  canToggle={userCanEdit && updatingField !== "vote"}
+                  canToggle={userCanEdit && (!isCampaigner || member.assigned_to === userId) && updatingField !== "vote"}
                   onToggle={() => handleToggleStatus("vote")}
                 />
               </div>

@@ -84,10 +84,10 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const validRoles = ["admin", "koordinator", "viewer"];
+  const validRoles = ["admin", "campaigner", "viewer"];
   if (!validRoles.includes(role)) {
     return NextResponse.json(
-      { error: "Role tidak valid. Pilih: admin, koordinator, atau viewer" },
+      { error: "Role tidak valid. Pilih: admin, campaigner, atau viewer" },
       { status: 400 }
     );
   }
@@ -150,10 +150,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const validRoles = ["admin", "koordinator", "viewer"];
+  const validRoles = ["admin", "campaigner", "viewer"];
   if (!validRoles.includes(role)) {
     return NextResponse.json(
-      { error: "Role tidak valid. Pilih: admin, koordinator, atau viewer" },
+      { error: "Role tidak valid. Pilih: admin, campaigner, atau viewer" },
       { status: 400 }
     );
   }

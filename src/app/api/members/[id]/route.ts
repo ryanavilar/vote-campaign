@@ -28,6 +28,61 @@ export async function GET(
   return NextResponse.json(data);
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const supabase = await createSupabaseServerClient();
+  const role = await getUserRole(supabase);
+
+  if (!role || role === "viewer") {
+    return NextResponse.json(
+      { error: "Tidak memiliki akses untuk mengedit" },
+      { status: 403 }
+    );
+  }
+
+  const body = await request.json();
+
+  // Only allow specific fields to be updated
+  const allowedFields = [
+    "no_hp",
+    "pic",
+    "status_dpt",
+    "sudah_dikontak",
+    "masuk_grup",
+    "vote",
+    "referral_name",
+  ];
+  const updates: Record<string, unknown> = {};
+  for (const key of allowedFields) {
+    if (key in body) {
+      updates[key] = body[key];
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json(
+      { error: "Tidak ada data untuk diperbarui" },
+      { status: 400 }
+    );
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("members")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

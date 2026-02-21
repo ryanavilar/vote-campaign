@@ -16,6 +16,20 @@ export interface Member {
   vote: StatusValue;
   referred_by: string | null;
   referral_name: string | null;
+  assigned_to: string | null;
+  alumni_id: string | null;
+}
+
+export interface Alumni {
+  id: string;
+  nosis: string | null;
+  nama: string;
+  angkatan: number;
+  kelanjutan_studi: string | null;
+  program_studi: string | null;
+  keterangan: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Event {

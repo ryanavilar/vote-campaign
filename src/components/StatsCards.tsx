@@ -1,6 +1,7 @@
 "use client";
 
 import { Users, ClipboardCheck, Phone, UserCheck, Vote } from "lucide-react";
+import { formatNum } from "@/lib/format";
 
 interface StatsProps {
   stats: {
@@ -27,7 +28,7 @@ export function StatsCards({ stats }: StatsProps) {
     {
       label: "Status DPT",
       value: stats.dptSudah,
-      sub: `${stats.total - stats.dptSudah} belum`,
+      sub: `${formatNum(stats.total - stats.dptSudah)} belum`,
       icon: ClipboardCheck,
       color: "bg-emerald-500",
       bgColor: "bg-emerald-50",
@@ -37,7 +38,7 @@ export function StatsCards({ stats }: StatsProps) {
     {
       label: "Sudah Dikontak",
       value: stats.kontakSudah,
-      sub: `${stats.total - stats.kontakSudah} belum`,
+      sub: `${formatNum(stats.total - stats.kontakSudah)} belum`,
       icon: Phone,
       color: "bg-[#FE8DA1]",
       bgColor: "bg-[#FE8DA1]/10",
@@ -47,7 +48,7 @@ export function StatsCards({ stats }: StatsProps) {
     {
       label: "Masuk Grup",
       value: stats.grupSudah,
-      sub: `${stats.total - stats.grupSudah} belum`,
+      sub: `${formatNum(stats.total - stats.grupSudah)} belum`,
       icon: UserCheck,
       color: "bg-[#0B27BC]",
       bgColor: "bg-[#0B27BC]/10",
@@ -57,7 +58,7 @@ export function StatsCards({ stats }: StatsProps) {
     {
       label: "Sudah Vote",
       value: stats.voteSudah,
-      sub: `${stats.total - stats.voteSudah} belum`,
+      sub: `${formatNum(stats.total - stats.voteSudah)} belum`,
       icon: Vote,
       color: "bg-[#84303F]",
       bgColor: "bg-[#84303F]/10",
@@ -80,7 +81,7 @@ export function StatsCards({ stats }: StatsProps) {
                 <Icon className={`w-5 h-5 ${card.textColor}`} />
               </div>
             </div>
-            <p className="text-2xl font-bold text-foreground">{card.value}</p>
+            <p className="text-2xl font-bold text-foreground">{formatNum(card.value)}</p>
             <p className="text-xs font-medium text-muted-foreground mt-1">
               {card.label}
             </p>

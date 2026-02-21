@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type UserRole = "admin" | "koordinator" | "viewer";
+export type UserRole = "admin" | "campaigner" | "viewer";
 
 export async function getUserRole(supabase: SupabaseClient): Promise<UserRole> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -16,7 +16,7 @@ export async function getUserRole(supabase: SupabaseClient): Promise<UserRole> {
 }
 
 export function canEdit(role: UserRole): boolean {
-  return role === "admin" || role === "koordinator";
+  return role === "admin" || role === "campaigner";
 }
 
 export function canDelete(role: UserRole): boolean {

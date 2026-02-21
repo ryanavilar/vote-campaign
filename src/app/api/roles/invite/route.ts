@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const validRoles = ["admin", "koordinator", "viewer"];
+  const validRoles = ["admin", "campaigner", "viewer"];
   if (!validRoles.includes(role)) {
     return NextResponse.json(
       { error: "Role tidak valid" },
@@ -38,8 +38,11 @@ export async function POST(request: NextRequest) {
   );
 
   // Invite user via Supabase Admin
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ikastara-kita-dashboard.vercel.app";
   const { data: inviteData, error: inviteError } =
-    await adminClient.auth.admin.inviteUserByEmail(email);
+    await adminClient.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${siteUrl}/auth/callback`,
+    });
 
   if (inviteError) {
     // If user already exists, try to find them

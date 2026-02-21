@@ -232,7 +232,7 @@ export default function AdminUsersPage() {
     switch (role) {
       case "admin":
         return "bg-[#84303F]/10 text-[#84303F]";
-      case "koordinator":
+      case "campaigner":
         return "bg-[#0B27BC]/10 text-[#0B27BC]";
       default:
         return "bg-gray-100 text-gray-600";
@@ -332,7 +332,7 @@ export default function AdminUsersPage() {
                 className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white capitalize"
               >
                 <option value="viewer">Viewer</option>
-                <option value="koordinator">Koordinator</option>
+                <option value="campaigner">Campaigner</option>
                 <option value="admin">Admin</option>
               </select>
               <button
@@ -447,7 +447,7 @@ export default function AdminUsersPage() {
                             className="px-2 py-1.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white disabled:opacity-50 disabled:cursor-wait capitalize"
                           >
                             <option value="admin">Admin</option>
-                            <option value="koordinator">Koordinator</option>
+                            <option value="campaigner">Campaigner</option>
                             <option value="viewer">Viewer</option>
                           </select>
                           {updatingUserId === user.user_id && (

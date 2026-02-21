@@ -6,6 +6,7 @@ import { StatsCards } from "@/components/StatsCards";
 import { AngkatanChart } from "@/components/AngkatanChart";
 import { ProgressChart } from "@/components/ProgressChart";
 import { Download, Loader2, Link2, Copy, Check, ExternalLink } from "lucide-react";
+import { useRole } from "@/lib/RoleContext";
 import type { Member } from "@/lib/types";
 
 function FormLinkRow({
@@ -60,17 +61,27 @@ function FormLinkRow({
 export default function Dashboard() {
   const [data, setData] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const { role, userId, loading: roleLoading } = useRole();
+
+  const isCampaigner = role === "campaigner";
 
   useEffect(() => {
+    if (roleLoading) return;
     fetchMembers();
-  }, []);
+  }, [roleLoading]);
 
   const fetchMembers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("members")
       .select("*")
       .order("no", { ascending: true });
+
+    if (isCampaigner && userId) {
+      query = query.eq("assigned_to", userId);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
       setData(data);
@@ -149,7 +160,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-white">
-                Dashboard Pemenangan
+                {isCampaigner ? "Dashboard Saya" : "Dashboard Pemenangan"}
               </h1>
               <p className="text-xs text-white/70">
                 Ikastara Kita &mdash; Aditya Syarief
@@ -171,22 +182,24 @@ export default function Dashboard() {
         {/* Stats Cards */}
         <StatsCards stats={stats} />
 
-        {/* Public Form Links */}
-        <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Link2 className="w-4 h-4 text-[#0B27BC]" />
-            <h3 className="font-semibold text-sm text-foreground">Link Formulir Publik</h3>
+        {/* Public Form Links (admin only) */}
+        {!isCampaigner && (
+          <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Link2 className="w-4 h-4 text-[#0B27BC]" />
+              <h3 className="font-semibold text-sm text-foreground">Link Formulir Publik</h3>
+            </div>
+            <div className="space-y-3">
+              <FormLinkRow
+                label="Form Dukungan"
+                description="Formulir pendaftaran dukungan untuk Aditya Syarief"
+                path="/form/dukungan"
+                copied={copiedLink}
+                onCopy={copyToClipboard}
+              />
+            </div>
           </div>
-          <div className="space-y-3">
-            <FormLinkRow
-              label="Form Dukungan"
-              description="Formulir pendaftaran dukungan untuk Aditya Syarief"
-              path="/form/dukungan"
-              copied={copiedLink}
-              onCopy={copyToClipboard}
-            />
-          </div>
-        </div>
+        )}
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

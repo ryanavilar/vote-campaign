@@ -11,6 +11,9 @@ import {
   Trophy,
   MessageSquare,
   Settings,
+  Settings2,
+  UserPlus,
+  GraduationCap,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -22,14 +25,17 @@ import { supabase } from "@/lib/supabase";
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/", minRole: "viewer" as const },
   { icon: Calendar, label: "Kegiatan", path: "/kegiatan", minRole: "viewer" as const },
-  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "koordinator" as const },
+  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" as const },
   { icon: Users, label: "Anggota", path: "/anggota", minRole: "viewer" as const },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer" as const },
   { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer" as const },
 ];
 
 const adminItems = [
-  { icon: Settings, label: "Admin", path: "/admin/users", minRole: "admin" as const },
+  { icon: GraduationCap, label: "Alumni", path: "/admin/alumni", minRole: "admin" as const },
+  { icon: Settings, label: "Pengguna", path: "/admin/users", minRole: "admin" as const },
+  { icon: UserPlus, label: "Penugasan", path: "/admin/assignments", minRole: "admin" as const },
+  { icon: Settings2, label: "Pengaturan", path: "/admin/settings", minRole: "admin" as const },
 ];
 
 export function Sidebar() {
@@ -42,9 +48,9 @@ export function Sidebar() {
     return pathname.startsWith(path);
   };
 
-  const canSee = (minRole: "viewer" | "koordinator" | "admin") => {
+  const canSee = (minRole: "viewer" | "campaigner" | "admin") => {
     if (minRole === "viewer") return true;
-    if (minRole === "koordinator") return role === "admin" || role === "koordinator";
+    if (minRole === "campaigner") return role === "admin" || role === "campaigner";
     if (minRole === "admin") return role === "admin";
     return false;
   };

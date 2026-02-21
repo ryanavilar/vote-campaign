@@ -10,6 +10,7 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import { formatNum } from "@/lib/format";
 
 interface AngkatanData {
   angkatan: string;
@@ -43,6 +44,7 @@ export function AngkatanChart({ data }: AngkatanChartProps) {
             />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip
+              formatter={(value) => [formatNum(Number(value)), ""]}
               contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
