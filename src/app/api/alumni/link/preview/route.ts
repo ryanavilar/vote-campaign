@@ -1,7 +1,35 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getUserRole, canManageUsers } from "@/lib/roles";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+
+/**
+ * Fetch all rows from a Supabase table, paginating in batches of 1000
+ * to bypass PostgREST's default 1000-row limit.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchAll<T = any>(
+  client: SupabaseClient,
+  table: string,
+  select: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  applyFilters?: (q: any) => any
+): Promise<T[]> {
+  const PAGE = 1000;
+  let all: T[] = [];
+  let from = 0;
+  while (true) {
+    let q = client.from(table).select(select).range(from, from + PAGE - 1);
+    if (applyFilters) q = applyFilters(q);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all = all.concat(data as T[]);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
 
 /**
  * Normalize a name for comparison:
@@ -118,15 +146,16 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Get unlinked members
-  const { data: unlinkedMembers, error: membersError } = await adminClient
-    .from("members")
-    .select("id, nama, angkatan")
-    .is("alumni_id", null);
-
-  if (membersError) {
+  // Get unlinked members (paginated to handle >1000 rows)
+  let unlinkedMembers: { id: string; nama: string; angkatan: number }[];
+  try {
+    unlinkedMembers = await fetchAll(
+      adminClient, "members", "id, nama, angkatan",
+      (q) => q.is("alumni_id", null)
+    );
+  } catch (err) {
     return NextResponse.json(
-      { error: membersError.message },
+      { error: err instanceof Error ? err.message : "Failed to fetch members" },
       { status: 500 }
     );
   }
@@ -135,25 +164,31 @@ export async function GET() {
     return NextResponse.json({ candidates: [], total_unlinked: 0 });
   }
 
-  // Get all alumni grouped by angkatan for efficient lookup
+  // Get all alumni grouped by angkatan for efficient lookup (paginated)
   const angkatanSet = new Set(unlinkedMembers.map((m) => m.angkatan));
-  const { data: alumniData, error: alumniError } = await adminClient
-    .from("alumni")
-    .select("id, nama, angkatan")
-    .in("angkatan", Array.from(angkatanSet));
-
-  if (alumniError) {
+  let alumniData: { id: string; nama: string; angkatan: number }[];
+  try {
+    alumniData = await fetchAll(
+      adminClient, "alumni", "id, nama, angkatan",
+      (q) => q.in("angkatan", Array.from(angkatanSet))
+    );
+  } catch (err) {
     return NextResponse.json(
-      { error: alumniError.message },
+      { error: err instanceof Error ? err.message : "Failed to fetch alumni" },
       { status: 500 }
     );
   }
 
-  // Get already-linked alumni IDs to exclude them
-  const { data: linkedAlumni } = await adminClient
-    .from("members")
-    .select("alumni_id")
-    .not("alumni_id", "is", null);
+  // Get already-linked alumni IDs to exclude them (paginated)
+  let linkedAlumni: { alumni_id: string }[];
+  try {
+    linkedAlumni = await fetchAll(
+      adminClient, "members", "alumni_id",
+      (q) => q.not("alumni_id", "is", null)
+    );
+  } catch {
+    linkedAlumni = [];
+  }
 
   const linkedAlumniIds = new Set(
     (linkedAlumni || []).map((m) => m.alumni_id)

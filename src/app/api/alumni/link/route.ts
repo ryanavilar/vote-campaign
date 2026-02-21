@@ -1,7 +1,31 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getUserRole, canManageUsers } from "@/lib/roles";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchAll<T = any>(
+  client: SupabaseClient,
+  table: string,
+  select: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  applyFilters?: (q: any) => any
+): Promise<T[]> {
+  const PAGE = 1000;
+  let all: T[] = [];
+  let from = 0;
+  while (true) {
+    let q = client.from(table).select(select).range(from, from + PAGE - 1);
+    if (applyFilters) q = applyFilters(q);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all = all.concat(data as T[]);
+    if (data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
 
 export async function POST(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
@@ -48,15 +72,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ linked, failed });
   }
 
-  // Legacy auto-link: exact name match
-  const { data: unlinkedMembers, error: membersError } = await adminClient
-    .from("members")
-    .select("id, nama, angkatan")
-    .is("alumni_id", null);
-
-  if (membersError) {
+  // Legacy auto-link: exact name match (paginated to handle >1000 rows)
+  let unlinkedMembers: { id: string; nama: string; angkatan: number }[];
+  try {
+    unlinkedMembers = await fetchAll(
+      adminClient, "members", "id, nama, angkatan",
+      (q) => q.is("alumni_id", null)
+    );
+  } catch (err) {
     return NextResponse.json(
-      { error: membersError.message },
+      { error: err instanceof Error ? err.message : "Failed to fetch members" },
       { status: 500 }
     );
   }

@@ -17,18 +17,29 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Crosshair,
 } from "lucide-react";
 import { useState } from "react";
 import { useRole } from "@/lib/RoleContext";
 import { supabase } from "@/lib/supabase";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/", minRole: "viewer" as const },
-  { icon: Calendar, label: "Kegiatan", path: "/kegiatan", minRole: "viewer" as const },
-  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" as const },
-  { icon: Users, label: "Anggota", path: "/anggota", minRole: "viewer" as const },
-  { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer" as const },
-  { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer" as const },
+interface NavItem {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path: string;
+  minRole: "viewer" | "campaigner" | "admin";
+  maxRole?: "campaigner";
+  hideForRole?: "campaigner";
+}
+
+const navItems: NavItem[] = [
+  { icon: LayoutDashboard, label: "Dashboard", path: "/", minRole: "viewer" },
+  { icon: Calendar, label: "Kegiatan", path: "/kegiatan", minRole: "viewer" },
+  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" },
+  { icon: Crosshair, label: "Target Saya", path: "/target", minRole: "campaigner", maxRole: "campaigner" },
+  { icon: Users, label: "Anggota", path: "/anggota", minRole: "viewer", hideForRole: "campaigner" },
+  { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer" },
+  { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer" },
 ];
 
 const adminItems = [
@@ -48,7 +59,13 @@ export function Sidebar() {
     return pathname.startsWith(path);
   };
 
-  const canSee = (minRole: "viewer" | "campaigner" | "admin") => {
+  const canSee = (item: NavItem) => {
+    const { minRole, maxRole, hideForRole } = item;
+    // Hide if current role matches hideForRole
+    if (hideForRole && role === hideForRole) return false;
+    // Only show if maxRole matches
+    if (maxRole && role !== maxRole) return false;
+    // Min role check
     if (minRole === "viewer") return true;
     if (minRole === "campaigner") return role === "admin" || role === "campaigner";
     if (minRole === "admin") return role === "admin";
@@ -79,7 +96,7 @@ export function Sidebar() {
 
       {/* Nav items */}
       <nav className="flex-1 py-3 px-2 space-y-1">
-        {navItems.filter((item) => canSee(item.minRole)).map((item) => {
+        {navItems.filter((item) => canSee(item)).map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
           return (

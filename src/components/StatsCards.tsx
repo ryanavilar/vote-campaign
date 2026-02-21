@@ -1,20 +1,21 @@
 "use client";
 
-import { Users, ClipboardCheck, Phone, UserCheck, Vote } from "lucide-react";
+import { Users, ClipboardCheck, GraduationCap, UserCheck, Vote } from "lucide-react";
 import { formatNum } from "@/lib/format";
 
 interface StatsProps {
   stats: {
     total: number;
+    totalAlumni: number;
+    linkedAlumni: number;
     dptSudah: number;
-    kontakSudah: number;
     grupSudah: number;
     voteSudah: number;
   };
 }
 
 export function StatsCards({ stats }: StatsProps) {
-  const safePercent = (n: number) => stats.total > 0 ? Math.round((n / stats.total) * 100) : 0;
+  const safePercent = (n: number, d: number) => d > 0 ? Math.round((n / d) * 100) : 0;
 
   const cards = [
     {
@@ -26,6 +27,16 @@ export function StatsCards({ stats }: StatsProps) {
       textColor: "text-[#0B27BC]",
     },
     {
+      label: "Data Alumni",
+      value: stats.totalAlumni,
+      sub: `${formatNum(stats.linkedAlumni)} terhubung`,
+      icon: GraduationCap,
+      color: "bg-[#84303F]",
+      bgColor: "bg-[#84303F]/10",
+      textColor: "text-[#84303F]",
+      percentage: safePercent(stats.linkedAlumni, stats.totalAlumni),
+    },
+    {
       label: "Status DPT",
       value: stats.dptSudah,
       sub: `${formatNum(stats.total - stats.dptSudah)} belum`,
@@ -33,17 +44,7 @@ export function StatsCards({ stats }: StatsProps) {
       color: "bg-emerald-500",
       bgColor: "bg-emerald-50",
       textColor: "text-emerald-700",
-      percentage: safePercent(stats.dptSudah),
-    },
-    {
-      label: "Sudah Dikontak",
-      value: stats.kontakSudah,
-      sub: `${formatNum(stats.total - stats.kontakSudah)} belum`,
-      icon: Phone,
-      color: "bg-[#FE8DA1]",
-      bgColor: "bg-[#FE8DA1]/10",
-      textColor: "text-[#84303F]",
-      percentage: safePercent(stats.kontakSudah),
+      percentage: safePercent(stats.dptSudah, stats.total),
     },
     {
       label: "Masuk Grup",
@@ -53,7 +54,7 @@ export function StatsCards({ stats }: StatsProps) {
       color: "bg-[#0B27BC]",
       bgColor: "bg-[#0B27BC]/10",
       textColor: "text-[#0B27BC]",
-      percentage: safePercent(stats.grupSudah),
+      percentage: safePercent(stats.grupSudah, stats.total),
     },
     {
       label: "Sudah Vote",
@@ -63,7 +64,7 @@ export function StatsCards({ stats }: StatsProps) {
       color: "bg-[#84303F]",
       bgColor: "bg-[#84303F]/10",
       textColor: "text-[#84303F]",
-      percentage: safePercent(stats.voteSudah),
+      percentage: safePercent(stats.voteSudah, stats.total),
     },
   ];
 

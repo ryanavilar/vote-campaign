@@ -20,6 +20,7 @@ interface AngkatanData {
   kontak: number;
   grup: number;
   vote: number;
+  alumni: number;
 }
 
 interface AngkatanChartProps {
@@ -29,7 +30,7 @@ interface AngkatanChartProps {
 export function AngkatanChart({ data }: AngkatanChartProps) {
   return (
     <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
-      <h3 className="font-semibold text-foreground mb-4">Anggota per Angkatan</h3>
+      <h3 className="font-semibold text-foreground mb-4">Data per Angkatan</h3>
       <div className="h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
@@ -48,7 +49,8 @@ export function AngkatanChart({ data }: AngkatanChartProps) {
               contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="total" name="Total" fill="#0B27BC" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="alumni" name="Alumni" fill="#84303F" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="total" name="Anggota" fill="#0B27BC" radius={[2, 2, 0, 0]} />
             <Bar dataKey="vote" name="Vote" fill="#FE8DA1" radius={[2, 2, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

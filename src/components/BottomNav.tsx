@@ -2,14 +2,24 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Calendar, UserCheck, Users, Trophy, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Calendar, UserCheck, Users, Trophy, MessageSquare, Crosshair } from "lucide-react";
 import { useRole } from "@/lib/RoleContext";
 
-const navItems = [
+interface BottomNavItem {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path: string;
+  minRole?: "campaigner" | "admin";
+  maxRole?: "campaigner";
+  hideForRole?: "campaigner";
+}
+
+const navItems: BottomNavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Calendar, label: "Kegiatan", path: "/kegiatan" },
-  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" as const },
-  { icon: Users, label: "Anggota", path: "/anggota" },
+  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" },
+  { icon: Crosshair, label: "Target", path: "/target", minRole: "campaigner", maxRole: "campaigner" },
+  { icon: Users, label: "Anggota", path: "/anggota", hideForRole: "campaigner" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard" },
   { icon: MessageSquare, label: "Harapan", path: "/harapan" },
 ];
@@ -23,14 +33,16 @@ export function BottomNav() {
     return pathname.startsWith(path);
   };
 
-  const canSee = (minRole?: "campaigner" | "admin") => {
-    if (!minRole) return true;
-    if (minRole === "campaigner") return role === "admin" || role === "campaigner";
-    if (minRole === "admin") return role === "admin";
+  const canSee = (item: BottomNavItem) => {
+    if (item.hideForRole && role === item.hideForRole) return false;
+    if (item.maxRole && role !== item.maxRole) return false;
+    if (!item.minRole) return true;
+    if (item.minRole === "campaigner") return role === "admin" || role === "campaigner";
+    if (item.minRole === "admin") return role === "admin";
     return false;
   };
 
-  const visibleItems = navItems.filter((item) => canSee(item.minRole));
+  const visibleItems = navItems.filter((item) => canSee(item));
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 safe-area-bottom">

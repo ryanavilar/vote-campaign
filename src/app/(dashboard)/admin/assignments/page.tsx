@@ -26,6 +26,7 @@ interface AssignmentMember {
   angkatan: number;
   no_hp: string;
   assigned_to: string | null;
+  campaigner_targets?: { user_id: string }[];
 }
 
 type Selection =
@@ -83,26 +84,41 @@ export default function AdminAssignmentsPage() {
     const counts: Record<string, number> = {};
     let unassigned = 0;
     for (const m of members) {
-      if (m.assigned_to) {
-        counts[m.assigned_to] = (counts[m.assigned_to] || 0) + 1;
-      } else {
+      const targets = m.campaigner_targets || [];
+      if (targets.length > 0) {
+        for (const t of targets) {
+          counts[t.user_id] = (counts[t.user_id] || 0) + 1;
+        }
+      } else if (!m.assigned_to) {
         unassigned++;
+      } else {
+        // Fallback: use assigned_to for backward compat
+        counts[m.assigned_to] = (counts[m.assigned_to] || 0) + 1;
       }
     }
     return { counts, unassigned };
   }, [members]);
 
   const unassignedMembers = useMemo(
-    () => members.filter((m) => !m.assigned_to),
+    () => members.filter((m) => {
+      const targets = m.campaigner_targets || [];
+      return targets.length === 0 && !m.assigned_to;
+    }),
     [members]
   );
 
   const selectedMembers = useMemo(() => {
     if (!selection) return [];
     if (selection.type === "unassigned") {
-      return members.filter((m) => !m.assigned_to);
+      return members.filter((m) => {
+        const targets = m.campaigner_targets || [];
+        return targets.length === 0 && !m.assigned_to;
+      });
     }
-    return members.filter((m) => m.assigned_to === selection.id);
+    return members.filter((m) => {
+      const targets = m.campaigner_targets || [];
+      return targets.some((t) => t.user_id === selection.id) || m.assigned_to === selection.id;
+    });
   }, [members, selection]);
 
   // Modal: available unassigned members with search + angkatan filter
@@ -181,12 +197,14 @@ export default function AdminAssignmentsPage() {
   async function handleUnassign(memberIds: string[]) {
     if (memberIds.length === 0) return;
 
+    const campaignerId = selection?.type === "campaigner" ? selection.id : undefined;
+
     setActionLoading(true);
     try {
       const response = await fetch("/api/assignments", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ member_ids: memberIds }),
+        body: JSON.stringify({ member_ids: memberIds, campaigner_id: campaignerId }),
       });
 
       if (!response.ok) {

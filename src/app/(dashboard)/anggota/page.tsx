@@ -36,25 +36,44 @@ export default function AnggotaPage() {
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
-    let membersQuery = supabase
-      .from("members")
-      .select("*")
-      .order("no", { ascending: true });
+
+    let membersPromise: Promise<Member[]>;
 
     if (isCampaigner && userId) {
-      membersQuery = membersQuery.eq("assigned_to", userId);
+      // Use junction table for campaigner filtering
+      membersPromise = (async () => {
+        const { data: targets } = await supabase
+          .from("campaigner_targets")
+          .select("member_id")
+          .eq("user_id", userId);
+
+        if (!targets || targets.length === 0) return [];
+
+        const memberIds = targets.map((t) => t.member_id);
+        const { data: members } = await supabase
+          .from("members")
+          .select("*")
+          .in("id", memberIds)
+          .order("no", { ascending: true });
+
+        return members || [];
+      })();
+    } else {
+      membersPromise = (async () => {
+        const { data, error } = await supabase
+          .from("members")
+          .select("*")
+          .order("no", { ascending: true });
+        return !error && data ? data : [];
+      })();
     }
 
-    const [membersRes, attendanceRes] = await Promise.all([
-      membersQuery,
-      supabase
-        .from("event_attendance")
-        .select("member_id"),
+    const [members, attendanceRes] = await Promise.all([
+      membersPromise,
+      supabase.from("event_attendance").select("member_id"),
     ]);
 
-    if (!membersRes.error && membersRes.data) {
-      setData(membersRes.data);
-    }
+    setData(members);
     if (!attendanceRes.error && attendanceRes.data) {
       const counts: Record<string, number> = {};
       for (const row of attendanceRes.data) {

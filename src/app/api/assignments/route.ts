@@ -21,10 +21,12 @@ export async function GET() {
     );
   }
 
-  // Fetch all members with assigned_to field
+  const adminClient = getAdminClient();
+
+  // Fetch all members with their campaigner_targets
   const { data: members, error: membersError } = await supabase
     .from("members")
-    .select("id, nama, angkatan, no_hp, assigned_to")
+    .select("id, nama, angkatan, no_hp, assigned_to, campaigner_targets(user_id)")
     .order("nama");
 
   if (membersError) {
@@ -35,7 +37,6 @@ export async function GET() {
   }
 
   // Fetch all auth users via admin client
-  const adminClient = getAdminClient();
   const {
     data: { users },
     error: usersError,
@@ -97,6 +98,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const adminClient = getAdminClient();
+
+  // Update assigned_to for backward compat
   const { data, error } = await supabase
     .from("members")
     .update({ assigned_to: campaigner_id })
@@ -106,6 +110,16 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Also insert into junction table
+  const inserts = member_ids.map((mid: string) => ({
+    user_id: campaigner_id,
+    member_id: mid,
+  }));
+
+  await adminClient
+    .from("campaigner_targets")
+    .upsert(inserts, { onConflict: "user_id,member_id" });
 
   return NextResponse.json({ success: true, count: data?.length || 0 });
 }
@@ -122,7 +136,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { member_ids } = body;
+  const { member_ids, campaigner_id } = body;
 
   if (!member_ids || !Array.isArray(member_ids) || member_ids.length === 0) {
     return NextResponse.json(
@@ -131,6 +145,9 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
+  const adminClient = getAdminClient();
+
+  // Clear assigned_to (backward compat)
   const { error } = await supabase
     .from("members")
     .update({ assigned_to: null })
@@ -138,6 +155,17 @@ export async function DELETE(request: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Also remove from junction table
+  if (campaigner_id) {
+    for (const mid of member_ids) {
+      await adminClient
+        .from("campaigner_targets")
+        .delete()
+        .eq("user_id", campaigner_id)
+        .eq("member_id", mid);
+    }
   }
 
   return NextResponse.json({ success: true });

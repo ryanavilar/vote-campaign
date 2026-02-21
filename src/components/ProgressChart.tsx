@@ -5,7 +5,6 @@ import {
   Pie,
   Cell,
   ResponsiveContainer,
-  Legend,
   Tooltip,
 } from "recharts";
 import { formatNum } from "@/lib/format";
@@ -13,8 +12,9 @@ import { formatNum } from "@/lib/format";
 interface ProgressChartProps {
   stats: {
     total: number;
+    totalAlumni: number;
+    linkedAlumni: number;
     dptSudah: number;
-    kontakSudah: number;
     grupSudah: number;
     voteSudah: number;
   };
@@ -27,10 +27,10 @@ const COLORS = {
 
 export function ProgressChart({ stats }: ProgressChartProps) {
   const categories = [
-    { name: "Status DPT", sudah: stats.dptSudah, belum: stats.total - stats.dptSudah },
-    { name: "Dikontak", sudah: stats.kontakSudah, belum: stats.total - stats.kontakSudah },
-    { name: "Masuk Grup", sudah: stats.grupSudah, belum: stats.total - stats.grupSudah },
-    { name: "Vote", sudah: stats.voteSudah, belum: stats.total - stats.voteSudah },
+    { name: "Status DPT", sudah: stats.dptSudah, total: stats.total },
+    { name: "Alumni Terhubung", sudah: stats.linkedAlumni, total: stats.totalAlumni },
+    { name: "Masuk Grup", sudah: stats.grupSudah, total: stats.total },
+    { name: "Vote", sudah: stats.voteSudah, total: stats.total },
   ];
 
   return (
@@ -38,11 +38,12 @@ export function ProgressChart({ stats }: ProgressChartProps) {
       <h3 className="font-semibold text-foreground mb-4">Progress Keseluruhan</h3>
       <div className="grid grid-cols-2 gap-4">
         {categories.map((cat) => {
+          const belum = cat.total - cat.sudah;
           const data = [
             { name: "Sudah", value: cat.sudah },
-            { name: "Belum", value: cat.belum },
+            { name: "Belum", value: belum > 0 ? belum : 0 },
           ];
-          const pct = stats.total > 0 ? Math.round((cat.sudah / stats.total) * 100) : 0;
+          const pct = cat.total > 0 ? Math.round((cat.sudah / cat.total) * 100) : 0;
 
           return (
             <div key={cat.name} className="flex flex-col items-center">
@@ -76,7 +77,7 @@ export function ProgressChart({ stats }: ProgressChartProps) {
                 </ResponsiveContainer>
               </div>
               <p className="text-lg font-bold text-foreground">{pct}%</p>
-              <p className="text-xs text-muted-foreground">{formatNum(cat.sudah)}/{formatNum(stats.total)}</p>
+              <p className="text-xs text-muted-foreground">{formatNum(cat.sudah)}/{formatNum(cat.total)}</p>
             </div>
           );
         })}

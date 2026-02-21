@@ -9,6 +9,12 @@ import { Download, Loader2, Link2, Copy, Check, ExternalLink } from "lucide-reac
 import { useRole } from "@/lib/RoleContext";
 import type { Member } from "@/lib/types";
 
+interface AlumniStats {
+  totalAlumni: number;
+  linkedAlumni: number;
+  alumniByAngkatan: Record<string, number>;
+}
+
 function FormLinkRow({
   label,
   description,
@@ -61,47 +67,85 @@ function FormLinkRow({
 export default function Dashboard() {
   const [data, setData] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [alumniStats, setAlumniStats] = useState<AlumniStats>({
+    totalAlumni: 0,
+    linkedAlumni: 0,
+    alumniByAngkatan: {},
+  });
   const { role, userId, loading: roleLoading } = useRole();
 
   const isCampaigner = role === "campaigner";
 
   useEffect(() => {
     if (roleLoading) return;
-    fetchMembers();
+    fetchData();
   }, [roleLoading]);
 
-  const fetchMembers = async () => {
+  const fetchData = async () => {
     setLoading(true);
-    let query = supabase
-      .from("members")
-      .select("*")
-      .order("no", { ascending: true });
 
+    // Fetch members (for campaigners, use junction table)
+    let membersPromise: Promise<Member[]>;
     if (isCampaigner && userId) {
-      query = query.eq("assigned_to", userId);
+      membersPromise = (async () => {
+        // Get target member IDs from junction table
+        const { data: targets } = await supabase
+          .from("campaigner_targets")
+          .select("member_id")
+          .eq("user_id", userId);
+
+        if (!targets || targets.length === 0) return [];
+
+        const memberIds = targets.map((t) => t.member_id);
+        const { data: members } = await supabase
+          .from("members")
+          .select("*")
+          .in("id", memberIds)
+          .order("no", { ascending: true });
+
+        return members || [];
+      })();
+    } else {
+      membersPromise = (async () => {
+        const { data, error } = await supabase
+          .from("members")
+          .select("*")
+          .order("no", { ascending: true });
+        return !error && data ? data : [];
+      })();
     }
 
-    const { data, error } = await query;
+    // Fetch alumni stats in parallel
+    const alumniPromise = fetch("/api/alumni/stats")
+      .then((res) => res.json())
+      .catch(() => ({ totalAlumni: 0, linkedAlumni: 0, alumniByAngkatan: {} }));
 
-    if (!error && data) {
-      setData(data);
-    }
+    const [members, aStats] = await Promise.all([membersPromise, alumniPromise]);
+
+    setData(members);
+    setAlumniStats(aStats);
     setLoading(false);
   };
 
   const stats = useMemo(() => {
     const total = data.length;
     const dptSudah = data.filter((m) => m.status_dpt === "Sudah").length;
-    const kontakSudah = data.filter((m) => m.sudah_dikontak === "Sudah").length;
     const grupSudah = data.filter((m) => m.masuk_grup === "Sudah").length;
     const voteSudah = data.filter((m) => m.vote === "Sudah").length;
-    return { total, dptSudah, kontakSudah, grupSudah, voteSudah };
-  }, [data]);
+    return {
+      total,
+      totalAlumni: alumniStats.totalAlumni,
+      linkedAlumni: alumniStats.linkedAlumni,
+      dptSudah,
+      grupSudah,
+      voteSudah,
+    };
+  }, [data, alumniStats]);
 
   const angkatanStats = useMemo(() => {
-    const map = new Map<number, { total: number; dpt: number; kontak: number; grup: number; vote: number }>();
+    const map = new Map<number, { total: number; dpt: number; kontak: number; grup: number; vote: number; alumni: number }>();
     data.forEach((m) => {
-      const existing = map.get(m.angkatan) || { total: 0, dpt: 0, kontak: 0, grup: 0, vote: 0 };
+      const existing = map.get(m.angkatan) || { total: 0, dpt: 0, kontak: 0, grup: 0, vote: 0, alumni: 0 };
       existing.total++;
       if (m.status_dpt === "Sudah") existing.dpt++;
       if (m.sudah_dikontak === "Sudah") existing.kontak++;
@@ -109,6 +153,15 @@ export default function Dashboard() {
       if (m.vote === "Sudah") existing.vote++;
       map.set(m.angkatan, existing);
     });
+
+    // Merge alumni data
+    for (const [angkatan, count] of Object.entries(alumniStats.alumniByAngkatan)) {
+      const num = Number(angkatan);
+      const existing = map.get(num) || { total: 0, dpt: 0, kontak: 0, grup: 0, vote: 0, alumni: 0 };
+      existing.alumni = count;
+      map.set(num, existing);
+    }
+
     return Array.from(map.entries())
       .sort(([a], [b]) => a - b)
       .map(([angkatan, s]) => ({
@@ -116,7 +169,7 @@ export default function Dashboard() {
         angkatanNum: angkatan,
         ...s,
       }));
-  }, [data]);
+  }, [data, alumniStats.alumniByAngkatan]);
 
   const exportCSV = () => {
     const headers = ["No", "Nama", "Angkatan", "No HP", "PIC", "Status DPT", "Sudah Dikontak", "Masuk Grup", "Vote"];
