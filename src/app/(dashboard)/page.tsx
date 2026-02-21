@@ -64,14 +64,40 @@ function FormLinkRow({
   );
 }
 
+/* Skeleton placeholder for a single stats card */
+function CardSkeleton() {
+  return (
+    <div className="bg-white rounded-xl border border-border p-4 shadow-sm animate-pulse">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-9 h-9 rounded-lg bg-gray-200" />
+      </div>
+      <div className="h-7 w-16 bg-gray-200 rounded mb-1" />
+      <div className="h-3 w-24 bg-gray-100 rounded" />
+    </div>
+  );
+}
+
+/* Skeleton placeholder for a chart card */
+function ChartSkeleton({ title }: { title: string }) {
+  return (
+    <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
+      <h3 className="font-semibold text-foreground mb-4">{title}</h3>
+      <div className="flex items-center justify-center h-[200px]">
+        <Loader2 className="w-6 h-6 animate-spin text-gray-300" />
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [membersLoaded, setMembersLoaded] = useState(false);
   const [alumniStats, setAlumniStats] = useState<AlumniStats>({
     totalAlumni: 0,
     linkedAlumni: 0,
     alumniByAngkatan: {},
   });
+  const [alumniLoaded, setAlumniLoaded] = useState(false);
   const { role, userId, loading: roleLoading } = useRole();
 
   const isCampaigner = role === "campaigner";
@@ -79,16 +105,13 @@ export default function Dashboard() {
   useEffect(() => {
     if (roleLoading) return;
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleLoading]);
 
   const fetchData = async () => {
-    setLoading(true);
-
     // Fetch members (for campaigners, use junction table)
-    let membersPromise: Promise<Member[]>;
-    if (isCampaigner && userId) {
-      membersPromise = (async () => {
-        // Get target member IDs from junction table
+    const membersPromise = (async (): Promise<Member[]> => {
+      if (isCampaigner && userId) {
         const { data: targets } = await supabase
           .from("campaigner_targets")
           .select("member_id")
@@ -104,27 +127,30 @@ export default function Dashboard() {
           .order("no", { ascending: true });
 
         return members || [];
-      })();
-    } else {
-      membersPromise = (async () => {
+      } else {
         const { data, error } = await supabase
           .from("members")
           .select("*")
           .order("no", { ascending: true });
         return !error && data ? data : [];
-      })();
-    }
+      }
+    })();
 
-    // Fetch alumni stats in parallel
+    // Fetch alumni stats
     const alumniPromise = fetch("/api/alumni/stats")
       .then((res) => res.json())
       .catch(() => ({ totalAlumni: 0, linkedAlumni: 0, alumniByAngkatan: {} }));
 
-    const [members, aStats] = await Promise.all([membersPromise, alumniPromise]);
+    // Progressive loading — render as each piece arrives
+    membersPromise.then((members) => {
+      setData(members);
+      setMembersLoaded(true);
+    });
 
-    setData(members);
-    setAlumniStats(aStats);
-    setLoading(false);
+    alumniPromise.then((aStats) => {
+      setAlumniStats(aStats);
+      setAlumniLoaded(true);
+    });
   };
 
   const stats = useMemo(() => {
@@ -194,7 +220,8 @@ export default function Dashboard() {
     setTimeout(() => setCopiedLink(null), 2000);
   };
 
-  if (loading) {
+  // Show nothing until role loads
+  if (roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -204,6 +231,8 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  const bothLoaded = membersLoaded && alumniLoaded;
 
   return (
     <div className="bg-background">
@@ -221,7 +250,8 @@ export default function Dashboard() {
             </div>
             <button
               onClick={exportCSV}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors"
+              disabled={!membersLoaded}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
             >
               <Download className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Export CSV</span>
@@ -232,8 +262,16 @@ export default function Dashboard() {
       </header>
 
       <div className="px-4 sm:px-6 py-6 space-y-6">
-        {/* Stats Cards */}
-        <StatsCards stats={stats} />
+        {/* Stats Cards — show skeleton until data arrives */}
+        {membersLoaded ? (
+          <StatsCards stats={stats} alumniLoaded={alumniLoaded} />
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <CardSkeleton key={i} />
+            ))}
+          </div>
+        )}
 
         {/* Public Form Links (admin only) */}
         {!isCampaigner && (
@@ -254,10 +292,24 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Charts Row */}
+        {/* Charts Row — show skeleton until both data sources loaded */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ProgressChart stats={stats} />
-          <AngkatanChart data={angkatanStats} />
+          {bothLoaded ? (
+            <>
+              <ProgressChart stats={stats} />
+              <AngkatanChart data={angkatanStats} />
+            </>
+          ) : membersLoaded ? (
+            <>
+              <ProgressChart stats={stats} />
+              <ChartSkeleton title="Data per Angkatan" />
+            </>
+          ) : (
+            <>
+              <ChartSkeleton title="Progress Keseluruhan" />
+              <ChartSkeleton title="Data per Angkatan" />
+            </>
+          )}
         </div>
       </div>
     </div>

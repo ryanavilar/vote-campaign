@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
 import { formatNum } from "@/lib/format";
@@ -117,6 +117,7 @@ export default function AdminAlumniPage() {
       const data = await res.json();
       setAlumni(data.data || []);
       setTotal(data.total || 0);
+      setTotalLinked(data.totalLinked || 0);
     } catch {
       showToast("Gagal memuat data alumni", "error");
     }
@@ -144,9 +145,7 @@ export default function AdminAlumniPage() {
     }
   }, [roleLoading, canManageUsers, debouncedSearch, filterAngkatan, filterLinked, page, fetchAlumni]);
 
-  const linkedCount = useMemo(() => {
-    return alumni.filter((a) => a.members && a.members.length > 0).length;
-  }, [alumni]);
+  const [totalLinked, setTotalLinked] = useState(0);
 
   const totalPages = Math.ceil(total / limit);
 
@@ -379,7 +378,7 @@ export default function AdminAlumniPage() {
           </div>
           <div className="h-8 w-px bg-border" />
           <div>
-            <p className="text-2xl font-bold text-emerald-600">{formatNum(linkedCount)}</p>
+            <p className="text-2xl font-bold text-emerald-600">{formatNum(totalLinked)}</p>
             <p className="text-xs text-muted-foreground">Terhubung Kampanye</p>
           </div>
         </div>

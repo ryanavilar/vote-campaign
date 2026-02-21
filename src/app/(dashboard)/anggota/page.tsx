@@ -324,6 +324,7 @@ export default function AnggotaPage() {
           onUpdate={userCanEdit ? updateMember : undefined}
           onRowClick={(id) => router.push(`/anggota/${id}`)}
           totalCount={data.length}
+          onDataRefresh={fetchMembers}
         />
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import type { Member, StatusValue } from "@/lib/types";
 import { formatNum } from "@/lib/format";
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, X, Merge, Loader2, ArrowRight } from "lucide-react";
 import { useState, useMemo } from "react";
 
 interface DataTableProps {
@@ -12,6 +12,7 @@ interface DataTableProps {
   onUpdate?: (id: string, field: string, value: StatusValue) => void;
   onRowClick?: (id: string) => void;
   totalCount: number;
+  onDataRefresh?: () => void;
 }
 
 const PAGE_SIZE = 25;
@@ -94,11 +95,156 @@ function SortHeader({
   );
 }
 
-export function DataTable({ data, allData, attendanceCounts, onUpdate, onRowClick, totalCount }: DataTableProps) {
+/* ------------------------------------------------------------------ */
+/* Merge UI Component                                                  */
+/* ------------------------------------------------------------------ */
+
+const MERGE_FIELDS: { key: string; label: string }[] = [
+  { key: "nama", label: "Nama" },
+  { key: "angkatan", label: "Angkatan" },
+  { key: "no_hp", label: "No. HP" },
+  { key: "pic", label: "PIC" },
+  { key: "email", label: "Email" },
+  { key: "domisili", label: "Domisili" },
+  { key: "status_dpt", label: "Status DPT" },
+  { key: "sudah_dikontak", label: "Sudah Dikontak" },
+  { key: "masuk_grup", label: "Masuk Grup" },
+  { key: "vote", label: "Vote" },
+  { key: "referral_name", label: "Referral" },
+  { key: "alumni_id", label: "Link Alumni" },
+];
+
+function MergeView({
+  memberA,
+  memberB,
+  onConfirm,
+  onCancel,
+}: {
+  memberA: Member;
+  memberB: Member;
+  onConfirm: (winnerId: string, loserId: string, fields: Record<string, "winner" | "loser">) => void;
+  onCancel: () => void;
+}) {
+  // "winner" = left (memberA), "loser" = right (memberB)
+  const [picks, setPicks] = useState<Record<string, "winner" | "loser">>(() => {
+    const initial: Record<string, "winner" | "loser"> = {};
+    for (const { key } of MERGE_FIELDS) {
+      // Default: pick the value that is non-null/non-empty; if both have values, pick winner (left)
+      const aVal = (memberA as unknown as Record<string, unknown>)[key];
+      const bVal = (memberB as unknown as Record<string, unknown>)[key];
+      if (!aVal && bVal) {
+        initial[key] = "loser";
+      } else {
+        initial[key] = "winner";
+      }
+    }
+    return initial;
+  });
+
+  const displayVal = (val: unknown) => {
+    if (val === null || val === undefined || val === "") return <span className="text-gray-300 italic">kosong</span>;
+    return String(val);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Merge className="w-4 h-4 text-[#0B27BC]" />
+          Merge Data
+        </h4>
+        <p className="text-xs text-muted-foreground">Pilih nilai yang ingin dipertahankan</p>
+      </div>
+
+      {/* Header row */}
+      <div className="grid grid-cols-[120px_1fr_32px_1fr] gap-2 px-2 text-xs font-semibold text-muted-foreground">
+        <div>Field</div>
+        <div className="text-center">#{memberA.no} {memberA.nama}</div>
+        <div />
+        <div className="text-center">#{memberB.no} {memberB.nama}</div>
+      </div>
+
+      {/* Field rows */}
+      <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+        {MERGE_FIELDS.map(({ key, label }) => {
+          const aVal = (memberA as unknown as Record<string, unknown>)[key];
+          const bVal = (memberB as unknown as Record<string, unknown>)[key];
+          const same = String(aVal || "") === String(bVal || "");
+          const pick = picks[key];
+
+          return (
+            <div key={key} className={`grid grid-cols-[120px_1fr_32px_1fr] gap-2 px-2 py-2 items-center text-xs ${same ? "bg-gray-50/50" : ""}`}>
+              <div className="font-medium text-gray-600">{label}</div>
+              <button
+                type="button"
+                onClick={() => setPicks((p) => ({ ...p, [key]: "winner" }))}
+                className={`px-2 py-1.5 rounded-md text-left truncate transition-colors ${
+                  pick === "winner"
+                    ? "bg-[#0B27BC]/10 text-[#0B27BC] ring-1 ring-[#0B27BC]/30 font-medium"
+                    : "hover:bg-gray-100 text-gray-600"
+                }`}
+              >
+                {displayVal(aVal)}
+              </button>
+              <div className="flex items-center justify-center">
+                <ArrowRight className="w-3 h-3 text-gray-300" />
+              </div>
+              <button
+                type="button"
+                onClick={() => setPicks((p) => ({ ...p, [key]: "loser" }))}
+                className={`px-2 py-1.5 rounded-md text-left truncate transition-colors ${
+                  pick === "loser"
+                    ? "bg-[#84303F]/10 text-[#84303F] ring-1 ring-[#84303F]/30 font-medium"
+                    : "hover:bg-gray-100 text-gray-600"
+                }`}
+              >
+                {displayVal(bVal)}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center justify-between pt-2">
+        <p className="text-xs text-muted-foreground">
+          #{memberB.no} akan dihapus setelah merge
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm(memberA.id, memberB.id, picks)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091fa0] transition-colors"
+          >
+            <Merge className="w-3.5 h-3.5" />
+            Konfirmasi Merge
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Main DataTable                                                      */
+/* ------------------------------------------------------------------ */
+
+export function DataTable({ data, allData, attendanceCounts, onUpdate, onRowClick, totalCount, onDataRefresh }: DataTableProps) {
   const [page, setPage] = useState(0);
   const [duplicateModalPhone, setDuplicateModalPhone] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  // Merge state
+  const [mergeMembers, setMergeMembers] = useState<[Member, Member] | null>(null);
+  const [merging, setMerging] = useState(false);
+  const [mergeToast, setMergeToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -171,6 +317,36 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onRowClic
   }, [sourceData]);
 
   const modalMembers = duplicateModalPhone ? duplicatePhones.get(duplicateModalPhone) || [] : [];
+
+  const handleStartMerge = (a: Member, b: Member) => {
+    setMergeMembers([a, b]);
+  };
+
+  const handleMergeConfirm = async (winnerId: string, loserId: string, fields: Record<string, "winner" | "loser">) => {
+    setMerging(true);
+    try {
+      const res = await fetch("/api/members/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ winner_id: winnerId, loser_id: loserId, fields }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        setMergeToast({ msg: "Berhasil merge data anggota", type: "success" });
+        setMergeMembers(null);
+        setDuplicateModalPhone(null);
+        // Refresh parent data
+        onDataRefresh?.();
+      } else {
+        setMergeToast({ msg: result.error || "Gagal merge", type: "error" });
+      }
+    } catch {
+      setMergeToast({ msg: "Terjadi kesalahan jaringan", type: "error" });
+    }
+    setMerging(false);
+    // Auto-dismiss toast
+    setTimeout(() => setMergeToast(null), 3000);
+  };
 
   return (
     <>
@@ -302,7 +478,7 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onRowClic
       </div>
 
       {/* Duplicate Phone Modal */}
-      {duplicateModalPhone && (
+      {duplicateModalPhone && !mergeMembers && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
           onClick={() => setDuplicateModalPhone(null)}
@@ -349,7 +525,75 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onRowClic
                 </button>
               ))}
             </div>
+            {/* Merge button — only show when exactly 2 duplicates or allow selecting any 2 */}
+            {modalMembers.length >= 2 && (
+              <div className="px-4 py-3 border-t border-border bg-gray-50/50">
+                {modalMembers.length === 2 ? (
+                  <button
+                    onClick={() => handleStartMerge(modalMembers[0], modalMembers[1])}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-white bg-[#84303F] rounded-lg hover:bg-[#6e2835] transition-colors"
+                  >
+                    <Merge className="w-3.5 h-3.5" />
+                    Merge 2 Data
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground text-center">Pilih 2 data untuk di-merge:</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {modalMembers.map((a, i) =>
+                        modalMembers.slice(i + 1).map((b) => (
+                          <button
+                            key={`${a.id}-${b.id}`}
+                            onClick={() => handleStartMerge(a, b)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#84303F] bg-[#FE8DA1]/10 border border-[#FE8DA1]/30 rounded-lg hover:bg-[#FE8DA1]/20 transition-colors"
+                          >
+                            <Merge className="w-3 h-3" />
+                            #{a.no} & #{b.no}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* Merge Modal */}
+      {mergeMembers && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => !merging && setMergeMembers(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {merging ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-[#0B27BC]" />
+                <p className="text-sm text-muted-foreground">Sedang merge data...</p>
+              </div>
+            ) : (
+              <MergeView
+                memberA={mergeMembers[0]}
+                memberB={mergeMembers[1]}
+                onConfirm={handleMergeConfirm}
+                onCancel={() => setMergeMembers(null)}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Merge Toast */}
+      {mergeToast && (
+        <div className={`fixed bottom-4 right-4 z-[60] px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
+          mergeToast.type === "success" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+        }`}>
+          {mergeToast.msg}
         </div>
       )}
     </>

@@ -12,20 +12,13 @@ interface StatsProps {
     grupSudah: number;
     voteSudah: number;
   };
+  alumniLoaded?: boolean;
 }
 
-export function StatsCards({ stats }: StatsProps) {
+export function StatsCards({ stats, alumniLoaded = true }: StatsProps) {
   const safePercent = (n: number, d: number) => d > 0 ? Math.round((n / d) * 100) : 0;
 
   const cards = [
-    {
-      label: "Total Anggota",
-      value: stats.total,
-      icon: Users,
-      color: "bg-[#0B27BC]",
-      bgColor: "bg-[#0B27BC]/10",
-      textColor: "text-[#0B27BC]",
-    },
     {
       label: "Data Alumni",
       value: stats.totalAlumni,
@@ -35,6 +28,15 @@ export function StatsCards({ stats }: StatsProps) {
       bgColor: "bg-[#84303F]/10",
       textColor: "text-[#84303F]",
       percentage: safePercent(stats.linkedAlumni, stats.totalAlumni),
+      isAlumni: true,
+    },
+    {
+      label: "Total Anggota",
+      value: stats.total,
+      icon: Users,
+      color: "bg-[#0B27BC]",
+      bgColor: "bg-[#0B27BC]/10",
+      textColor: "text-[#0B27BC]",
     },
     {
       label: "Status DPT",
@@ -72,6 +74,29 @@ export function StatsCards({ stats }: StatsProps) {
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
       {cards.map((card) => {
         const Icon = card.icon;
+        const isLoading = "isAlumni" in card && card.isAlumni && !alumniLoaded;
+
+        if (isLoading) {
+          return (
+            <div
+              key={card.label}
+              className="bg-white rounded-xl border border-border p-4 shadow-sm animate-pulse"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`p-2 rounded-lg ${card.bgColor}`}>
+                  <Icon className={`w-5 h-5 ${card.textColor}`} />
+                </div>
+              </div>
+              <div className="h-7 w-16 bg-gray-200 rounded mb-1" />
+              <p className="text-xs font-medium text-muted-foreground mt-1">{card.label}</p>
+              <div className="mt-2">
+                <div className="h-3 w-full bg-gray-100 rounded mb-1" />
+                <div className="w-full h-1.5 bg-gray-100 rounded-full" />
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div
             key={card.label}
@@ -86,7 +111,7 @@ export function StatsCards({ stats }: StatsProps) {
             <p className="text-xs font-medium text-muted-foreground mt-1">
               {card.label}
             </p>
-            {card.percentage !== undefined && (
+            {"percentage" in card && card.percentage !== undefined && (
               <div className="mt-2">
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className={card.textColor}>{card.percentage}%</span>

@@ -29,18 +29,30 @@ export async function GET(request: NextRequest) {
     .order("nama", { ascending: true })
     .range(offset, offset + limit - 1);
 
-  const { data, count, error } = await query;
+  // Run main query and total linked count in parallel
+  const [queryResult, linkedCountResult] = await Promise.all([
+    query,
+    supabase
+      .from("members")
+      .select("alumni_id", { count: "exact", head: true })
+      .not("alumni_id", "is", null),
+  ]);
+
+  const { data, count, error } = queryResult;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   // Filter by linked status if specified (post-query since Supabase doesn't support filtering on joined nulls easily)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let filtered = data || [];
   if (linked === "true") {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     filtered = filtered.filter((a: any) => a.members && a.members.length > 0);
   } else if (linked === "false") {
     filtered = filtered.filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (a: any) => !a.members || a.members.length === 0
     );
   }
@@ -48,6 +60,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: filtered,
     total: count || 0,
+    totalLinked: linkedCountResult.count || 0,
     page,
     limit,
     totalPages: Math.ceil((count || 0) / limit),
