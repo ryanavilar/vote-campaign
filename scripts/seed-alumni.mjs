@@ -15,12 +15,20 @@ import { createClient } from "@supabase/supabase-js";
 import XLSX from "xlsx";
 
 // ---------------------------------------------------------------------------
-// Config
+// Config — reads from environment variables (set in .env.local or export them)
 // ---------------------------------------------------------------------------
 
-const SUPABASE_URL = "https://unzusbynaxkticlgtrsg.supabase.co";
-const SUPABASE_SERVICE_ROLE_KEY =
-  "***REMOVED***";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error(
+    "❌ Missing environment variables. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.\n" +
+    "   You can load them from .env.local:\n" +
+    "   node --env-file=.env.local scripts/seed-alumni.mjs"
+  );
+  process.exit(1);
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
