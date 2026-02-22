@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
@@ -26,6 +26,7 @@ import {
   ClipboardList,
   ExternalLink,
   Link as LinkIcon,
+  FileText,
 } from "lucide-react";
 import type { Event, EventAttendance, EventRegistration, Member } from "@/lib/types";
 
@@ -84,6 +85,11 @@ export default function EventDetailPage() {
   // RSVP registrations state
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
   const [checkinFilter, setCheckinFilter] = useState<"all" | "rsvp">("all");
+  const [rsvpTab, setRsvpTab] = useState<"hadir" | "tidak">("hadir");
+  const [rsvpSearch, setRsvpSearch] = useState("");
+
+  // Main list tab: "hadir" (attendance), "rsvp_ya" (RSVP will attend), "rsvp_tidak" (RSVP won't attend)
+  const [listTab, setListTab] = useState<"hadir" | "rsvp_ya" | "rsvp_tidak">("hadir");
 
   const fetchEvent = useCallback(async () => {
     try {
@@ -282,9 +288,31 @@ export default function EventDetailPage() {
     }
   };
 
+  // Split registrations into will_attend vs won't
+  const rsvpWillAttend = useMemo(
+    () => registrations.filter((r) => r.will_attend),
+    [registrations]
+  );
+  const rsvpWontAttend = useMemo(
+    () => registrations.filter((r) => !r.will_attend),
+    [registrations]
+  );
+
+  // Filtered RSVP list for display
+  const filteredRsvp = useMemo(() => {
+    const list = rsvpTab === "hadir" ? rsvpWillAttend : rsvpWontAttend;
+    if (!rsvpSearch) return list;
+    const q = rsvpSearch.toLowerCase();
+    return list.filter(
+      (r) =>
+        r.member?.nama?.toLowerCase().includes(q) ||
+        String(r.member?.angkatan).includes(q)
+    );
+  }, [rsvpTab, rsvpWillAttend, rsvpWontAttend, rsvpSearch]);
+
   // Filter members for check-in dropdown (exclude already checked-in members)
   const checkedInMemberIds = new Set(attendance.map((a) => a.member_id));
-  const rsvpMemberIds = new Set(registrations.map((r) => r.member_id));
+  const rsvpMemberIds = new Set(registrations.filter((r) => r.will_attend).map((r) => r.member_id));
   const filteredMembers = members.filter((m) => {
     if (checkedInMemberIds.has(m.id)) return false;
     if (checkinFilter === "rsvp" && !rsvpMemberIds.has(m.id)) return false;
@@ -532,28 +560,53 @@ export default function EventDetailPage() {
             </div>
           )}
 
-        {/* Attendance Count Card */}
+        {/* Attendance & RSVP Count Card */}
         <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
+              <button
+                onClick={() => setListTab("hadir")}
+                className={`flex items-center gap-3 rounded-lg px-2 py-1 -mx-2 -my-1 transition-colors ${
+                  listTab === "hadir" ? "bg-[#FE8DA1]/10 ring-1 ring-[#FE8DA1]/30" : "hover:bg-gray-50"
+                }`}
+              >
                 <div className="p-2.5 rounded-lg bg-[#FE8DA1]/20">
                   <Users className="w-5 h-5 text-[#84303F]" />
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="text-2xl font-bold text-foreground">
                     {attendance.length}
                   </p>
                   <p className="text-xs text-muted-foreground">Total Hadir</p>
                 </div>
-              </div>
+              </button>
               {registrations.length > 0 && (
-                <div className="pl-4 border-l border-border">
-                  <p className="text-2xl font-bold text-[#0B27BC]">
-                    {registrations.length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">RSVP Hadir</p>
-                </div>
+                <>
+                  <button
+                    onClick={() => setListTab("rsvp_ya")}
+                    className={`pl-4 border-l border-border rounded-r-lg px-3 py-1 transition-colors ${
+                      listTab === "rsvp_ya" ? "bg-emerald-50 ring-1 ring-emerald-200" : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {rsvpWillAttend.length}
+                    </p>
+                    <p className="text-xs text-muted-foreground">RSVP Hadir</p>
+                  </button>
+                  {rsvpWontAttend.length > 0 && (
+                    <button
+                      onClick={() => setListTab("rsvp_tidak")}
+                      className={`pl-4 border-l border-border rounded-r-lg px-3 py-1 transition-colors ${
+                        listTab === "rsvp_tidak" ? "bg-red-50 ring-1 ring-red-200" : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <p className="text-2xl font-bold text-red-500">
+                        {rsvpWontAttend.length}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Tidak Hadir</p>
+                    </button>
+                  )}
+                </>
               )}
             </div>
             {userCanEdit &&
@@ -611,7 +664,7 @@ export default function EventDetailPage() {
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
-                  RSVP Hadir ({registrations.length})
+                  RSVP Hadir ({rsvpWillAttend.length})
                 </button>
               </div>
             )}
@@ -704,96 +757,223 @@ export default function EventDetailPage() {
           </div>
         )}
 
-        {/* Attendance Table */}
+        {/* Tabbed List: Attendance / RSVP Hadir / RSVP Tidak */}
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-border">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-[#0B27BC]" />
-              Daftar Hadir
-            </h3>
+          {/* Tab bar */}
+          <div className="flex border-b border-border">
+            <button
+              onClick={() => { setListTab("hadir"); setRsvpSearch(""); }}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-colors relative ${
+                listTab === "hadir"
+                  ? "text-[#84303F]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-gray-50"
+              }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              Hadir ({attendance.length})
+              {listTab === "hadir" && (
+                <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-[#84303F] rounded-t" />
+              )}
+            </button>
+            {registrations.length > 0 && (
+              <>
+                <button
+                  onClick={() => { setListTab("rsvp_ya"); setRsvpSearch(""); }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-colors relative ${
+                    listTab === "rsvp_ya"
+                      ? "text-emerald-700"
+                      : "text-muted-foreground hover:text-foreground hover:bg-gray-50"
+                  }`}
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  RSVP Ya ({rsvpWillAttend.length})
+                  {listTab === "rsvp_ya" && (
+                    <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-emerald-600 rounded-t" />
+                  )}
+                </button>
+                {rsvpWontAttend.length > 0 && (
+                  <button
+                    onClick={() => { setListTab("rsvp_tidak"); setRsvpSearch(""); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium transition-colors relative ${
+                      listTab === "rsvp_tidak"
+                        ? "text-red-600"
+                        : "text-muted-foreground hover:text-foreground hover:bg-gray-50"
+                    }`}
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    RSVP Tidak ({rsvpWontAttend.length})
+                    {listTab === "rsvp_tidak" && (
+                      <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-red-500 rounded-t" />
+                    )}
+                  </button>
+                )}
+              </>
+            )}
           </div>
 
-          {attendance.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title="Belum ada yang hadir"
-              description="Belum ada anggota yang melakukan check-in."
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-gray-50/50">
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
-                      Nama
-                    </th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">
-                      Angkatan
-                    </th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
-                      Waktu
-                    </th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">
-                      Catatan
-                    </th>
-                    {userCanEdit && (
-                      <th className="text-right px-4 py-2.5 font-medium text-muted-foreground w-16">
-                        Aksi
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {attendance.map((att) => (
-                    <tr key={att.id} className="hover:bg-gray-50/50">
-                      <td className="px-4 py-2.5">
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {att.member?.nama || "Anggota"}
+          {/* Tab content: Attendance */}
+          {listTab === "hadir" && (
+            <>
+              {attendance.length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title="Belum ada yang hadir"
+                  description="Belum ada anggota yang melakukan check-in."
+                />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-gray-50/50">
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
+                          Nama
+                        </th>
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">
+                          Angkatan
+                        </th>
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
+                          Waktu
+                        </th>
+                        <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">
+                          Catatan
+                        </th>
+                        {userCanEdit && (
+                          <th className="text-right px-4 py-2.5 font-medium text-muted-foreground w-16">
+                            Aksi
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {attendance.map((att) => (
+                        <tr key={att.id} className="hover:bg-gray-50/50">
+                          <td className="px-4 py-2.5">
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {att.member?.nama || "Anggota"}
+                              </p>
+                              <p className="text-xs text-muted-foreground sm:hidden">
+                                TN{att.member?.angkatan}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5 hidden sm:table-cell">
+                            <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-[#0B27BC]/10 text-[#0B27BC]">
+                              TN{att.member?.angkatan}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                            {new Date(att.checked_in_at).toLocaleString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground text-xs hidden sm:table-cell">
+                            {att.catatan || "-"}
+                          </td>
+                          {userCanEdit && (
+                            <td className="px-4 py-2.5 text-right">
+                              <button
+                                onClick={() => handleRemoveAttendance(att.id)}
+                                disabled={removeLoading === att.id}
+                                className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                title="Hapus check-in"
+                              >
+                                {removeLoading === att.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Tab content: RSVP Hadir / Tidak */}
+          {(listTab === "rsvp_ya" || listTab === "rsvp_tidak") && (() => {
+            const rsvpList = listTab === "rsvp_ya" ? rsvpWillAttend : rsvpWontAttend;
+            const filtered = rsvpSearch
+              ? rsvpList.filter((r) => {
+                  const q = rsvpSearch.toLowerCase();
+                  return (
+                    r.member?.nama?.toLowerCase().includes(q) ||
+                    String(r.member?.angkatan).includes(q)
+                  );
+                })
+              : rsvpList;
+
+            return (
+              <>
+                {/* Search */}
+                <div className="px-4 pt-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={rsvpSearch}
+                      onChange={(e) => setRsvpSearch(e.target.value)}
+                      placeholder="Cari nama..."
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
+                    />
+                  </div>
+                </div>
+
+                {filtered.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    {rsvpSearch
+                      ? "Tidak ditemukan"
+                      : listTab === "rsvp_ya"
+                        ? "Belum ada yang RSVP hadir"
+                        : "Semua yang mengisi form akan hadir"}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border mt-3">
+                    {filtered.map((reg, idx) => (
+                      <div
+                        key={reg.id}
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50/50"
+                      >
+                        <span className="text-xs text-muted-foreground w-6 text-right shrink-0">
+                          {idx + 1}.
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {reg.member?.nama || "Anggota"}
                           </p>
-                          <p className="text-xs text-muted-foreground sm:hidden">
-                            TN{att.member?.angkatan}
+                          <p className="text-xs text-muted-foreground">
+                            TN{reg.member?.angkatan}
+                            {reg.member?.no_hp ? ` · ${reg.member.no_hp}` : ""}
                           </p>
                         </div>
-                      </td>
-                      <td className="px-4 py-2.5 hidden sm:table-cell">
-                        <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-[#0B27BC]/10 text-[#0B27BC]">
-                          TN{att.member?.angkatan}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-muted-foreground text-xs">
-                        {new Date(att.checked_in_at).toLocaleString("id-ID", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="px-4 py-2.5 text-muted-foreground text-xs hidden sm:table-cell">
-                        {att.catatan || "-"}
-                      </td>
-                      {userCanEdit && (
-                        <td className="px-4 py-2.5 text-right">
-                          <button
-                            onClick={() => handleRemoveAttendance(att.id)}
-                            disabled={removeLoading === att.id}
-                            className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-                            title="Hapus check-in"
-                          >
-                            {removeLoading === att.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                        <div className="shrink-0">
+                          {reg.will_attend ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
+                              <CheckCircle className="w-3 h-3" />
+                              Hadir
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                              <XCircle className="w-3 h-3" />
+                              Tidak
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 

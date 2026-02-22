@@ -12,7 +12,7 @@ export async function GET(
     .from("event_registrations")
     .select("*, member:members(*)")
     .eq("event_id", id)
-    .eq("will_attend", true)
+    .order("will_attend", { ascending: false })
     .order("registered_at", { ascending: false });
 
   if (error) {
