@@ -66,7 +66,7 @@ export async function POST() {
     const wahaUrl = `${baseUrl.replace(/\/$/, "")}/api/${encodeURIComponent(session)}/groups/${encodeURIComponent(groupId)}/participants`;
     const headers: Record<string, string> = {};
     if (apiKey) {
-      headers["Authorization"] = `Bearer ${apiKey}`;
+      headers["X-Api-Key"] = apiKey;
     }
     const res = await fetch(wahaUrl, { headers });
 

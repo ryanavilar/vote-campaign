@@ -9,6 +9,9 @@ import {
   MessageSquare,
   AlertTriangle,
   Check,
+  X,
+  Wifi,
+  WifiOff,
   Mail,
   Copy,
   ExternalLink,
@@ -46,6 +49,8 @@ export default function AdminSettingsPage() {
   const [config, setConfig] = useState<WahaConfig>(DEFAULT_CONFIG);
   const [configLoading, setConfigLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<"idle" | "success" | "failed">("idle");
 
   // Email template state
   const [activeEmailTab, setActiveEmailTab] = useState("invite");
@@ -81,6 +86,34 @@ export default function AdminSettingsPage() {
       showToast(message, "error");
     } finally {
       setConfigLoading(false);
+    }
+  }
+
+  async function handleTestConnection() {
+    if (!config.baseUrl.trim()) {
+      showToast("Base URL harus diisi", "error");
+      return;
+    }
+
+    setTestLoading(true);
+    setConnectionStatus("idle");
+    try {
+      const params = new URLSearchParams({
+        baseUrl: config.baseUrl,
+        session: config.session,
+      });
+      if (config.apiKey) params.set("apiKey", config.apiKey);
+
+      const response = await fetch(`/api/waha/groups?${params.toString()}`);
+      if (!response.ok) throw new Error("Koneksi gagal");
+
+      setConnectionStatus("success");
+      showToast("Koneksi WAHA berhasil!", "success");
+    } catch {
+      setConnectionStatus("failed");
+      showToast("Koneksi gagal. Periksa konfigurasi WAHA.", "error");
+    } finally {
+      setTestLoading(false);
     }
   }
 
@@ -265,7 +298,39 @@ export default function AdminSettingsPage() {
                   <p className="text-xs text-gray-400 mt-1">ID grup WhatsApp (format: xxx@g.us)</p>
                 </div>
 
-                <div className="pt-2">
+                {connectionStatus !== "idle" && (
+                  <div
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+                      connectionStatus === "success"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-red-50 text-red-700 border border-red-200"
+                    }`}
+                  >
+                    {connectionStatus === "success" ? (
+                      <><Check className="w-4 h-4" /><span>Koneksi berhasil</span></>
+                    ) : (
+                      <><X className="w-4 h-4" /><span>Koneksi gagal</span></>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                  <button
+                    onClick={handleTestConnection}
+                    disabled={testLoading}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-[#0B27BC] bg-[#0B27BC]/10 rounded-lg hover:bg-[#0B27BC]/20 transition-colors disabled:opacity-50"
+                  >
+                    {testLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : connectionStatus === "success" ? (
+                      <Wifi className="w-4 h-4" />
+                    ) : connectionStatus === "failed" ? (
+                      <WifiOff className="w-4 h-4" />
+                    ) : (
+                      <Wifi className="w-4 h-4" />
+                    )}
+                    Test Koneksi
+                  </button>
                   <button
                     onClick={handleSaveConfig}
                     disabled={saveLoading}
