@@ -15,6 +15,7 @@ import {
   Download,
   Copy,
   GraduationCap,
+  Smartphone,
 } from "lucide-react";
 import { formatNum } from "@/lib/format";
 import type { Member, StatusValue } from "@/lib/types";
@@ -35,6 +36,8 @@ export default function AnggotaPage() {
   const router = useRouter();
 
   const [attendanceCounts, setAttendanceCounts] = useState<Record<string, number>>({});
+  const [memberInGroup, setMemberInGroup] = useState<Record<string, boolean>>({});
+  const [filterWaGroup, setFilterWaGroup] = useState<string>("all");
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
@@ -47,12 +50,18 @@ export default function AnggotaPage() {
       return !error && data ? data : [];
     })();
 
-    const [members, attendanceRes] = await Promise.all([
+    const waGroupPromise = fetch("/api/wa-group/stats")
+      .then((res) => res.json())
+      .catch(() => ({ memberInGroup: {} }));
+
+    const [members, attendanceRes, waGroupData] = await Promise.all([
       membersPromise,
       supabase.from("event_attendance").select("member_id"),
+      waGroupPromise,
     ]);
 
     setData(members);
+    setMemberInGroup(waGroupData.memberInGroup || {});
     if (!attendanceRes.error && attendanceRes.data) {
       const counts: Record<string, number> = {};
       for (const row of attendanceRes.data) {
@@ -101,6 +110,16 @@ export default function AnggotaPage() {
     return { linked, unlinked };
   }, [data]);
 
+  const waGroupCounts = useMemo(() => {
+    let inGroup = 0;
+    let notInGroup = 0;
+    for (const m of data) {
+      if (memberInGroup[m.id]) inGroup++;
+      else notInGroup++;
+    }
+    return { inGroup, notInGroup };
+  }, [data, memberInGroup]);
+
   const filteredData = useMemo(() => {
     return data.filter((m) => {
       const q = searchQuery.toLowerCase();
@@ -127,9 +146,14 @@ export default function AnggotaPage() {
         (filterAlumniLink === "linked" && !!m.alumni_id) ||
         (filterAlumniLink === "unlinked" && !m.alumni_id);
 
-      return matchesSearch && matchesAngkatan && matchesStatus && matchesDuplicate && matchesAlumniLink;
+      const matchesWaGroup =
+        filterWaGroup === "all" ||
+        (filterWaGroup === "in_group" && !!memberInGroup[m.id]) ||
+        (filterWaGroup === "not_in_group" && !memberInGroup[m.id]);
+
+      return matchesSearch && matchesAngkatan && matchesStatus && matchesDuplicate && matchesAlumniLink && matchesWaGroup;
     });
-  }, [data, searchQuery, filterAngkatan, filterStatus, filterField, filterDuplicates, duplicatePhones, filterAlumniLink]);
+  }, [data, searchQuery, filterAngkatan, filterStatus, filterField, filterDuplicates, duplicatePhones, filterAlumniLink, filterWaGroup, memberInGroup]);
 
   const handleCreateMember = async (memberData: Partial<Member>) => {
     try {
@@ -203,9 +227,8 @@ export default function AnggotaPage() {
       Angkatan: m.angkatan,
       "No HP": m.no_hp || "",
       PIC: m.pic || "",
+      "Masuk Grup WA": memberInGroup[m.id] ? "Sudah" : "Belum",
       "Status DPT": m.status_dpt || "",
-      "Sudah Dikontak": m.sudah_dikontak || "",
-      "Masuk Grup": m.masuk_grup || "",
       Vote: m.vote || "",
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -306,8 +329,6 @@ export default function AnggotaPage() {
               className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
             >
               <option value="status_dpt">Status DPT</option>
-              <option value="sudah_dikontak">Sudah Dikontak</option>
-              <option value="masuk_grup">Masuk Grup</option>
               <option value="vote">Vote</option>
             </select>
             <select
@@ -345,6 +366,29 @@ export default function AnggotaPage() {
               <GraduationCap className="w-3.5 h-3.5" />
               Belum Terhubung ({formatNum(alumniLinkCounts.unlinked)})
             </button>
+            {/* WA Group filter */}
+            <button
+              onClick={() => setFilterWaGroup(filterWaGroup === "in_group" ? "all" : "in_group")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                filterWaGroup === "in_group"
+                  ? "bg-[#0B27BC] text-white"
+                  : "bg-[#0B27BC]/10 text-[#0B27BC] hover:bg-[#0B27BC]/20 border border-[#0B27BC]/20"
+              }`}
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              Masuk Grup WA ({formatNum(waGroupCounts.inGroup)})
+            </button>
+            <button
+              onClick={() => setFilterWaGroup(filterWaGroup === "not_in_group" ? "all" : "not_in_group")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                filterWaGroup === "not_in_group"
+                  ? "bg-amber-500 text-white"
+                  : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+              }`}
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              Belum Masuk Grup ({formatNum(waGroupCounts.notInGroup)})
+            </button>
             {/* Duplicate filter */}
             {duplicateMemberCount > 0 && (
               <button
@@ -367,6 +411,7 @@ export default function AnggotaPage() {
           data={filteredData}
           allData={data}
           attendanceCounts={attendanceCounts}
+          memberInGroup={memberInGroup}
           onUpdate={userCanEdit ? updateMember : undefined}
           onAlumniLink={userCanEdit ? handleAlumniLink : undefined}
           onRowClick={(id) => router.push(`/anggota/${id}`)}

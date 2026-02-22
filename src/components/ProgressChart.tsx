@@ -27,9 +27,9 @@ const COLORS = {
 
 export function ProgressChart({ stats }: ProgressChartProps) {
   const categories = [
-    { name: "Status DPT", sudah: stats.dptSudah, total: stats.total },
     { name: "Alumni Terhubung", sudah: stats.linkedAlumni, total: stats.totalAlumni },
-    { name: "Masuk Grup", sudah: stats.grupSudah, total: stats.total },
+    { name: "Masuk Grup WA", sudah: stats.grupSudah, total: stats.total },
+    { name: "Status DPT", sudah: stats.dptSudah, total: stats.total },
     { name: "Vote", sudah: stats.voteSudah, total: stats.total },
   ];
 

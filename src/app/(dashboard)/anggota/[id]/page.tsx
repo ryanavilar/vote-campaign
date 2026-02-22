@@ -28,6 +28,7 @@ import {
   History,
   ChevronDown,
   ChevronUp,
+  Smartphone,
 } from "lucide-react";
 import type { Member, StatusValue, EventAttendance, Event } from "@/lib/types";
 
@@ -120,6 +121,7 @@ export default function MemberDetailPage() {
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [auditExpanded, setAuditExpanded] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [inWaGroup, setInWaGroup] = useState<boolean>(false);
 
   const isAssignedToMe = member?.campaigner_targets?.some(t => t.user_id === userId)
     || member?.assigned_to === userId;
@@ -221,14 +223,24 @@ export default function MemberDetailPage() {
     setAuditLoading(false);
   }, [id]);
 
+  const fetchWaGroupStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/wa-group/stats");
+      if (res.ok) {
+        const data = await res.json();
+        setInWaGroup(!!data.memberInGroup?.[id]);
+      }
+    } catch { /* ignore */ }
+  }, [id]);
+
   useEffect(() => {
     async function loadAll() {
       setLoading(true);
-      await Promise.all([fetchMember(), fetchAllMembers(), fetchReferralData(), fetchAttendance(), fetchCampaigners()]);
+      await Promise.all([fetchMember(), fetchAllMembers(), fetchReferralData(), fetchAttendance(), fetchCampaigners(), fetchWaGroupStatus()]);
       setLoading(false);
     }
     loadAll();
-  }, [fetchMember, fetchAllMembers, fetchReferralData, fetchAttendance, fetchCampaigners]);
+  }, [fetchMember, fetchAllMembers, fetchReferralData, fetchAttendance, fetchCampaigners, fetchWaGroupStatus]);
 
   const handleAddAssignment = async (campaignerId: string) => {
     if (!member) return;
@@ -593,6 +605,22 @@ export default function MemberDetailPage() {
             <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
               <h3 className="font-semibold text-sm text-foreground mb-3">Status Keanggotaan</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {/* Masuk Grup WA — automatic from WAHA sync, read-only */}
+                <div
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all min-w-0 cursor-default ${
+                    inWaGroup
+                      ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                      : "bg-gray-50 border-gray-200 text-gray-400"
+                  }`}
+                >
+                  {inWaGroup ? (
+                    <Smartphone className="w-6 h-6" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full border-2 border-current" />
+                  )}
+                  <span className="text-xs font-semibold text-center leading-tight">Grup WA</span>
+                  <span className="text-[10px] font-medium">{inWaGroup ? "Sudah" : "Belum"}</span>
+                </div>
                 <StatusToggle
                   label="Status DPT"
                   value={member.status_dpt}
@@ -604,12 +632,6 @@ export default function MemberDetailPage() {
                   value={member.sudah_dikontak}
                   canToggle={userCanEdit && (!isCampaigner || isAssignedToMe) && updatingField !== "sudah_dikontak"}
                   onToggle={() => handleToggleStatus("sudah_dikontak")}
-                />
-                <StatusToggle
-                  label="Masuk Grup"
-                  value={member.masuk_grup}
-                  canToggle={userCanEdit && (!isCampaigner || isAssignedToMe) && updatingField !== "masuk_grup"}
-                  onToggle={() => handleToggleStatus("masuk_grup")}
                 />
                 <StatusToggle
                   label="Vote"

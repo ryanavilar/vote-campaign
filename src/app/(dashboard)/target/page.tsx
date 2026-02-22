@@ -15,7 +15,7 @@ import {
   Crosshair,
   GraduationCap,
   ClipboardCheck,
-  UserCheck,
+  Smartphone,
   Vote,
   ChevronUp,
 } from "lucide-react";
@@ -42,6 +42,7 @@ export default function TargetPage() {
   const [targets, setTargets] = useState<Member[]>([]);
   const [loadingTargets, setLoadingTargets] = useState(true);
   const [attendanceCounts, setAttendanceCounts] = useState<Record<string, number>>({});
+  const [memberInGroup, setMemberInGroup] = useState<Record<string, boolean>>({});
 
   // Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -65,15 +66,18 @@ export default function TargetPage() {
   const fetchTargets = useCallback(async () => {
     setLoadingTargets(true);
     try {
-      const [targetsRes, attendanceRes] = await Promise.all([
+      const [targetsRes, attendanceRes, waGroupRes] = await Promise.all([
         fetch("/api/targets"),
         supabase.from("event_attendance").select("member_id"),
+        fetch("/api/wa-group/stats").then((r) => r.json()).catch(() => ({ memberInGroup: {} })),
       ]);
 
       if (targetsRes.ok) {
         const data = await targetsRes.json();
         setTargets(data);
       }
+
+      setMemberInGroup(waGroupRes.memberInGroup || {});
 
       if (!attendanceRes.error && attendanceRes.data) {
         const counts: Record<string, number> = {};
@@ -250,10 +254,10 @@ export default function TargetPage() {
   const targetStats = useMemo(() => {
     const total = targets.length;
     const dpt = targets.filter((m) => m.status_dpt === "Sudah").length;
-    const grup = targets.filter((m) => m.masuk_grup === "Sudah").length;
+    const grup = targets.filter((m) => memberInGroup[m.id]).length;
     const vote = targets.filter((m) => m.vote === "Sudah").length;
     return { total, dpt, grup, vote };
-  }, [targets]);
+  }, [targets, memberInGroup]);
 
   // Filter targets
   const filteredTargets = useMemo(() => {
@@ -334,8 +338,8 @@ export default function TargetPage() {
         <div className="grid grid-cols-4 gap-3">
           {[
             { label: "Target", value: targetStats.total, icon: Crosshair, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
+            { label: "Grup WA", value: targetStats.grup, icon: Smartphone, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
             { label: "DPT", value: targetStats.dpt, icon: ClipboardCheck, color: "text-emerald-700", bg: "bg-emerald-50" },
-            { label: "Grup", value: targetStats.grup, icon: UserCheck, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
             { label: "Vote", value: targetStats.vote, icon: Vote, color: "text-[#84303F]", bg: "bg-[#84303F]/10" },
           ].map((s) => (
             <div key={s.label} className="bg-white rounded-xl border border-border p-3 shadow-sm text-center">
@@ -502,8 +506,6 @@ export default function TargetPage() {
                 className="px-3 py-2 text-sm border border-border rounded-lg bg-white"
               >
                 <option value="status_dpt">DPT</option>
-                <option value="sudah_dikontak">Dikontak</option>
-                <option value="masuk_grup">Grup</option>
                 <option value="vote">Vote</option>
               </select>
               <select
@@ -524,6 +526,7 @@ export default function TargetPage() {
         <DataTable
           data={filteredTargets}
           attendanceCounts={attendanceCounts}
+          memberInGroup={memberInGroup}
           onUpdate={updateMember}
           onRowClick={(id) => router.push(`/anggota/${id}?from=target`)}
           onDelete={handleRemoveTarget}

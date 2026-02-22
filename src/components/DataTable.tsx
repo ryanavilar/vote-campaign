@@ -3,13 +3,14 @@
 import type { Member, StatusValue } from "@/lib/types";
 import { formatNum } from "@/lib/format";
 import { AlumniLinkSelector } from "@/components/AlumniLinkSelector";
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, X, Merge, Loader2, ArrowRight, GraduationCap, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, X, Merge, Loader2, ArrowRight, GraduationCap, Trash2, Smartphone } from "lucide-react";
 import { useState, useMemo } from "react";
 
 interface DataTableProps {
   data: Member[];
   allData?: Member[];
   attendanceCounts?: Record<string, number>;
+  memberInGroup?: Record<string, boolean>;
   onUpdate?: (id: string, field: string, value: StatusValue) => void;
   onAlumniLink?: (memberId: string, alumniId: string | null) => Promise<void>;
   onRowClick?: (id: string) => void;
@@ -58,7 +59,7 @@ function StatusBadge({
   );
 }
 
-type SortKey = "no" | "nama" | "angkatan" | "no_hp" | "kegiatan" | "status_dpt" | "sudah_dikontak" | "masuk_grup" | "vote";
+type SortKey = "no" | "nama" | "angkatan" | "no_hp" | "kegiatan" | "status_dpt" | "masuk_grup_wa" | "vote";
 type SortDir = "asc" | "desc";
 
 function SortHeader({
@@ -112,8 +113,6 @@ const MERGE_FIELDS: { key: string; label: string }[] = [
   { key: "email", label: "Email" },
   { key: "domisili", label: "Domisili" },
   { key: "status_dpt", label: "Status DPT" },
-  { key: "sudah_dikontak", label: "Sudah Dikontak" },
-  { key: "masuk_grup", label: "Masuk Grup" },
   { key: "vote", label: "Vote" },
   { key: "referral_name", label: "Referral" },
   { key: "alumni_id", label: "Link Alumni" },
@@ -240,7 +239,7 @@ function MergeView({
 /* Main DataTable                                                      */
 /* ------------------------------------------------------------------ */
 
-export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniLink, onRowClick, onDelete, deletingId, totalCount, onDataRefresh, title }: DataTableProps) {
+export function DataTable({ data, allData, attendanceCounts, memberInGroup, onUpdate, onAlumniLink, onRowClick, onDelete, deletingId, totalCount, onDataRefresh, title }: DataTableProps) {
   const [page, setPage] = useState(0);
   const [duplicateModalPhone, setDuplicateModalPhone] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -279,12 +278,15 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniL
       if (sortKey === "kegiatan") {
         aVal = attendanceCounts?.[a.id] ?? 0;
         bVal = attendanceCounts?.[b.id] ?? 0;
+      } else if (sortKey === "masuk_grup_wa") {
+        aVal = memberInGroup?.[a.id] ? 1 : 0;
+        bVal = memberInGroup?.[b.id] ? 1 : 0;
       } else if (sortKey === "no" || sortKey === "angkatan") {
         aVal = a[sortKey];
         bVal = b[sortKey];
       } else {
-        aVal = a[sortKey] ?? "";
-        bVal = b[sortKey] ?? "";
+        aVal = a[sortKey as keyof Member] as string ?? "";
+        bVal = b[sortKey as keyof Member] as string ?? "";
       }
 
       if (typeof aVal === "number" && typeof bVal === "number") {
@@ -295,7 +297,7 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniL
       const cmp = strA.localeCompare(strB);
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [data, sortKey, sortDir, attendanceCounts]);
+  }, [data, sortKey, sortDir, attendanceCounts, memberInGroup]);
 
   const totalPages = Math.ceil(sortedData.length / PAGE_SIZE);
   const pageData = sortedData.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -398,9 +400,8 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniL
                 {attendanceCounts && (
                   <SortHeader label="Kegiatan" sortKey="kegiatan" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-16" />
                 )}
+                <SortHeader label="Grup WA" sortKey="masuk_grup_wa" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
                 <SortHeader label="Status DPT" sortKey="status_dpt" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
-                <SortHeader label="Dikontak" sortKey="sudah_dikontak" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
-                <SortHeader label="Masuk Grup" sortKey="masuk_grup" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
                 <SortHeader label="Vote" sortKey="vote" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
                 {onDelete && (
                   <th className="px-3 py-2.5 w-10" />
@@ -477,21 +478,21 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniL
                     </td>
                   )}
                   <td className="px-3 py-2 text-center">
+                    {memberInGroup?.[member.id] ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md border bg-emerald-100 text-emerald-700 border-emerald-200">
+                        <Smartphone className="w-3 h-3" />
+                        Sudah
+                      </span>
+                    ) : (
+                      <span className="text-xs font-medium px-2 py-1 rounded-md border inline-block bg-gray-50 text-gray-400 border-gray-200">
+                        -
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-center">
                     <StatusBadge
                       value={member.status_dpt}
                       onChange={onUpdate ? (v) => onUpdate(member.id, "status_dpt", v) : undefined}
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <StatusBadge
-                      value={member.sudah_dikontak}
-                      onChange={onUpdate ? (v) => onUpdate(member.id, "sudah_dikontak", v) : undefined}
-                    />
-                  </td>
-                  <td className="px-3 py-2 text-center">
-                    <StatusBadge
-                      value={member.masuk_grup}
-                      onChange={onUpdate ? (v) => onUpdate(member.id, "masuk_grup", v) : undefined}
                     />
                   </td>
                   <td className="px-3 py-2 text-center">
@@ -523,7 +524,7 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniL
               ))}
               {pageData.length === 0 && (
                 <tr>
-                  <td colSpan={(attendanceCounts ? 9 : 8) + (onDelete ? 1 : 0)} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={(attendanceCounts ? 8 : 7) + (onDelete ? 1 : 0)} className="px-3 py-8 text-center text-muted-foreground">
                     Tidak ada data yang cocok dengan filter
                   </td>
                 </tr>

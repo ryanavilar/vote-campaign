@@ -16,6 +16,13 @@ interface AlumniStats {
   alumniByAngkatan: Record<string, number>;
 }
 
+interface WaGroupStats {
+  totalInGroup: number;
+  linked: number;
+  unlinked: number;
+  memberInGroup: Record<string, boolean>;
+}
+
 function FormLinkRow({
   label,
   description,
@@ -99,6 +106,13 @@ export default function Dashboard() {
     alumniByAngkatan: {},
   });
   const [alumniLoaded, setAlumniLoaded] = useState(false);
+  const [waGroupStats, setWaGroupStats] = useState<WaGroupStats>({
+    totalInGroup: 0,
+    linked: 0,
+    unlinked: 0,
+    memberInGroup: {},
+  });
+  const [waGroupLoaded, setWaGroupLoaded] = useState(false);
   const { loading: roleLoading } = useRole();
 
   useEffect(() => {
@@ -122,6 +136,11 @@ export default function Dashboard() {
       .then((res) => res.json())
       .catch(() => ({ totalAlumni: 0, linkedAlumni: 0, alumniByAngkatan: {} }));
 
+    // Fetch WA Group stats
+    const waGroupPromise = fetch("/api/wa-group/stats")
+      .then((res) => res.json())
+      .catch(() => ({ totalInGroup: 0, linked: 0, unlinked: 0, memberInGroup: {} }));
+
     // Progressive loading — render as each piece arrives
     membersPromise.then((members) => {
       setData(members);
@@ -132,12 +151,18 @@ export default function Dashboard() {
       setAlumniStats(aStats);
       setAlumniLoaded(true);
     });
+
+    waGroupPromise.then((wStats) => {
+      setWaGroupStats(wStats);
+      setWaGroupLoaded(true);
+    });
   };
 
   const stats = useMemo(() => {
     const total = data.length;
     const dptSudah = data.filter((m) => m.status_dpt === "Sudah").length;
-    const grupSudah = data.filter((m) => m.masuk_grup === "Sudah").length;
+    // Masuk Grup is now automatic from WA Group data
+    const grupSudah = data.filter((m) => waGroupStats.memberInGroup[m.id]).length;
     const voteSudah = data.filter((m) => m.vote === "Sudah").length;
     return {
       total,
@@ -145,9 +170,12 @@ export default function Dashboard() {
       linkedAlumni: alumniStats.linkedAlumni,
       dptSudah,
       grupSudah,
+      grupLinked: waGroupStats.linked,
+      grupUnlinked: waGroupStats.unlinked,
+      totalInGroup: waGroupStats.totalInGroup,
       voteSudah,
     };
-  }, [data, alumniStats]);
+  }, [data, alumniStats, waGroupStats]);
 
   const angkatanStats = useMemo(() => {
     const map = new Map<number, { total: number; dpt: number; kontak: number; grup: number; vote: number; alumni: number }>();
@@ -156,7 +184,7 @@ export default function Dashboard() {
       existing.total++;
       if (m.status_dpt === "Sudah") existing.dpt++;
       if (m.sudah_dikontak === "Sudah") existing.kontak++;
-      if (m.masuk_grup === "Sudah") existing.grup++;
+      if (waGroupStats.memberInGroup[m.id]) existing.grup++;
       if (m.vote === "Sudah") existing.vote++;
       map.set(m.angkatan, existing);
     });
@@ -176,7 +204,7 @@ export default function Dashboard() {
         angkatanNum: angkatan,
         ...s,
       }));
-  }, [data, alumniStats.alumniByAngkatan]);
+  }, [data, alumniStats.alumniByAngkatan, waGroupStats.memberInGroup]);
 
   const exportExcel = () => {
     const rows = data.map((m) => ({
@@ -185,9 +213,8 @@ export default function Dashboard() {
       Angkatan: m.angkatan,
       "No HP": m.no_hp || "",
       PIC: m.pic || "",
+      "Masuk Grup WA": waGroupStats.memberInGroup[m.id] ? "Sudah" : "Belum",
       "Status DPT": m.status_dpt || "",
-      "Sudah Dikontak": m.sudah_dikontak || "",
-      "Masuk Grup": m.masuk_grup || "",
       Vote: m.vote || "",
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -216,7 +243,7 @@ export default function Dashboard() {
     );
   }
 
-  const bothLoaded = membersLoaded && alumniLoaded;
+  const bothLoaded = membersLoaded && alumniLoaded && waGroupLoaded;
 
   return (
     <div className="bg-background">

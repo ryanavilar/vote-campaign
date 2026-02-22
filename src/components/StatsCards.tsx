@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, ClipboardCheck, GraduationCap, UserCheck, Vote } from "lucide-react";
+import { Users, ClipboardCheck, GraduationCap, Smartphone, Vote } from "lucide-react";
 import { formatNum } from "@/lib/format";
 
 interface StatsProps {
@@ -10,6 +10,9 @@ interface StatsProps {
     linkedAlumni: number;
     dptSudah: number;
     grupSudah: number;
+    grupLinked?: number;
+    grupUnlinked?: number;
+    totalInGroup?: number;
     voteSudah: number;
   };
   alumniLoaded?: boolean;
@@ -17,6 +20,10 @@ interface StatsProps {
 
 export function StatsCards({ stats, alumniLoaded = true }: StatsProps) {
   const safePercent = (n: number, d: number) => d > 0 ? Math.round((n / d) * 100) : 0;
+
+  const grupSub = stats.totalInGroup !== undefined
+    ? `${formatNum(stats.grupLinked || 0)} linked · ${formatNum(stats.grupUnlinked || 0)} unlinked`
+    : `${formatNum(stats.total - stats.grupSudah)} belum`;
 
   const cards = [
     {
@@ -39,6 +46,16 @@ export function StatsCards({ stats, alumniLoaded = true }: StatsProps) {
       textColor: "text-[#0B27BC]",
     },
     {
+      label: "Masuk Grup WA",
+      value: stats.grupSudah,
+      sub: grupSub,
+      icon: Smartphone,
+      color: "bg-[#0B27BC]",
+      bgColor: "bg-[#0B27BC]/10",
+      textColor: "text-[#0B27BC]",
+      percentage: safePercent(stats.grupSudah, stats.total),
+    },
+    {
       label: "Status DPT",
       value: stats.dptSudah,
       sub: `${formatNum(stats.total - stats.dptSudah)} belum`,
@@ -47,16 +64,6 @@ export function StatsCards({ stats, alumniLoaded = true }: StatsProps) {
       bgColor: "bg-emerald-50",
       textColor: "text-emerald-700",
       percentage: safePercent(stats.dptSudah, stats.total),
-    },
-    {
-      label: "Masuk Grup",
-      value: stats.grupSudah,
-      sub: `${formatNum(stats.total - stats.grupSudah)} belum`,
-      icon: UserCheck,
-      color: "bg-[#0B27BC]",
-      bgColor: "bg-[#0B27BC]/10",
-      textColor: "text-[#0B27BC]",
-      percentage: safePercent(stats.grupSudah, stats.total),
     },
     {
       label: "Sudah Vote",

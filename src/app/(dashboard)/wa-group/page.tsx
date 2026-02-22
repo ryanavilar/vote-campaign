@@ -34,6 +34,7 @@ export default function WaGroupPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "linked" | "unlinked">("all");
 
   // Link modal state
   const [linkTarget, setLinkTarget] = useState<WaGroupMember | null>(null);
@@ -147,15 +148,28 @@ export default function WaGroupPage() {
 
   // Filter
   const filtered = useMemo(() => {
-    if (!searchQuery.trim()) return members;
-    const q = searchQuery.toLowerCase();
-    return members.filter(
-      (m) =>
-        m.phone.includes(q) ||
-        (m.wa_name && m.wa_name.toLowerCase().includes(q)) ||
-        (m.member && m.member.nama.toLowerCase().includes(q))
-    );
-  }, [members, searchQuery]);
+    let result = members;
+
+    // Status filter
+    if (statusFilter === "linked") {
+      result = result.filter((m) => m.member_id);
+    } else if (statusFilter === "unlinked") {
+      result = result.filter((m) => !m.member_id);
+    }
+
+    // Text search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (m) =>
+          m.phone.includes(q) ||
+          (m.wa_name && m.wa_name.toLowerCase().includes(q)) ||
+          (m.member && m.member.nama.toLowerCase().includes(q))
+      );
+    }
+
+    return result;
+  }, [members, searchQuery, statusFilter]);
 
   const linkedCount = members.filter((m) => m.member_id).length;
   const unlinkedCount = members.length - linkedCount;
@@ -239,24 +253,63 @@ export default function WaGroupPage() {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Cari nomor, nama WA, atau nama anggota..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 text-sm border border-border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
-          />
-          {searchQuery && (
+        {/* Search & Filter */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Cari nomor, nama WA, atau nama anggota..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 text-sm border border-border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2"
+              >
+                <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
+          </div>
+
+          {/* Status Filter Chips */}
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
+              onClick={() => setStatusFilter("all")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                statusFilter === "all"
+                  ? "bg-[#0B27BC] text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
             >
-              <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+              <Users className="w-3 h-3" />
+              Semua ({members.length})
             </button>
-          )}
+            <button
+              onClick={() => setStatusFilter("linked")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                statusFilter === "linked"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              <UserCheck className="w-3 h-3" />
+              Linked ({linkedCount})
+            </button>
+            <button
+              onClick={() => setStatusFilter("unlinked")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                statusFilter === "unlinked"
+                  ? "bg-amber-500 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              <UserX className="w-3 h-3" />
+              Unlinked ({unlinkedCount})
+            </button>
+          </div>
         </div>
 
         {/* Table */}
@@ -352,9 +405,11 @@ export default function WaGroupPage() {
                 </tbody>
               </table>
             </div>
-            {filtered.length === 0 && searchQuery && (
+            {filtered.length === 0 && (searchQuery || statusFilter !== "all") && (
               <div className="p-6 text-center text-sm text-muted-foreground">
-                Tidak ada hasil untuk &quot;{searchQuery}&quot;
+                {searchQuery
+                  ? `Tidak ada hasil untuk "${searchQuery}"${statusFilter !== "all" ? ` (filter: ${statusFilter})` : ""}`
+                  : `Tidak ada anggota dengan status "${statusFilter}"`}
               </div>
             )}
           </div>

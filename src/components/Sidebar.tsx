@@ -39,15 +39,15 @@ const navItems: NavItem[] = [
   { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" },
   { icon: Crosshair, label: "Target Saya", path: "/target", minRole: "campaigner" },
   { icon: Users, label: "Anggota", path: "/anggota", minRole: "viewer" },
+  { icon: GraduationCap, label: "Alumni", path: "/admin/alumni", minRole: "admin" },
+  { icon: UserPlus, label: "Penugasan", path: "/admin/assignments", minRole: "admin" },
+  { icon: Smartphone, label: "WA Group", path: "/wa-group", minRole: "admin" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer" },
   { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer" },
 ];
 
 const adminItems = [
-  { icon: GraduationCap, label: "Alumni", path: "/admin/alumni", minRole: "admin" as const },
   { icon: Settings, label: "Pengguna", path: "/admin/users", minRole: "admin" as const },
-  { icon: UserPlus, label: "Penugasan", path: "/admin/assignments", minRole: "admin" as const },
-  { icon: Smartphone, label: "WA Group", path: "/wa-group", minRole: "admin" as const },
   { icon: Settings2, label: "Pengaturan", path: "/admin/settings", minRole: "admin" as const },
 ];
 
