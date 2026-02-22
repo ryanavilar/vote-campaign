@@ -31,7 +31,6 @@ interface AlumniSearchResult {
   members: {
     id: string;
     nama: string;
-    assigned_to: string | null;
     campaigner_targets: { user_id: string }[];
   }[];
 }

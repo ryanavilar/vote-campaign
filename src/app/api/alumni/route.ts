@@ -73,13 +73,16 @@ export async function GET(request: NextRequest) {
     .order("nama", { ascending: true })
     .range(offset, offset + limit - 1);
 
-  // Run main query and total linked count in parallel
-  const [queryResult, linkedCountResult] = await Promise.all([
+  // Run main query, total linked count (distinct), and unfiltered total in parallel
+  const [queryResult, linkedMembersResult, totalAllResult] = await Promise.all([
     query,
     adminClient
       .from("members")
-      .select("alumni_id", { count: "exact", head: true })
+      .select("alumni_id")
       .not("alumni_id", "is", null),
+    adminClient
+      .from("alumni")
+      .select("id", { count: "exact", head: true }),
   ]);
 
   const { data, count, error } = queryResult;
@@ -88,10 +91,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Count distinct alumni IDs linked to members (avoids double-counting)
+  const distinctLinked = new Set(
+    (linkedMembersResult.data || []).map((r: { alumni_id: string }) => r.alumni_id)
+  ).size;
+
   return NextResponse.json({
     data: data || [],
     total: count || 0,
-    totalLinked: linkedCountResult.count || 0,
+    totalAll: totalAllResult.count || 0,
+    totalLinked: distinctLinked,
     page,
     limit,
     totalPages: Math.ceil((count || 0) / limit),

@@ -56,17 +56,37 @@ export default function LeaderboardPage() {
     async function fetchData() {
       setLoading(true);
 
-      // Fetch members (scoped for campaigner)
-      let membersQuery = supabase
-        .from("members")
-        .select("*")
-        .order("nama", { ascending: true });
+      // Fetch members (scoped for campaigner via junction table)
+      let membersData: Member[] | null = null;
+      let membersError = null;
 
       if (isCampaigner && userId) {
-        membersQuery = membersQuery.eq("assigned_to", userId);
-      }
+        // Get member IDs from campaigner_targets junction table
+        const { data: targets } = await supabase
+          .from("campaigner_targets")
+          .select("member_id")
+          .eq("user_id", userId);
 
-      const { data: membersData, error: membersError } = await membersQuery;
+        if (!targets || targets.length === 0) {
+          membersData = [];
+        } else {
+          const memberIds = targets.map((t) => t.member_id);
+          const { data, error } = await supabase
+            .from("members")
+            .select("*")
+            .in("id", memberIds)
+            .order("nama", { ascending: true });
+          membersData = data;
+          membersError = error;
+        }
+      } else {
+        const { data, error } = await supabase
+          .from("members")
+          .select("*")
+          .order("nama", { ascending: true });
+        membersData = data;
+        membersError = error;
+      }
 
       if (membersError) {
         console.error("Error fetching members:", membersError);

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   let query = adminClient
     .from("alumni")
     .select(
-      "id, nama, angkatan, kelanjutan_studi, program_studi, members!alumni_id(id, nama, assigned_to, campaigner_targets(user_id))",
+      "id, nama, angkatan, kelanjutan_studi, program_studi, members!alumni_id(id, nama, campaigner_targets(user_id))",
       { count: "exact" }
     );
 

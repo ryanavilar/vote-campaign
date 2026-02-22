@@ -110,7 +110,6 @@ export async function PATCH(request: NextRequest) {
     "nama",
     "angkatan",
     "no_hp",
-    "assigned_to",
     "alumni_id",
   ];
 

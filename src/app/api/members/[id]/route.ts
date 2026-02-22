@@ -54,6 +54,7 @@ export async function PATCH(
     "masuk_grup",
     "vote",
     "referral_name",
+    "alumni_id",
   ];
   const updates: Record<string, unknown> = {};
   for (const key of allowedFields) {

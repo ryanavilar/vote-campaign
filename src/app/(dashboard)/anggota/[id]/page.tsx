@@ -7,6 +7,7 @@ import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
 import { MemberForm } from "@/components/MemberForm";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { AlumniLinkSelector } from "@/components/AlumniLinkSelector";
 import {
   ArrowLeft,
   Loader2,
@@ -21,8 +22,24 @@ import {
   Link2,
   MessageSquare,
   UserPlus,
+  GraduationCap,
+  Plus,
+  X,
 } from "lucide-react";
 import type { Member, StatusValue, EventAttendance, Event } from "@/lib/types";
+
+interface AlumniDetail {
+  id: string;
+  nama: string;
+  angkatan: number;
+  kelanjutan_studi: string | null;
+  program_studi: string | null;
+}
+
+interface MemberWithAlumni extends Member {
+  alumni?: AlumniDetail | null;
+  campaigner_targets?: { user_id: string }[];
+}
 
 interface StatusToggleProps {
   label: string;
@@ -71,7 +88,7 @@ export default function MemberDetailPage() {
   const isCampaigner = role === "campaigner";
   const { showToast } = useToast();
 
-  const [member, setMember] = useState<Member | null>(null);
+  const [member, setMember] = useState<MemberWithAlumni | null>(null);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [referredMembers, setReferredMembers] = useState<Member[]>([]);
   const [attendanceHistory, setAttendanceHistory] = useState<AttendanceWithEvent[]>([]);
@@ -81,11 +98,40 @@ export default function MemberDetailPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [updatingField, setUpdatingField] = useState<string | null>(null);
+  const [showAlumniLink, setShowAlumniLink] = useState(false);
+  const [showAddCampaigner, setShowAddCampaigner] = useState(false);
+
+  const isAssignedToMe = member?.campaigner_targets?.some(t => t.user_id === userId)
+    || member?.assigned_to === userId;
+
+  const handleAlumniLink = async (alumniId: string | null) => {
+    if (!member) return;
+    try {
+      const res = await fetch(`/api/members/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alumni_id: alumniId }),
+      });
+      if (res.ok) {
+        await fetchMember();
+        showToast(
+          alumniId ? "Berhasil dihubungkan dengan alumni" : "Hubungan alumni diputuskan",
+          "success"
+        );
+        setShowAlumniLink(false);
+      } else {
+        const result = await res.json();
+        showToast(result.error || "Gagal mengubah link alumni", "error");
+      }
+    } catch {
+      showToast("Terjadi kesalahan jaringan", "error");
+    }
+  };
 
   const fetchMember = useCallback(async () => {
     const { data, error } = await supabase
       .from("members")
-      .select("*")
+      .select("*, alumni:alumni_id(id, nama, angkatan, kelanjutan_studi, program_studi), campaigner_targets(user_id)")
       .eq("id", id)
       .single();
 
@@ -152,19 +198,39 @@ export default function MemberDetailPage() {
     loadAll();
   }, [fetchMember, fetchAllMembers, fetchReferralData, fetchAttendance, fetchCampaigners]);
 
-  const handleUpdateAssignment = async (assignedTo: string | null) => {
+  const handleAddAssignment = async (campaignerId: string) => {
     if (!member) return;
     try {
-      const res = await fetch("/api/members", {
-        method: "PATCH",
+      const res = await fetch("/api/assignments", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: member.id, field: "assigned_to", value: assignedTo || null }),
+        body: JSON.stringify({ campaigner_id: campaignerId, member_ids: [member.id] }),
       });
       if (!res.ok) {
-        showToast("Gagal mengubah penugasan", "error");
+        showToast("Gagal menambah penugasan", "error");
       } else {
-        showToast("Penugasan berhasil diubah", "success");
-        setMember((prev) => (prev ? { ...prev, assigned_to: assignedTo } : prev));
+        showToast("Penugasan berhasil ditambahkan", "success");
+        setShowAddCampaigner(false);
+        await fetchMember();
+      }
+    } catch {
+      showToast("Terjadi kesalahan jaringan", "error");
+    }
+  };
+
+  const handleRemoveAssignment = async (campaignerId: string) => {
+    if (!member) return;
+    try {
+      const res = await fetch("/api/assignments", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaigner_id: campaignerId, member_ids: [member.id] }),
+      });
+      if (!res.ok) {
+        showToast("Gagal menghapus penugasan", "error");
+      } else {
+        showToast("Penugasan berhasil dihapus", "success");
+        await fetchMember();
       }
     } catch {
       showToast("Terjadi kesalahan jaringan", "error");
@@ -327,7 +393,7 @@ export default function MemberDetailPage() {
               <h1 className="text-lg font-bold text-white truncate">Detail Anggota</h1>
             </div>
             <div className="flex items-center gap-2">
-              {userCanEdit && (!isCampaigner || member?.assigned_to === userId) && (
+              {userCanEdit && (!isCampaigner || isAssignedToMe) && (
                 <button
                   onClick={() => setEditMode(!editMode)}
                   className="p-2 rounded-lg hover:bg-white/10 transition-colors"
@@ -368,11 +434,34 @@ export default function MemberDetailPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-xl font-bold text-foreground">{member.nama}</h2>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full bg-[#0B27BC]/10 text-[#0B27BC] text-xs font-semibold">
                       TN{member.angkatan}
                     </span>
                     <span className="text-xs text-muted-foreground">#{member.no}</span>
+                    {userCanEdit ? (
+                      <button
+                        onClick={() => setShowAlumniLink(true)}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                          member.alumni_id
+                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                            : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                        }`}
+                      >
+                        <GraduationCap className="w-3 h-3" />
+                        {member.alumni_id ? "Terhubung Alumni" : "Hubungkan Alumni"}
+                      </button>
+                    ) : member.alumni_id ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+                        <GraduationCap className="w-3 h-3" />
+                        Terhubung Alumni
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-medium">
+                        <GraduationCap className="w-3 h-3" />
+                        Belum Terhubung Alumni
+                      </span>
+                    )}
                   </div>
                   <div className="mt-3 space-y-1.5">
                     {member.no_hp && (
@@ -387,28 +476,81 @@ export default function MemberDetailPage() {
                         <span>PIC: {member.pic}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <UserPlus className="w-3.5 h-3.5" />
-                      {canManageUsers ? (
-                        <select
-                          value={member.assigned_to || ""}
-                          onChange={(e) => handleUpdateAssignment(e.target.value || null)}
-                          className="px-2 py-1 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
-                        >
-                          <option value="">Belum ditugaskan</option>
-                          {campaigners.map((c) => (
-                            <option key={c.user_id} value={c.user_id}>
-                              {c.email}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span>
-                          {member.assigned_to
-                            ? campaigners.find((c) => c.user_id === member.assigned_to)?.email || "Ditugaskan"
-                            : "Belum ditugaskan"}
-                        </span>
-                      )}
+                    <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <UserPlus className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        {(() => {
+                          const assignedIds = member.campaigner_targets?.map(t => t.user_id) || [];
+                          const assignedCampaigners = campaigners.filter(c => assignedIds.includes(c.user_id));
+                          const availableCampaigners = campaigners.filter(c => !assignedIds.includes(c.user_id));
+
+                          if (canManageUsers) {
+                            return (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {assignedCampaigners.length === 0 && !showAddCampaigner && (
+                                  <span className="text-sm text-muted-foreground">Belum ditugaskan</span>
+                                )}
+                                {assignedCampaigners.map((c) => (
+                                  <span
+                                    key={c.user_id}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0B27BC]/10 text-[#0B27BC] text-xs font-medium"
+                                  >
+                                    {c.email.split("@")[0]}
+                                    <button
+                                      onClick={() => handleRemoveAssignment(c.user_id)}
+                                      className="ml-0.5 p-0.5 rounded-full hover:bg-[#0B27BC]/20 transition-colors"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                                {showAddCampaigner ? (
+                                  <select
+                                    autoFocus
+                                    value=""
+                                    onChange={(e) => {
+                                      if (e.target.value) handleAddAssignment(e.target.value);
+                                    }}
+                                    onBlur={() => setShowAddCampaigner(false)}
+                                    className="px-2 py-0.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
+                                  >
+                                    <option value="">Pilih campaigner...</option>
+                                    {availableCampaigners.map((c) => (
+                                      <option key={c.user_id} value={c.user_id}>
+                                        {c.email}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : availableCampaigners.length > 0 ? (
+                                  <button
+                                    onClick={() => setShowAddCampaigner(true)}
+                                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border border-dashed border-[#0B27BC]/30 text-[#0B27BC] text-xs font-medium hover:bg-[#0B27BC]/5 transition-colors"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    Tambah
+                                  </button>
+                                ) : null}
+                              </div>
+                            );
+                          }
+
+                          // Read-only view for campaigners and others
+                          return assignedCampaigners.length > 0 ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {assignedCampaigners.map((c) => (
+                                <span
+                                  key={c.user_id}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#0B27BC]/10 text-[#0B27BC] text-xs font-medium"
+                                >
+                                  {c.email.split("@")[0]}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span>Belum ditugaskan</span>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -422,25 +564,25 @@ export default function MemberDetailPage() {
                 <StatusToggle
                   label="Status DPT"
                   value={member.status_dpt}
-                  canToggle={userCanEdit && (!isCampaigner || member.assigned_to === userId) && updatingField !== "status_dpt"}
+                  canToggle={userCanEdit && (!isCampaigner || isAssignedToMe) && updatingField !== "status_dpt"}
                   onToggle={() => handleToggleStatus("status_dpt")}
                 />
                 <StatusToggle
                   label="Sudah Dikontak"
                   value={member.sudah_dikontak}
-                  canToggle={userCanEdit && (!isCampaigner || member.assigned_to === userId) && updatingField !== "sudah_dikontak"}
+                  canToggle={userCanEdit && (!isCampaigner || isAssignedToMe) && updatingField !== "sudah_dikontak"}
                   onToggle={() => handleToggleStatus("sudah_dikontak")}
                 />
                 <StatusToggle
                   label="Masuk Grup"
                   value={member.masuk_grup}
-                  canToggle={userCanEdit && (!isCampaigner || member.assigned_to === userId) && updatingField !== "masuk_grup"}
+                  canToggle={userCanEdit && (!isCampaigner || isAssignedToMe) && updatingField !== "masuk_grup"}
                   onToggle={() => handleToggleStatus("masuk_grup")}
                 />
                 <StatusToggle
                   label="Vote"
                   value={member.vote}
-                  canToggle={userCanEdit && (!isCampaigner || member.assigned_to === userId) && updatingField !== "vote"}
+                  canToggle={userCanEdit && (!isCampaigner || isAssignedToMe) && updatingField !== "vote"}
                   onToggle={() => handleToggleStatus("vote")}
                 />
               </div>
@@ -448,6 +590,70 @@ export default function MemberDetailPage() {
                 <p className="text-[10px] text-muted-foreground mt-2">
                   Ketuk untuk mengubah: Sudah &rarr; Belum &rarr; Kosong &rarr; Sudah
                 </p>
+              )}
+            </div>
+
+            {/* Alumni Link Card */}
+            <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
+              <h3 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-[#0B27BC]" />
+                Data Alumni
+              </h3>
+
+              {member.alumni ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg bg-emerald-50/60 border border-emerald-200/60 p-3.5">
+                    <div className="flex items-start gap-3">
+                      <div className="shrink-0 w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <GraduationCap className="w-4.5 h-4.5 text-emerald-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-foreground">{member.alumni.nama}</p>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">
+                            TN {member.alumni.angkatan}
+                          </span>
+                          {member.alumni.kelanjutan_studi && (
+                            <span className="text-xs text-muted-foreground">
+                              {member.alumni.kelanjutan_studi}
+                            </span>
+                          )}
+                        </div>
+                        {member.alumni.program_studi && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {member.alumni.program_studi}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {userCanEdit && (
+                    <button
+                      onClick={() => setShowAlumniLink(true)}
+                      className="text-xs text-[#0B27BC] font-medium hover:underline"
+                    >
+                      Ubah atau putuskan hubungan alumni
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                    <GraduationCap className="w-6 h-6 text-gray-300" />
+                  </div>
+                  <p className="text-sm text-muted-foreground text-center">
+                    Belum terhubung dengan data alumni
+                  </p>
+                  {userCanEdit && (
+                    <button
+                      onClick={() => setShowAlumniLink(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#0B27BC]/90 transition-colors"
+                    >
+                      <GraduationCap className="w-4 h-4" />
+                      Hubungkan dengan Alumni
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
@@ -588,6 +794,17 @@ export default function MemberDetailPage() {
         onCancel={() => setDeleteDialogOpen(false)}
         loading={deleting}
       />
+
+      {/* Alumni Link Selector */}
+      {showAlumniLink && (
+        <AlumniLinkSelector
+          currentAlumniId={member.alumni_id}
+          memberName={member.nama}
+          memberAngkatan={member.angkatan}
+          onLink={handleAlumniLink}
+          onClose={() => setShowAlumniLink(false)}
+        />
+      )}
     </div>
   );
 }

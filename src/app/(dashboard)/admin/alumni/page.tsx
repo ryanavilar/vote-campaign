@@ -75,6 +75,7 @@ export default function AdminAlumniPage() {
 
   const [alumni, setAlumni] = useState<AlumniWithMember[]>([]);
   const [total, setTotal] = useState(0);
+  const [totalAll, setTotalAll] = useState(0);
   const [page, setPage] = useState(1);
   const [limit] = useState(50);
   const [search, setSearch] = useState("");
@@ -117,6 +118,7 @@ export default function AdminAlumniPage() {
       const data = await res.json();
       setAlumni(data.data || []);
       setTotal(data.total || 0);
+      setTotalAll(data.totalAll || 0);
       setTotalLinked(data.totalLinked || 0);
     } catch {
       showToast("Gagal memuat data alumni", "error");
@@ -366,13 +368,13 @@ export default function AdminAlumniPage() {
 
       <div className="px-4 sm:px-6 py-6 space-y-4">
         {/* Stats bar */}
-        <div className="bg-white rounded-xl border border-border shadow-sm p-4 flex items-center gap-6">
+        <div className="bg-white rounded-xl border border-border shadow-sm p-4 flex items-center gap-6 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-[#0B27BC]/10">
               <GraduationCap className="w-5 h-5 text-[#0B27BC]" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{formatNum(total)}</p>
+              <p className="text-2xl font-bold text-foreground">{formatNum(totalAll)}</p>
               <p className="text-xs text-muted-foreground">Total Alumni</p>
             </div>
           </div>
@@ -381,6 +383,15 @@ export default function AdminAlumniPage() {
             <p className="text-2xl font-bold text-emerald-600">{formatNum(totalLinked)}</p>
             <p className="text-xs text-muted-foreground">Terhubung Kampanye</p>
           </div>
+          {(search || filterAngkatan !== "all" || filterLinked !== "all") && (
+            <>
+              <div className="h-8 w-px bg-border" />
+              <div>
+                <p className="text-2xl font-bold text-[#0B27BC]">{formatNum(total)}</p>
+                <p className="text-xs text-muted-foreground">Hasil Filter</p>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Filter bar */}
@@ -537,9 +548,11 @@ export default function AdminAlumniPage() {
             </table>
           </div>
 
-          {totalPages > 1 && (
+          {totalPages > 0 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-gray-50/50">
-              <p className="text-sm text-muted-foreground">Halaman {page} dari {formatNum(totalPages)}</p>
+              <p className="text-sm text-muted-foreground">
+                Menampilkan {formatNum(total)} alumni — Halaman {page} dari {formatNum(totalPages)}
+              </p>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   <ChevronLeft className="w-3.5 h-3.5" />Sebelumnya
@@ -620,6 +633,16 @@ export default function AdminAlumniPage() {
                       </p>
                     </div>
                   ) : (
+                    <>
+                    {/* Column header */}
+                    <div className="flex items-center gap-3 px-5 py-2 bg-gray-100/80 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      <div className="w-4 shrink-0" />
+                      <div className="flex-1 grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+                        <span className="flex items-center gap-1"><User className="w-3 h-3" /> Data Anggota</span>
+                        <span />
+                        <span className="flex items-center gap-1"><GraduationCap className="w-3 h-3" /> Data Alumni</span>
+                      </div>
+                    </div>
                     <div className="divide-y divide-border">
                       {currentTabCandidates.map((candidate) => {
                         const isSelected = selectedPairs.has(candidate.member_id);
@@ -627,13 +650,18 @@ export default function AdminAlumniPage() {
                           <label key={candidate.member_id} className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors ${isSelected ? "bg-blue-50/40" : "hover:bg-gray-50"}`}>
                             <input type="checkbox" checked={isSelected} onChange={() => togglePair(candidate.member_id)} className="rounded border-gray-300 text-[#0B27BC] focus:ring-[#0B27BC]/20 shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-medium text-foreground">{candidate.member_nama}</span>
+                              <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+                                <div className="min-w-0">
+                                  <span className="text-sm font-medium text-foreground block truncate">{candidate.member_nama}</span>
+                                  <span className="text-xs text-muted-foreground">TN{candidate.member_angkatan}</span>
+                                </div>
                                 <span className="text-xs text-gray-400">&rarr;</span>
-                                <span className="text-sm text-[#0B27BC] font-medium">{candidate.alumni_nama}</span>
+                                <div className="min-w-0">
+                                  <span className="text-sm text-[#0B27BC] font-medium block truncate">{candidate.alumni_nama}</span>
+                                  <span className="text-xs text-muted-foreground">TN{candidate.alumni_angkatan}</span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-[#0B27BC]/10 text-[#0B27BC] font-medium">TN{candidate.member_angkatan}</span>
+                              <div className="flex items-center gap-2 mt-1">
                                 <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${candidate.similarity >= 85 ? "bg-emerald-100 text-emerald-700" : candidate.similarity >= 70 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}>
                                   {candidate.similarity}% cocok
                                 </span>
@@ -643,6 +671,7 @@ export default function AdminAlumniPage() {
                         );
                       })}
                     </div>
+                    </>
                   )}
                 </div>
 

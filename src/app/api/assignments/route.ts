@@ -26,7 +26,7 @@ export async function GET() {
   // Fetch all members with their campaigner_targets
   const { data: members, error: membersError } = await supabase
     .from("members")
-    .select("id, nama, angkatan, no_hp, assigned_to, campaigner_targets(user_id)")
+    .select("id, nama, angkatan, no_hp, campaigner_targets(user_id)")
     .order("nama");
 
   if (membersError) {
@@ -100,28 +100,21 @@ export async function POST(request: NextRequest) {
 
   const adminClient = getAdminClient();
 
-  // Update assigned_to for backward compat
-  const { data, error } = await supabase
-    .from("members")
-    .update({ assigned_to: campaigner_id })
-    .in("id", member_ids)
-    .select();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  // Also insert into junction table
+  // Insert into junction table
   const inserts = member_ids.map((mid: string) => ({
     user_id: campaigner_id,
     member_id: mid,
   }));
 
-  await adminClient
+  const { error } = await adminClient
     .from("campaigner_targets")
     .upsert(inserts, { onConflict: "user_id,member_id" });
 
-  return NextResponse.json({ success: true, count: data?.length || 0 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true, count: member_ids.length });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -147,24 +140,23 @@ export async function DELETE(request: NextRequest) {
 
   const adminClient = getAdminClient();
 
-  // Clear assigned_to (backward compat)
-  const { error } = await supabase
-    .from("members")
-    .update({ assigned_to: null })
-    .in("id", member_ids);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!campaigner_id) {
+    return NextResponse.json(
+      { error: "campaigner_id wajib diisi" },
+      { status: 400 }
+    );
   }
 
-  // Also remove from junction table
-  if (campaigner_id) {
-    for (const mid of member_ids) {
-      await adminClient
-        .from("campaigner_targets")
-        .delete()
-        .eq("user_id", campaigner_id)
-        .eq("member_id", mid);
+  // Remove from junction table
+  for (const mid of member_ids) {
+    const { error } = await adminClient
+      .from("campaigner_targets")
+      .delete()
+      .eq("user_id", campaigner_id)
+      .eq("member_id", mid);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
   }
 

@@ -14,6 +14,7 @@ import {
   Filter,
   Download,
   Copy,
+  GraduationCap,
 } from "lucide-react";
 import { formatNum } from "@/lib/format";
 import type { Member, StatusValue } from "@/lib/types";
@@ -27,6 +28,7 @@ export default function AnggotaPage() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
   const [filterDuplicates, setFilterDuplicates] = useState(false);
+  const [filterAlumniLink, setFilterAlumniLink] = useState<string>("all");
   const { canEdit: userCanEdit, role, userId, loading: roleLoading } = useRole();
   const isCampaigner = role === "campaigner";
   const { showToast } = useToast();
@@ -112,6 +114,16 @@ export default function AnggotaPage() {
     return data.filter((m) => m.no_hp && duplicatePhones.has(m.no_hp.trim())).length;
   }, [data, duplicatePhones]);
 
+  const alumniLinkCounts = useMemo(() => {
+    let linked = 0;
+    let unlinked = 0;
+    for (const m of data) {
+      if (m.alumni_id) linked++;
+      else unlinked++;
+    }
+    return { linked, unlinked };
+  }, [data]);
+
   const filteredData = useMemo(() => {
     return data.filter((m) => {
       const q = searchQuery.toLowerCase();
@@ -133,9 +145,14 @@ export default function AnggotaPage() {
       const matchesDuplicate =
         !filterDuplicates || (m.no_hp && duplicatePhones.has(m.no_hp.trim()));
 
-      return matchesSearch && matchesAngkatan && matchesStatus && matchesDuplicate;
+      const matchesAlumniLink =
+        filterAlumniLink === "all" ||
+        (filterAlumniLink === "linked" && !!m.alumni_id) ||
+        (filterAlumniLink === "unlinked" && !m.alumni_id);
+
+      return matchesSearch && matchesAngkatan && matchesStatus && matchesDuplicate && matchesAlumniLink;
     });
-  }, [data, searchQuery, filterAngkatan, filterStatus, filterField, filterDuplicates, duplicatePhones]);
+  }, [data, searchQuery, filterAngkatan, filterStatus, filterField, filterDuplicates, duplicatePhones, filterAlumniLink]);
 
   const handleCreateMember = async (memberData: Partial<Member>) => {
     try {
@@ -176,6 +193,31 @@ export default function AnggotaPage() {
       showToast("Gagal mengupdate status", "error");
     }
   }, [fetchMembers, showToast]);
+
+  const handleAlumniLink = useCallback(async (memberId: string, alumniId: string | null) => {
+    try {
+      const res = await fetch(`/api/members/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alumni_id: alumniId }),
+      });
+      if (res.ok) {
+        // Optimistic update
+        setData((prev) =>
+          prev.map((m) => (m.id === memberId ? { ...m, alumni_id: alumniId } : m))
+        );
+        showToast(
+          alumniId ? "Berhasil dihubungkan dengan alumni" : "Hubungan alumni diputuskan",
+          "success"
+        );
+      } else {
+        const result = await res.json();
+        showToast(result.error || "Gagal mengubah link alumni", "error");
+      }
+    } catch {
+      showToast("Terjadi kesalahan jaringan", "error");
+    }
+  }, [showToast]);
 
   const exportCSV = () => {
     const headers = ["No", "Nama", "Angkatan", "No HP", "PIC", "Status DPT", "Sudah Dikontak", "Masuk Grup", "Vote"];
@@ -299,8 +341,32 @@ export default function AnggotaPage() {
               <option value="empty">Belum diisi</option>
             </select>
           </div>
-          {duplicateMemberCount > 0 && (
-            <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
+            {/* Alumni link filter */}
+            <button
+              onClick={() => setFilterAlumniLink(filterAlumniLink === "linked" ? "all" : "linked")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                filterAlumniLink === "linked"
+                  ? "bg-emerald-500 text-white"
+                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              Terhubung Alumni ({formatNum(alumniLinkCounts.linked)})
+            </button>
+            <button
+              onClick={() => setFilterAlumniLink(filterAlumniLink === "unlinked" ? "all" : "unlinked")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                filterAlumniLink === "unlinked"
+                  ? "bg-gray-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200"
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              Belum Terhubung ({formatNum(alumniLinkCounts.unlinked)})
+            </button>
+            {/* Duplicate filter */}
+            {duplicateMemberCount > 0 && (
               <button
                 onClick={() => setFilterDuplicates(!filterDuplicates)}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
@@ -312,8 +378,8 @@ export default function AnggotaPage() {
                 <Copy className="w-3.5 h-3.5" />
                 Duplikat No. HP ({formatNum(duplicateMemberCount)})
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Data Table with inline editing + row click to detail */}
@@ -322,6 +388,7 @@ export default function AnggotaPage() {
           allData={data}
           attendanceCounts={attendanceCounts}
           onUpdate={userCanEdit ? updateMember : undefined}
+          onAlumniLink={userCanEdit ? handleAlumniLink : undefined}
           onRowClick={(id) => router.push(`/anggota/${id}`)}
           totalCount={data.length}
           onDataRefresh={fetchMembers}

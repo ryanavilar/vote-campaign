@@ -25,7 +25,6 @@ interface AssignmentMember {
   nama: string;
   angkatan: number;
   no_hp: string;
-  assigned_to: string | null;
   campaigner_targets?: { user_id: string }[];
 }
 
@@ -89,11 +88,8 @@ export default function AdminAssignmentsPage() {
         for (const t of targets) {
           counts[t.user_id] = (counts[t.user_id] || 0) + 1;
         }
-      } else if (!m.assigned_to) {
-        unassigned++;
       } else {
-        // Fallback: use assigned_to for backward compat
-        counts[m.assigned_to] = (counts[m.assigned_to] || 0) + 1;
+        unassigned++;
       }
     }
     return { counts, unassigned };
@@ -102,7 +98,7 @@ export default function AdminAssignmentsPage() {
   const unassignedMembers = useMemo(
     () => members.filter((m) => {
       const targets = m.campaigner_targets || [];
-      return targets.length === 0 && !m.assigned_to;
+      return targets.length === 0;
     }),
     [members]
   );
@@ -112,12 +108,12 @@ export default function AdminAssignmentsPage() {
     if (selection.type === "unassigned") {
       return members.filter((m) => {
         const targets = m.campaigner_targets || [];
-        return targets.length === 0 && !m.assigned_to;
+        return targets.length === 0;
       });
     }
     return members.filter((m) => {
       const targets = m.campaigner_targets || [];
-      return targets.some((t) => t.user_id === selection.id) || m.assigned_to === selection.id;
+      return targets.some((t) => t.user_id === selection.id);
     });
   }, [members, selection]);
 
@@ -487,7 +483,7 @@ export default function AdminAssignmentsPage() {
                             </p>
                           </div>
                         </div>
-                        {m.assigned_to && (
+                        {selection?.type === "campaigner" && (
                           <button
                             onClick={() => handleUnassign([m.id])}
                             disabled={actionLoading}

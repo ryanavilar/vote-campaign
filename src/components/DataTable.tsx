@@ -2,7 +2,8 @@
 
 import type { Member, StatusValue } from "@/lib/types";
 import { formatNum } from "@/lib/format";
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, X, Merge, Loader2, ArrowRight } from "lucide-react";
+import { AlumniLinkSelector } from "@/components/AlumniLinkSelector";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, X, Merge, Loader2, ArrowRight, GraduationCap } from "lucide-react";
 import { useState, useMemo } from "react";
 
 interface DataTableProps {
@@ -10,6 +11,7 @@ interface DataTableProps {
   allData?: Member[];
   attendanceCounts?: Record<string, number>;
   onUpdate?: (id: string, field: string, value: StatusValue) => void;
+  onAlumniLink?: (memberId: string, alumniId: string | null) => Promise<void>;
   onRowClick?: (id: string) => void;
   totalCount: number;
   onDataRefresh?: () => void;
@@ -235,7 +237,7 @@ function MergeView({
 /* Main DataTable                                                      */
 /* ------------------------------------------------------------------ */
 
-export function DataTable({ data, allData, attendanceCounts, onUpdate, onRowClick, totalCount, onDataRefresh }: DataTableProps) {
+export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniLink, onRowClick, totalCount, onDataRefresh }: DataTableProps) {
   const [page, setPage] = useState(0);
   const [duplicateModalPhone, setDuplicateModalPhone] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -245,6 +247,9 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onRowClic
   const [mergeMembers, setMergeMembers] = useState<[Member, Member] | null>(null);
   const [merging, setMerging] = useState(false);
   const [mergeToast, setMergeToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  // Alumni link state
+  const [alumniLinkMember, setAlumniLinkMember] = useState<Member | null>(null);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -405,7 +410,33 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onRowClic
                 >
                   <td className="px-3 py-2 text-muted-foreground">{member.no}</td>
                   <td className="px-3 py-2 font-medium text-foreground">
-                    {member.nama}
+                    <div className="flex items-center gap-1.5">
+                      {member.nama}
+                      {onAlumniLink ? (
+                        <button
+                          title={member.alumni_id ? "Terhubung dengan data alumni — klik untuk ubah" : "Belum terhubung data alumni — klik untuk hubungkan"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAlumniLinkMember(member);
+                          }}
+                          className={`inline-flex items-center justify-center w-4 h-4 rounded-full shrink-0 transition-colors ${
+                            member.alumni_id
+                              ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
+                              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                          }`}
+                        >
+                          <GraduationCap className="w-2.5 h-2.5" />
+                        </button>
+                      ) : member.alumni_id ? (
+                        <span title="Terhubung dengan data alumni" className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 shrink-0">
+                          <GraduationCap className="w-2.5 h-2.5" />
+                        </span>
+                      ) : (
+                        <span title="Belum terhubung data alumni" className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-100 text-gray-400 shrink-0">
+                          <GraduationCap className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-center">
                     <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-[#0B27BC]/10 text-[#0B27BC] text-xs font-medium">
@@ -595,6 +626,20 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onRowClic
         }`}>
           {mergeToast.msg}
         </div>
+      )}
+
+      {/* Alumni Link Selector */}
+      {alumniLinkMember && onAlumniLink && (
+        <AlumniLinkSelector
+          currentAlumniId={alumniLinkMember.alumni_id}
+          memberName={alumniLinkMember.nama}
+          memberAngkatan={alumniLinkMember.angkatan}
+          onLink={async (alumniId) => {
+            await onAlumniLink(alumniLinkMember.id, alumniId);
+            setAlumniLinkMember(null);
+          }}
+          onClose={() => setAlumniLinkMember(null)}
+        />
       )}
     </>
   );

@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
   // Check if alumni already has a linked member
   const { data: existingMember } = await adminClient
     .from("members")
-    .select("id, nama, assigned_to")
+    .select("id, nama")
     .eq("alumni_id", alumni_id)
     .maybeSingle();
 
@@ -172,7 +172,6 @@ export async function POST(request: NextRequest) {
         angkatan: alumni.angkatan,
         no_hp: "",
         alumni_id: alumni.id,
-        assigned_to: user.id, // backward compat
         status_dpt: null,
         sudah_dikontak: null,
         masuk_grup: null,
