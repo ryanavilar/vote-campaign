@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useRole } from "@/lib/RoleContext";
+import { getRoleDisplayName } from "@/lib/roles";
 import { supabase } from "@/lib/supabase";
 
 interface NavItem {
@@ -28,7 +29,6 @@ interface NavItem {
   label: string;
   path: string;
   minRole: "viewer" | "campaigner" | "admin";
-  maxRole?: "campaigner";
   hideForRole?: "campaigner";
 }
 
@@ -36,7 +36,7 @@ const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/", minRole: "viewer" },
   { icon: Calendar, label: "Kegiatan", path: "/kegiatan", minRole: "viewer" },
   { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" },
-  { icon: Crosshair, label: "Target Saya", path: "/target", minRole: "campaigner", maxRole: "campaigner" },
+  { icon: Crosshair, label: "Target Saya", path: "/target", minRole: "campaigner" },
   { icon: Users, label: "Anggota", path: "/anggota", minRole: "viewer", hideForRole: "campaigner" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer" },
   { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer" },
@@ -60,11 +60,9 @@ export function Sidebar() {
   };
 
   const canSee = (item: NavItem) => {
-    const { minRole, maxRole, hideForRole } = item;
+    const { minRole, hideForRole } = item;
     // Hide if current role matches hideForRole
     if (hideForRole && role === hideForRole) return false;
-    // Only show if maxRole matches
-    if (maxRole && role !== maxRole) return false;
     // Min role check
     if (minRole === "viewer") return true;
     if (minRole === "campaigner") return role === "admin" || role === "campaigner";
@@ -148,7 +146,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="px-2">
             <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
-            <p className="text-xs font-medium text-[#0B27BC] capitalize">{role}</p>
+            <p className="text-xs font-medium text-[#0B27BC]">{getRoleDisplayName(role)}</p>
           </div>
         )}
         <div className="flex items-center gap-2">

@@ -514,7 +514,7 @@ export default function MemberDetailPage() {
                                     onBlur={() => setShowAddCampaigner(false)}
                                     className="px-2 py-0.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
                                   >
-                                    <option value="">Pilih campaigner...</option>
+                                    <option value="">Pilih Tim Sukses...</option>
                                     {availableCampaigners.map((c) => (
                                       <option key={c.user_id} value={c.user_id}>
                                         {c.email}

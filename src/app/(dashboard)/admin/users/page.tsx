@@ -332,7 +332,7 @@ export default function AdminUsersPage() {
                 className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white capitalize"
               >
                 <option value="viewer">Viewer</option>
-                <option value="campaigner">Campaigner</option>
+                <option value="campaigner">Tim Sukses</option>
                 <option value="admin">Admin</option>
               </select>
               <button
@@ -434,9 +434,9 @@ export default function AdminUsersPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`hidden sm:inline-block text-xs px-2 py-0.5 rounded-full font-medium capitalize ${getRoleBadgeClasses(user.role)}`}
+                            className={`hidden sm:inline-block text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadgeClasses(user.role)}`}
                           >
-                            {user.role}
+                            {user.role === "campaigner" ? "Tim Sukses" : user.role === "admin" ? "Admin" : "Viewer"}
                           </span>
                           <select
                             value={user.role}
@@ -447,7 +447,7 @@ export default function AdminUsersPage() {
                             className="px-2 py-1.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white disabled:opacity-50 disabled:cursor-wait capitalize"
                           >
                             <option value="admin">Admin</option>
-                            <option value="campaigner">Campaigner</option>
+                            <option value="campaigner">Tim Sukses</option>
                             <option value="viewer">Viewer</option>
                           </select>
                           {updatingUserId === user.user_id && (

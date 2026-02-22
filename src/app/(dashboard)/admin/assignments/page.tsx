@@ -300,10 +300,10 @@ export default function AdminAssignmentsPage() {
             <Users className="w-5 h-5 text-[#FE8DA1]" />
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-white">
-                Penugasan Campaigner
+                Penugasan Tim Sukses
               </h1>
               <p className="text-xs text-white/70">
-                Kelola penugasan anggota ke campaigner
+                Kelola penugasan anggota ke Tim Sukses
               </p>
             </div>
           </div>
@@ -314,13 +314,13 @@ export default function AdminAssignmentsPage() {
       {/* Two-panel layout */}
       <div className="px-4 sm:px-6 py-6">
         <div className="flex flex-col md:flex-row gap-4">
-          {/* ── Left panel: Campaigner list ─────────────────────── */}
+          {/* ── Left panel: Tim Sukses list ─────────────────────── */}
           <div className="md:w-80 shrink-0">
             <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
               <div className="px-4 py-3 border-b border-border bg-gray-50/80">
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <Users className="w-4 h-4 text-[#0B27BC]" />
-                  Daftar Campaigner
+                  Daftar Tim Sukses
                 </h2>
               </div>
 
@@ -344,7 +344,7 @@ export default function AdminAssignmentsPage() {
                           Belum Ditugaskan
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Anggota tanpa campaigner
+                          Anggota tanpa Tim Sukses
                         </p>
                       </div>
                     </div>
@@ -354,7 +354,7 @@ export default function AdminAssignmentsPage() {
                   </div>
                 </button>
 
-                {/* Campaigner list */}
+                {/* Tim Sukses list */}
                 {campaigners.map((c) => {
                   const isActive =
                     selection?.type === "campaigner" && selection.id === c.user_id;
@@ -399,7 +399,7 @@ export default function AdminAssignmentsPage() {
                   <div className="px-4 py-8 text-center">
                     <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">
-                      Belum ada campaigner
+                      Belum ada Tim Sukses
                     </p>
                   </div>
                 )}
@@ -414,7 +414,7 @@ export default function AdminAssignmentsPage() {
                 <div className="text-center">
                   <Users className="w-12 h-12 text-gray-200 mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">
-                    Pilih campaigner atau &quot;Belum Ditugaskan&quot; untuk
+                    Pilih Tim Sukses atau &quot;Belum Ditugaskan&quot; untuk
                     melihat anggota
                   </p>
                 </div>
@@ -457,7 +457,7 @@ export default function AdminAssignmentsPage() {
                     <p className="text-sm text-muted-foreground">
                       {selection.type === "unassigned"
                         ? "Semua anggota sudah ditugaskan"
-                        : "Belum ada anggota ditugaskan ke campaigner ini"}
+                        : "Belum ada anggota ditugaskan ke Tim Sukses ini"}
                     </p>
                   </div>
                 ) : (

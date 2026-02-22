@@ -10,7 +10,6 @@ interface BottomNavItem {
   label: string;
   path: string;
   minRole?: "campaigner" | "admin";
-  maxRole?: "campaigner";
   hideForRole?: "campaigner";
 }
 
@@ -18,7 +17,7 @@ const navItems: BottomNavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Calendar, label: "Kegiatan", path: "/kegiatan" },
   { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" },
-  { icon: Crosshair, label: "Target", path: "/target", minRole: "campaigner", maxRole: "campaigner" },
+  { icon: Crosshair, label: "Target", path: "/target", minRole: "campaigner" },
   { icon: Users, label: "Anggota", path: "/anggota", hideForRole: "campaigner" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard" },
   { icon: MessageSquare, label: "Harapan", path: "/harapan" },
@@ -35,7 +34,6 @@ export function BottomNav() {
 
   const canSee = (item: BottomNavItem) => {
     if (item.hideForRole && role === item.hideForRole) return false;
-    if (item.maxRole && role !== item.maxRole) return false;
     if (!item.minRole) return true;
     if (item.minRole === "campaigner") return role === "admin" || role === "campaigner";
     if (item.minRole === "admin") return role === "admin";

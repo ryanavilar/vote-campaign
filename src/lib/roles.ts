@@ -26,3 +26,16 @@ export function canDelete(role: UserRole): boolean {
 export function canManageUsers(role: UserRole): boolean {
   return role === "admin";
 }
+
+export function getRoleDisplayName(role: UserRole): string {
+  switch (role) {
+    case "admin":
+      return "Admin";
+    case "campaigner":
+      return "Tim Sukses";
+    case "viewer":
+      return "Viewer";
+    default:
+      return role;
+  }
+}
