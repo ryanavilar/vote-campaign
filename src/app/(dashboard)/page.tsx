@@ -8,6 +8,7 @@ import { ProgressChart } from "@/components/ProgressChart";
 import { Download, Loader2, Link2, Copy, Check, ExternalLink } from "lucide-react";
 import { useRole } from "@/lib/RoleContext";
 import type { Member } from "@/lib/types";
+import * as XLSX from "xlsx";
 
 interface AlumniStats {
   totalAlumni: number;
@@ -177,19 +178,22 @@ export default function Dashboard() {
       }));
   }, [data, alumniStats.alumniByAngkatan]);
 
-  const exportCSV = () => {
-    const headers = ["No", "Nama", "Angkatan", "No HP", "PIC", "Status DPT", "Sudah Dikontak", "Masuk Grup", "Vote"];
-    const rows = data.map((m) => [
-      m.no, m.nama, m.angkatan, m.no_hp, m.pic || "", m.status_dpt || "", m.sudah_dikontak || "", m.masuk_grup || "", m.vote || "",
-    ]);
-    const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "dashboard_pemenangan.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportExcel = () => {
+    const rows = data.map((m) => ({
+      No: m.no,
+      Nama: m.nama,
+      Angkatan: m.angkatan,
+      "No HP": m.no_hp || "",
+      PIC: m.pic || "",
+      "Status DPT": m.status_dpt || "",
+      "Sudah Dikontak": m.sudah_dikontak || "",
+      "Masuk Grup": m.masuk_grup || "",
+      Vote: m.vote || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Dashboard Pemenangan");
+    XLSX.writeFile(wb, "dashboard_pemenangan.xlsx");
   };
 
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
@@ -229,12 +233,12 @@ export default function Dashboard() {
               </p>
             </div>
             <button
-              onClick={exportCSV}
+              onClick={exportExcel}
               disabled={!membersLoaded}
               className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
             >
               <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export CSV</span>
+              <span className="hidden sm:inline">Export Excel</span>
             </button>
           </div>
         </div>

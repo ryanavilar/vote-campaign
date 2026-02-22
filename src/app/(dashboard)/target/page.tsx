@@ -7,21 +7,17 @@ import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
 import { formatNum } from "@/lib/format";
 import type { Member, StatusValue } from "@/lib/types";
+import { DataTable } from "@/components/DataTable";
 import {
   Search,
   Loader2,
   Plus,
   Crosshair,
-  X,
   GraduationCap,
-  Users,
   ClipboardCheck,
   UserCheck,
   Vote,
-  Phone,
-  ChevronDown,
   ChevronUp,
-  Trash2,
 } from "lucide-react";
 
 interface AlumniSearchResult {
@@ -285,13 +281,6 @@ export default function TargetPage() {
     return Array.from(set).sort((a, b) => a - b);
   }, []);
 
-  // Status toggle
-  const cycleStatus = (current: StatusValue): StatusValue => {
-    if (!current) return "Sudah";
-    if (current === "Sudah") return "Belum";
-    return null;
-  };
-
   if (roleLoading || loadingTargets) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -490,21 +479,9 @@ export default function TargetPage() {
           </div>
         )}
 
-        {/* My Targets Section */}
+        {/* Target filters */}
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-border bg-gray-50/80">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-[#0B27BC]" />
-                <h3 className="text-sm font-semibold text-foreground">
-                  Daftar Target ({formatNum(filteredTargets.length)} dari {formatNum(targets.length)})
-                </h3>
-              </div>
-            </div>
-          </div>
-
-          {/* Target filters */}
-          <div className="px-4 py-3 border-b border-border">
+          <div className="px-4 py-3">
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -541,82 +518,19 @@ export default function TargetPage() {
               </select>
             </div>
           </div>
-
-          {/* Target table */}
-          {filteredTargets.length === 0 ? (
-            <div className="px-4 py-12 text-center">
-              <Crosshair className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">
-                {targets.length === 0
-                  ? 'Belum ada target. Klik "Tambah Target" untuk mulai.'
-                  : "Tidak ada target sesuai filter"}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-gray-50/50">
-                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Nama</th>
-                    <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">TN</th>
-                    <th className="px-2 py-2.5 text-left text-xs font-semibold text-muted-foreground hidden sm:table-cell">No. HP</th>
-                    <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">DPT</th>
-                    <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">Kontak</th>
-                    <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">Grup</th>
-                    <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">Vote</th>
-                    <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground w-10"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filteredTargets.map((m) => (
-                    <tr key={m.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-2.5">
-                        <button
-                          onClick={() => router.push(`/anggota/${m.id}`)}
-                          className="font-medium text-[#0B27BC] hover:underline truncate max-w-[200px] text-left"
-                        >
-                          {m.nama}
-                        </button>
-                      </td>
-                      <td className="px-2 py-2.5 text-center text-xs text-muted-foreground">{m.angkatan}</td>
-                      <td className="px-2 py-2.5 text-xs text-muted-foreground hidden sm:table-cell">{m.no_hp || "—"}</td>
-                      {(["status_dpt", "sudah_dikontak", "masuk_grup", "vote"] as const).map((field) => (
-                        <td key={field} className="px-2 py-2.5 text-center">
-                          <button
-                            onClick={() => updateMember(m.id, field, cycleStatus(m[field]))}
-                            className={`inline-flex items-center justify-center w-16 py-1 text-[10px] font-semibold rounded-full transition-colors ${
-                              m[field] === "Sudah"
-                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                                : m[field] === "Belum"
-                                ? "bg-red-100 text-red-700 hover:bg-red-200"
-                                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                            }`}
-                          >
-                            {m[field] || "—"}
-                          </button>
-                        </td>
-                      ))}
-                      <td className="px-2 py-2.5 text-center">
-                        <button
-                          onClick={() => handleRemoveTarget(m.id)}
-                          disabled={removingId === m.id}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-                          title="Hapus dari daftar target"
-                        >
-                          {removingId === m.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
+
+        {/* My Targets Table */}
+        <DataTable
+          data={filteredTargets}
+          attendanceCounts={attendanceCounts}
+          onUpdate={updateMember}
+          onRowClick={(id) => router.push(`/anggota/${id}?from=target`)}
+          onDelete={handleRemoveTarget}
+          deletingId={removingId}
+          totalCount={targets.length}
+          title="Daftar Target"
+        />
       </div>
     </div>
   );

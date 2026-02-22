@@ -3,7 +3,7 @@
 import type { Member, StatusValue } from "@/lib/types";
 import { formatNum } from "@/lib/format";
 import { AlumniLinkSelector } from "@/components/AlumniLinkSelector";
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, X, Merge, Loader2, ArrowRight, GraduationCap } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, X, Merge, Loader2, ArrowRight, GraduationCap, Trash2 } from "lucide-react";
 import { useState, useMemo } from "react";
 
 interface DataTableProps {
@@ -13,8 +13,11 @@ interface DataTableProps {
   onUpdate?: (id: string, field: string, value: StatusValue) => void;
   onAlumniLink?: (memberId: string, alumniId: string | null) => Promise<void>;
   onRowClick?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  deletingId?: string | null;
   totalCount: number;
   onDataRefresh?: () => void;
+  title?: string;
 }
 
 const PAGE_SIZE = 25;
@@ -237,7 +240,7 @@ function MergeView({
 /* Main DataTable                                                      */
 /* ------------------------------------------------------------------ */
 
-export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniLink, onRowClick, totalCount, onDataRefresh }: DataTableProps) {
+export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniLink, onRowClick, onDelete, deletingId, totalCount, onDataRefresh, title }: DataTableProps) {
   const [page, setPage] = useState(0);
   const [duplicateModalPhone, setDuplicateModalPhone] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -358,7 +361,7 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniL
       <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <h3 className="font-semibold text-foreground text-sm">
-            Data Anggota{" "}
+            {title || "Data Anggota"}{" "}
             <span className="font-normal text-muted-foreground">
               ({formatNum(data.length)} dari {formatNum(totalCount)})
             </span>
@@ -399,6 +402,9 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniL
                 <SortHeader label="Dikontak" sortKey="sudah_dikontak" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
                 <SortHeader label="Masuk Grup" sortKey="masuk_grup" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
                 <SortHeader label="Vote" sortKey="vote" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
+                {onDelete && (
+                  <th className="px-3 py-2.5 w-10" />
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -494,11 +500,30 @@ export function DataTable({ data, allData, attendanceCounts, onUpdate, onAlumniL
                       onChange={onUpdate ? (v) => onUpdate(member.id, "vote", v) : undefined}
                     />
                   </td>
+                  {onDelete && (
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(member.id);
+                        }}
+                        disabled={deletingId === member.id}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        title="Hapus dari daftar target"
+                      >
+                        {deletingId === member.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
               {pageData.length === 0 && (
                 <tr>
-                  <td colSpan={attendanceCounts ? 9 : 8} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={(attendanceCounts ? 9 : 8) + (onDelete ? 1 : 0)} className="px-3 py-8 text-center text-muted-foreground">
                     Tidak ada data yang cocok dengan filter
                   </td>
                 </tr>

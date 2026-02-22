@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { formatNum } from "@/lib/format";
 import type { Member, StatusValue } from "@/lib/types";
+import * as XLSX from "xlsx";
 
 export default function AnggotaPage() {
   const [data, setData] = useState<Member[]>([]);
@@ -195,19 +196,22 @@ export default function AnggotaPage() {
     }
   }, [showToast]);
 
-  const exportCSV = () => {
-    const headers = ["No", "Nama", "Angkatan", "No HP", "PIC", "Status DPT", "Sudah Dikontak", "Masuk Grup", "Vote"];
-    const rows = filteredData.map((m) => [
-      m.no, m.nama, m.angkatan, m.no_hp, m.pic || "", m.status_dpt || "", m.sudah_dikontak || "", m.masuk_grup || "", m.vote || "",
-    ]);
-    const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${c}"`).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "data_anggota.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportExcel = () => {
+    const rows = filteredData.map((m) => ({
+      No: m.no,
+      Nama: m.nama,
+      Angkatan: m.angkatan,
+      "No HP": m.no_hp || "",
+      PIC: m.pic || "",
+      "Status DPT": m.status_dpt || "",
+      "Sudah Dikontak": m.sudah_dikontak || "",
+      "Masuk Grup": m.masuk_grup || "",
+      Vote: m.vote || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Anggota");
+    XLSX.writeFile(wb, "data_anggota.xlsx");
   };
 
   if (loading) {
@@ -235,11 +239,11 @@ export default function AnggotaPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={exportCSV}
+                onClick={exportExcel}
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Export CSV</span>
+                <span className="hidden sm:inline">Export Excel</span>
               </button>
               {canManageUsers && (
                 <button

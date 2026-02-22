@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
@@ -99,6 +99,8 @@ interface AuditEntry {
 export default function MemberDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const backPath = searchParams.get("from") === "target" ? "/target" : "/anggota";
   const { canEdit: userCanEdit, canDelete: userCanDelete, canManageUsers, role, userId } = useRole();
   const isCampaigner = role === "campaigner";
   const { showToast } = useToast();
@@ -155,7 +157,7 @@ export default function MemberDetailPage() {
 
     if (error || !data) {
       showToast("Anggota tidak ditemukan", "error");
-      router.push("/anggota");
+      router.push(backPath);
       return;
     }
 
@@ -381,7 +383,7 @@ export default function MemberDetailPage() {
       }
 
       showToast("Anggota berhasil dihapus", "success");
-      router.push("/anggota");
+      router.push(backPath);
     } catch {
       showToast("Terjadi kesalahan jaringan", "error");
       setDeleting(false);
@@ -414,7 +416,7 @@ export default function MemberDetailPage() {
         <div className="px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => router.push("/anggota")}
+              onClick={() => router.push(backPath)}
               className="p-1.5 -ml-1.5 rounded-lg hover:bg-white/10 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
