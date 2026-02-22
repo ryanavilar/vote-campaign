@@ -51,7 +51,7 @@ export async function POST() {
     ? JSON.parse(settingsData.value)
     : settingsData.value;
 
-  const { baseUrl, session, groupId } = config;
+  const { baseUrl, session, apiKey, groupId } = config;
 
   if (!baseUrl || !session || !groupId) {
     return NextResponse.json(
@@ -64,7 +64,11 @@ export async function POST() {
   let participants: { id: string; pushName?: string; name?: string }[];
   try {
     const wahaUrl = `${baseUrl.replace(/\/$/, "")}/api/${encodeURIComponent(session)}/groups/${encodeURIComponent(groupId)}/participants`;
-    const res = await fetch(wahaUrl);
+    const headers: Record<string, string> = {};
+    if (apiKey) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+    const res = await fetch(wahaUrl, { headers });
 
     if (!res.ok) {
       const errText = await res.text();

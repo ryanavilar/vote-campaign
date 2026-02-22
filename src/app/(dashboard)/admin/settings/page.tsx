@@ -17,12 +17,14 @@ import {
 interface WahaConfig {
   baseUrl: string;
   session: string;
+  apiKey: string;
   groupId: string;
 }
 
 const DEFAULT_CONFIG: WahaConfig = {
   baseUrl: "",
   session: "default",
+  apiKey: "",
   groupId: "",
 };
 
@@ -70,6 +72,7 @@ export default function AdminSettingsPage() {
         setConfig({
           baseUrl: saved.baseUrl || "",
           session: saved.session || "default",
+          apiKey: saved.apiKey || "",
           groupId: saved.groupId || "",
         });
       }
@@ -236,6 +239,18 @@ export default function AdminSettingsPage() {
                     className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
                   />
                   <p className="text-xs text-gray-400 mt-1">Nama session WAHA (biasanya &quot;default&quot;)</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">API Key</label>
+                  <input
+                    type="password"
+                    value={config.apiKey}
+                    onChange={(e) => setConfig((prev) => ({ ...prev, apiKey: e.target.value }))}
+                    placeholder="Opsional"
+                    className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">API key untuk autentikasi WAHA (opsional)</p>
                 </div>
 
                 <div>
