@@ -61,7 +61,23 @@ export async function POST() {
   }
 
   // 2. Fetch participants from WAHA
-  let participants: { id: string; pushName?: string; name?: string }[];
+  // WAHA GOWS response format:
+  // { JID, PhoneNumber: "6285xxx@s.whatsapp.net", LID, IsAdmin, DisplayName, ... }
+  interface WahaParticipant {
+    JID?: string;
+    PhoneNumber?: string;
+    LID?: string;
+    IsAdmin?: boolean;
+    IsSuperAdmin?: boolean;
+    DisplayName?: string;
+    Error?: number;
+    // Legacy NOWEB format fields
+    id?: string;
+    pushName?: string;
+    name?: string;
+  }
+
+  let participants: WahaParticipant[];
   try {
     const wahaUrl = `${baseUrl.replace(/\/$/, "")}/api/${encodeURIComponent(session)}/groups/${encodeURIComponent(groupId)}/participants`;
     const headers: Record<string, string> = {};
@@ -94,12 +110,15 @@ export async function POST() {
   }
 
   // 3. Upsert participants into wa_group_members
+  // Handle both GOWS format (PhoneNumber: "628xxx@s.whatsapp.net") and
+  // NOWEB format (id: "628xxx@c.us")
   const now = new Date().toISOString();
-  const rows = participants.map((p) => ({
-    phone: wahaPhoneToNormalized(p.id),
-    wa_name: p.pushName || p.name || null,
-    synced_at: now,
-  }));
+  const rows = participants.map((p) => {
+    const rawPhone = p.PhoneNumber || p.id || "";
+    const phone = wahaPhoneToNormalized(rawPhone);
+    const displayName = p.DisplayName || p.pushName || p.name || null;
+    return { phone, wa_name: displayName, synced_at: now };
+  });
 
   let synced = 0;
   for (const row of rows) {
