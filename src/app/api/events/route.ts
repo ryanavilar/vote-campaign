@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const role = await getUserRole(supabase);
 
-  if (!canEdit(role)) {
+  if (role !== "admin") {
     return NextResponse.json(
-      { error: "Tidak memiliki akses untuk membuat kegiatan" },
+      { error: "Hanya admin yang dapat membuat kegiatan" },
       { status: 403 }
     );
   }

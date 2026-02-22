@@ -50,7 +50,7 @@ export default function KegiatanPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("Semua");
-  const { canEdit: userCanEdit } = useRole();
+  const { canManageUsers } = useRole();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -108,7 +108,7 @@ export default function KegiatanPage() {
                 Kelola kegiatan dan absensi
               </p>
             </div>
-            {userCanEdit && (
+            {canManageUsers && (
               <button
                 onClick={() => setShowForm((prev) => !prev)}
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors"
@@ -165,7 +165,7 @@ export default function KegiatanPage() {
                 : `Tidak ada kegiatan dengan status "${statusFilter}".`
             }
             action={
-              userCanEdit && statusFilter === "Semua"
+              canManageUsers && statusFilter === "Semua"
                 ? { label: "Buat Kegiatan", onClick: () => setShowForm(true) }
                 : undefined
             }

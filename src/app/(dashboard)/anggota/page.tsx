@@ -29,8 +29,7 @@ export default function AnggotaPage() {
   const [showForm, setShowForm] = useState(false);
   const [filterDuplicates, setFilterDuplicates] = useState(false);
   const [filterAlumniLink, setFilterAlumniLink] = useState<string>("all");
-  const { canEdit: userCanEdit, role, userId, loading: roleLoading } = useRole();
-  const isCampaigner = role === "campaigner";
+  const { canEdit: userCanEdit, canManageUsers, role, userId, loading: roleLoading } = useRole();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -39,36 +38,13 @@ export default function AnggotaPage() {
   const fetchMembers = useCallback(async () => {
     setLoading(true);
 
-    let membersPromise: Promise<Member[]>;
-
-    if (isCampaigner && userId) {
-      // Use junction table for campaigner filtering
-      membersPromise = (async () => {
-        const { data: targets } = await supabase
-          .from("campaigner_targets")
-          .select("member_id")
-          .eq("user_id", userId);
-
-        if (!targets || targets.length === 0) return [];
-
-        const memberIds = targets.map((t) => t.member_id);
-        const { data: members } = await supabase
-          .from("members")
-          .select("*")
-          .in("id", memberIds)
-          .order("no", { ascending: true });
-
-        return members || [];
-      })();
-    } else {
-      membersPromise = (async () => {
-        const { data, error } = await supabase
-          .from("members")
-          .select("*")
-          .order("no", { ascending: true });
-        return !error && data ? data : [];
-      })();
-    }
+    const membersPromise = (async () => {
+      const { data, error } = await supabase
+        .from("members")
+        .select("*")
+        .order("no", { ascending: true });
+      return !error && data ? data : [];
+    })();
 
     const [members, attendanceRes] = await Promise.all([
       membersPromise,
@@ -84,7 +60,7 @@ export default function AnggotaPage() {
       setAttendanceCounts(counts);
     }
     setLoading(false);
-  }, [isCampaigner, userId]);
+  }, []);
 
   useEffect(() => {
     if (roleLoading) return;
@@ -254,7 +230,7 @@ export default function AnggotaPage() {
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-white">Data Anggota</h1>
               <p className="text-xs text-white/70">
-                {formatNum(data.length)} anggota {isCampaigner ? "ditugaskan" : "terdaftar"}
+                {formatNum(data.length)} anggota terdaftar
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -265,7 +241,7 @@ export default function AnggotaPage() {
                 <Download className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Export CSV</span>
               </button>
-              {userCanEdit && !isCampaigner && (
+              {canManageUsers && (
                 <button
                   onClick={() => setShowForm(!showForm)}
                   className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors"

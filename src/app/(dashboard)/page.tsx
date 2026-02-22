@@ -98,9 +98,7 @@ export default function Dashboard() {
     alumniByAngkatan: {},
   });
   const [alumniLoaded, setAlumniLoaded] = useState(false);
-  const { role, userId, loading: roleLoading } = useRole();
-
-  const isCampaigner = role === "campaigner";
+  const { loading: roleLoading } = useRole();
 
   useEffect(() => {
     if (roleLoading) return;
@@ -109,31 +107,13 @@ export default function Dashboard() {
   }, [roleLoading]);
 
   const fetchData = async () => {
-    // Fetch members (for campaigners, use junction table)
+    // Fetch all members for dashboard
     const membersPromise = (async (): Promise<Member[]> => {
-      if (isCampaigner && userId) {
-        const { data: targets } = await supabase
-          .from("campaigner_targets")
-          .select("member_id")
-          .eq("user_id", userId);
-
-        if (!targets || targets.length === 0) return [];
-
-        const memberIds = targets.map((t) => t.member_id);
-        const { data: members } = await supabase
-          .from("members")
-          .select("*")
-          .in("id", memberIds)
-          .order("no", { ascending: true });
-
-        return members || [];
-      } else {
-        const { data, error } = await supabase
-          .from("members")
-          .select("*")
-          .order("no", { ascending: true });
-        return !error && data ? data : [];
-      }
+      const { data, error } = await supabase
+        .from("members")
+        .select("*")
+        .order("no", { ascending: true });
+      return !error && data ? data : [];
     })();
 
     // Fetch alumni stats
@@ -242,7 +222,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-white">
-                {isCampaigner ? "Dashboard Saya" : "Dashboard Pemenangan"}
+                Dashboard Pemenangan
               </h1>
               <p className="text-xs text-white/70">
                 Ikastara Kita &mdash; Aditya Syarief
@@ -273,24 +253,22 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Public Form Links (admin only) */}
-        {!isCampaigner && (
-          <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Link2 className="w-4 h-4 text-[#0B27BC]" />
-              <h3 className="font-semibold text-sm text-foreground">Link Formulir Publik</h3>
-            </div>
-            <div className="space-y-3">
-              <FormLinkRow
-                label="Form Dukungan"
-                description="Formulir pendaftaran dukungan untuk Aditya Syarief"
-                path="/form/dukungan"
-                copied={copiedLink}
-                onCopy={copyToClipboard}
-              />
-            </div>
+        {/* Public Form Links */}
+        <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Link2 className="w-4 h-4 text-[#0B27BC]" />
+            <h3 className="font-semibold text-sm text-foreground">Link Formulir Publik</h3>
           </div>
-        )}
+          <div className="space-y-3">
+            <FormLinkRow
+              label="Form Dukungan"
+              description="Formulir pendaftaran dukungan untuk Aditya Syarief"
+              path="/form/dukungan"
+              copied={copiedLink}
+              onCopy={copyToClipboard}
+            />
+          </div>
+        </div>
 
         {/* Charts Row — show skeleton until both data sources loaded */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

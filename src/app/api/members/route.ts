@@ -1,6 +1,15 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createClient } from "@supabase/supabase-js";
 import { getUserRole, canEdit } from "@/lib/roles";
+import { logMemberAudit } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
+
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function GET() {
   const supabase = await createSupabaseServerClient();
@@ -26,6 +35,10 @@ export async function POST(request: NextRequest) {
       { status: 403 }
     );
   }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const body = await request.json();
   const { nama, angkatan, no_hp, pic, referral_name, alumni_id } = body;
@@ -83,6 +96,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Audit log: member created
+  const adminClient = getAdminClient();
+  await logMemberAudit(adminClient, {
+    memberId: data.id,
+    userId: user?.id || null,
+    userEmail: user?.email || null,
+    field: "member",
+    oldValue: null,
+    newValue: `${nama} (TN${angkatan})`,
+    action: "create",
+  });
+
   return NextResponse.json(data, { status: 201 });
 }
 
@@ -96,6 +121,10 @@ export async function PATCH(request: NextRequest) {
       { status: 403 }
     );
   }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const body = await request.json();
   const { id, field, value } = body;
@@ -116,6 +145,16 @@ export async function PATCH(request: NextRequest) {
   if (!allowedFields.includes(field)) {
     return NextResponse.json({ error: "Invalid field" }, { status: 400 });
   }
+
+  // Fetch old value for audit
+  const adminClient = getAdminClient();
+  const { data: oldMember } = await adminClient
+    .from("members")
+    .select(field)
+    .eq("id", id)
+    .single();
+
+  const oldValue = oldMember ? String(oldMember[field] ?? "") : null;
 
   // When referral_name changes, auto-match referred_by
   const updateData: Record<string, unknown> = { [field]: value };
@@ -143,6 +182,20 @@ export async function PATCH(request: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Audit log: field updated
+  const newValue = String(value ?? "");
+  if (oldValue !== newValue) {
+    await logMemberAudit(adminClient, {
+      memberId: id,
+      userId: user?.id || null,
+      userEmail: user?.email || null,
+      field,
+      oldValue: oldValue || null,
+      newValue: newValue || null,
+      action: "update",
+    });
   }
 
   return NextResponse.json(data);

@@ -18,7 +18,7 @@ const navItems: BottomNavItem[] = [
   { icon: Calendar, label: "Kegiatan", path: "/kegiatan" },
   { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" },
   { icon: Crosshair, label: "Target", path: "/target", minRole: "campaigner" },
-  { icon: Users, label: "Anggota", path: "/anggota", hideForRole: "campaigner" },
+  { icon: Users, label: "Anggota", path: "/anggota" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard" },
   { icon: MessageSquare, label: "Harapan", path: "/harapan" },
 ];

@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getUserRole, canEdit } from "@/lib/roles";
+import { logMemberAudit } from "@/lib/audit";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -211,10 +212,29 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Fetch full member data to return
+  const { data: fullMember } = await adminClient
+    .from("members")
+    .select("*")
+    .eq("id", memberId)
+    .single();
+
+  // Audit log: target assigned
+  await logMemberAudit(adminClient, {
+    memberId,
+    userId: user.id,
+    userEmail: user.email || null,
+    field: "target",
+    oldValue: null,
+    newValue: user.email || user.id,
+    action: existingMember ? "assign" : "create",
+  });
+
   return NextResponse.json(
     {
       member_id: memberId,
       action: existingMember ? "assigned" : "created",
+      member: fullMember,
     },
     { status: 201 }
   );
@@ -263,6 +283,17 @@ export async function DELETE(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // Audit log: target unassigned
+  await logMemberAudit(adminClient, {
+    memberId: member_id,
+    userId: user.id,
+    userEmail: user.email || null,
+    field: "target",
+    oldValue: user.email || user.id,
+    newValue: null,
+    action: "unassign",
+  });
 
   return NextResponse.json({ success: true });
 }

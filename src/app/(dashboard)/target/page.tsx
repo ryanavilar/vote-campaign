@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
@@ -17,6 +18,7 @@ import {
   ClipboardCheck,
   UserCheck,
   Vote,
+  Phone,
   ChevronDown,
   ChevronUp,
   Trash2,
@@ -38,6 +40,7 @@ interface AlumniSearchResult {
 export default function TargetPage() {
   const { canEdit: userCanEdit, role, userId, loading: roleLoading } = useRole();
   const { showToast } = useToast();
+  const router = useRouter();
 
   // My targets
   const [targets, setTargets] = useState<Member[]>([]);
@@ -135,7 +138,7 @@ export default function TargetPage() {
     return () => clearTimeout(timer);
   }, [searchQuery, searchAngkatan, showSearch, searchAlumni]);
 
-  // Add target
+  // Add target — optimistic update
   const handleAddTarget = async (alumniId: string) => {
     setAddingId(alumniId);
     try {
@@ -152,6 +155,11 @@ export default function TargetPage() {
         return;
       }
 
+      // Optimistically add the new member to targets state
+      if (data.member) {
+        setTargets((prev) => [...prev, data.member].sort((a, b) => a.no - b.no));
+      }
+
       showToast(
         data.action === "created"
           ? "Alumni ditambahkan sebagai target baru"
@@ -159,20 +167,21 @@ export default function TargetPage() {
         "success"
       );
 
-      // Refresh both
-      await Promise.all([
-        fetchTargets(),
-        searchAlumni(searchQuery, searchAngkatan, searchPage),
-      ]);
+      // Only refresh search results for badge update
+      await searchAlumni(searchQuery, searchAngkatan, searchPage);
     } catch {
       showToast("Terjadi kesalahan jaringan", "error");
     }
     setAddingId(null);
   };
 
-  // Remove target
+  // Remove target — optimistic update
   const handleRemoveTarget = async (memberId: string) => {
     setRemovingId(memberId);
+    // Optimistically remove from state
+    const previousTargets = targets;
+    setTargets((prev) => prev.filter((m) => m.id !== memberId));
+
     try {
       const res = await fetch("/api/targets", {
         method: "DELETE",
@@ -182,18 +191,20 @@ export default function TargetPage() {
 
       if (res.ok) {
         showToast("Target berhasil dihapus dari daftar", "success");
-        await fetchTargets();
       } else {
+        // Restore on error
+        setTargets(previousTargets);
         const data = await res.json();
         showToast(data.error || "Gagal menghapus target", "error");
       }
     } catch {
+      setTargets(previousTargets);
       showToast("Terjadi kesalahan jaringan", "error");
     }
     setRemovingId(null);
   };
 
-  // Update member status
+  // Update member status via API (for audit logging)
   const updateMember = useCallback(
     async (id: string, field: string, value: StatusValue) => {
       // Optimistic update
@@ -201,12 +212,18 @@ export default function TargetPage() {
         prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
       );
 
-      const { error } = await supabase
-        .from("members")
-        .update({ [field]: value })
-        .eq("id", id);
+      try {
+        const res = await fetch("/api/members", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, field, value }),
+        });
 
-      if (error) {
+        if (!res.ok) {
+          fetchTargets();
+          showToast("Gagal mengupdate status", "error");
+        }
+      } catch {
         fetchTargets();
         showToast("Gagal mengupdate status", "error");
       }
@@ -508,6 +525,7 @@ export default function TargetPage() {
                 className="px-3 py-2 text-sm border border-border rounded-lg bg-white"
               >
                 <option value="status_dpt">DPT</option>
+                <option value="sudah_dikontak">Dikontak</option>
                 <option value="masuk_grup">Grup</option>
                 <option value="vote">Vote</option>
               </select>
@@ -543,6 +561,7 @@ export default function TargetPage() {
                     <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">TN</th>
                     <th className="px-2 py-2.5 text-left text-xs font-semibold text-muted-foreground hidden sm:table-cell">No. HP</th>
                     <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">DPT</th>
+                    <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">Kontak</th>
                     <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">Grup</th>
                     <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground">Vote</th>
                     <th className="px-2 py-2.5 text-center text-xs font-semibold text-muted-foreground w-10"></th>
@@ -552,11 +571,16 @@ export default function TargetPage() {
                   {filteredTargets.map((m) => (
                     <tr key={m.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-4 py-2.5">
-                        <p className="font-medium text-foreground truncate max-w-[200px]">{m.nama}</p>
+                        <button
+                          onClick={() => router.push(`/anggota/${m.id}`)}
+                          className="font-medium text-[#0B27BC] hover:underline truncate max-w-[200px] text-left"
+                        >
+                          {m.nama}
+                        </button>
                       </td>
                       <td className="px-2 py-2.5 text-center text-xs text-muted-foreground">{m.angkatan}</td>
                       <td className="px-2 py-2.5 text-xs text-muted-foreground hidden sm:table-cell">{m.no_hp || "—"}</td>
-                      {(["status_dpt", "masuk_grup", "vote"] as const).map((field) => (
+                      {(["status_dpt", "sudah_dikontak", "masuk_grup", "vote"] as const).map((field) => (
                         <td key={field} className="px-2 py-2.5 text-center">
                           <button
                             onClick={() => updateMember(m.id, field, cycleStatus(m[field]))}
