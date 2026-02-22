@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Crosshair,
+  Smartphone,
 } from "lucide-react";
 import { useState } from "react";
 import { useRole } from "@/lib/RoleContext";
@@ -46,6 +47,7 @@ const adminItems = [
   { icon: GraduationCap, label: "Alumni", path: "/admin/alumni", minRole: "admin" as const },
   { icon: Settings, label: "Pengguna", path: "/admin/users", minRole: "admin" as const },
   { icon: UserPlus, label: "Penugasan", path: "/admin/assignments", minRole: "admin" as const },
+  { icon: Smartphone, label: "WA Group", path: "/wa-group", minRole: "admin" as const },
   { icon: Settings2, label: "Pengaturan", path: "/admin/settings", minRole: "admin" as const },
 ];
 

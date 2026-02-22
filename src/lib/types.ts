@@ -66,3 +66,13 @@ export interface EventRegistration {
   registered_at: string;
   member?: Member;
 }
+
+export interface WaGroupMember {
+  id: string;
+  phone: string;
+  wa_name: string | null;
+  member_id: string | null;
+  member?: Member;
+  synced_at: string;
+  created_at: string;
+}
