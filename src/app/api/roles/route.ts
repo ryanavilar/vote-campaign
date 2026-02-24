@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getUserRole, canManageUsers } from "@/lib/roles";
+import { getUserRole, canManageUsers, isSuperAdmin } from "@/lib/roles";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -60,7 +60,12 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json(combined);
+  // If caller is plain admin (not super_admin), filter out super_admin users
+  const filtered = isSuperAdmin(role)
+    ? combined
+    : combined.filter((u) => u.role !== "super_admin");
+
+  return NextResponse.json(filtered);
 }
 
 export async function PATCH(request: NextRequest) {
@@ -84,12 +89,32 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const validRoles = ["admin", "campaigner", "viewer"];
+  // Only super_admin can assign super_admin role
+  const validRoles = isSuperAdmin(currentRole)
+    ? ["super_admin", "admin", "campaigner", "viewer"]
+    : ["admin", "campaigner", "viewer"];
+
   if (!validRoles.includes(role)) {
     return NextResponse.json(
-      { error: "Role tidak valid. Pilih: admin, campaigner, atau viewer" },
+      { error: "Role tidak valid atau Anda tidak memiliki izin untuk mengatur role ini" },
       { status: 400 }
     );
+  }
+
+  // Admin cannot modify super_admin users
+  if (!isSuperAdmin(currentRole)) {
+    const { data: targetUserRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user_id)
+      .single();
+
+    if (targetUserRole?.role === "super_admin") {
+      return NextResponse.json(
+        { error: "Tidak dapat mengubah role Super Admin" },
+        { status: 403 }
+      );
+    }
   }
 
   // Check if user_role already exists
@@ -150,10 +175,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const validRoles = ["admin", "campaigner", "viewer"];
+  // Only super_admin can create super_admin roles
+  const validRoles = isSuperAdmin(currentRole)
+    ? ["super_admin", "admin", "campaigner", "viewer"]
+    : ["admin", "campaigner", "viewer"];
+
   if (!validRoles.includes(role)) {
     return NextResponse.json(
-      { error: "Role tidak valid. Pilih: admin, campaigner, atau viewer" },
+      { error: "Role tidak valid atau Anda tidak memiliki izin untuk mengatur role ini" },
       { status: 400 }
     );
   }
@@ -216,6 +245,22 @@ export async function DELETE(request: NextRequest) {
       { error: "Tidak dapat menghapus akun sendiri" },
       { status: 400 }
     );
+  }
+
+  // Admin cannot delete super_admin users
+  if (!isSuperAdmin(currentRole)) {
+    const { data: targetUserRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user_id)
+      .single();
+
+    if (targetUserRole?.role === "super_admin") {
+      return NextResponse.json(
+        { error: "Tidak dapat menghapus akun Super Admin" },
+        { status: 403 }
+      );
+    }
   }
 
   // Delete role assignment

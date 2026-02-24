@@ -2,13 +2,14 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
-import { type UserRole, canEdit, canDelete, canManageUsers } from "@/lib/roles";
+import { type UserRole, canEdit, canDelete, canManageUsers, isSuperAdmin } from "@/lib/roles";
 
 interface RoleContextType {
   role: UserRole;
   canEdit: boolean;
   canDelete: boolean;
   canManageUsers: boolean;
+  isSuperAdmin: boolean;
   loading: boolean;
   userEmail: string;
   userId: string;
@@ -19,6 +20,7 @@ const RoleContext = createContext<RoleContextType>({
   canEdit: false,
   canDelete: false,
   canManageUsers: false,
+  isSuperAdmin: false,
   loading: true,
   userEmail: "",
   userId: "",
@@ -61,6 +63,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         canEdit: canEdit(role),
         canDelete: canDelete(role),
         canManageUsers: canManageUsers(role),
+        isSuperAdmin: isSuperAdmin(role),
         loading,
         userEmail,
         userId,

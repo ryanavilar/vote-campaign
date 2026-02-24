@@ -1,12 +1,12 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getUserRole, canManageUsers } from "@/lib/roles";
+import { getUserRole, isSuperAdmin } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const role = await getUserRole(supabase);
 
-  if (!canManageUsers(role)) {
+  if (!isSuperAdmin(role)) {
     return NextResponse.json(
       { error: "Tidak memiliki akses untuk mengelola pengaturan" },
       { status: 403 }
@@ -40,7 +40,7 @@ export async function PUT(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const role = await getUserRole(supabase);
 
-  if (!canManageUsers(role)) {
+  if (!isSuperAdmin(role)) {
     return NextResponse.json(
       { error: "Tidak memiliki akses untuk mengelola pengaturan" },
       { status: 403 }

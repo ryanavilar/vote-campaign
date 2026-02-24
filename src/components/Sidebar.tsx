@@ -29,7 +29,7 @@ interface NavItem {
   icon: typeof LayoutDashboard;
   label: string;
   path: string;
-  minRole: "viewer" | "campaigner" | "admin";
+  minRole: "viewer" | "campaigner" | "admin" | "super_admin";
   hideForRole?: "campaigner";
 }
 
@@ -46,9 +46,9 @@ const navItems: NavItem[] = [
   { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer" },
 ];
 
-const adminItems = [
-  { icon: Settings, label: "Pengguna", path: "/admin/users", minRole: "admin" as const },
-  { icon: Settings2, label: "Pengaturan", path: "/admin/settings", minRole: "admin" as const },
+const adminItems: NavItem[] = [
+  { icon: Settings, label: "Pengguna", path: "/admin/users", minRole: "admin" },
+  { icon: Settings2, label: "Pengaturan", path: "/admin/settings", minRole: "super_admin" },
 ];
 
 export function Sidebar() {
@@ -67,8 +67,9 @@ export function Sidebar() {
     if (hideForRole && role === hideForRole) return false;
     // Min role check
     if (minRole === "viewer") return true;
-    if (minRole === "campaigner") return role === "admin" || role === "campaigner";
-    if (minRole === "admin") return role === "admin";
+    if (minRole === "campaigner") return role === "super_admin" || role === "admin" || role === "campaigner";
+    if (minRole === "admin") return role === "super_admin" || role === "admin";
+    if (minRole === "super_admin") return role === "super_admin";
     return false;
   };
 
@@ -120,7 +121,7 @@ export function Sidebar() {
         {canManageUsers && (
           <>
             <div className={`my-2 border-t border-border ${collapsed ? "mx-1" : "mx-3"}`} />
-            {adminItems.map((item) => {
+            {adminItems.filter((item) => canSee(item)).map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);
               return (

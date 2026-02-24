@@ -49,11 +49,11 @@ export async function GET() {
     );
   }
 
-  // Fetch campaigner roles from user_roles table
-  const { data: campaignerRoles, error: rolesError } = await supabase
+  // Fetch campaigner + admin roles from user_roles table
+  const { data: assignableRoles, error: rolesError } = await supabase
     .from("user_roles")
     .select("*")
-    .eq("role", "campaigner");
+    .in("role", ["campaigner", "admin"]);
 
   if (rolesError) {
     return NextResponse.json(
@@ -62,16 +62,18 @@ export async function GET() {
     );
   }
 
-  // Cross-reference to get campaigner user details
-  const campaignerUserIds = new Set(
-    (campaignerRoles || []).map((r) => r.user_id)
-  );
+  // Cross-reference to get assignable user details with role info
+  const roleMap = new Map<string, string>();
+  (assignableRoles || []).forEach((r) => {
+    roleMap.set(r.user_id, r.role);
+  });
 
   const campaigners = (users || [])
-    .filter((user) => campaignerUserIds.has(user.id))
+    .filter((user) => roleMap.has(user.id))
     .map((user) => ({
       user_id: user.id,
       email: user.email || "",
+      role: roleMap.get(user.id) || "campaigner",
     }));
 
   return NextResponse.json({ members, campaigners });

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type UserRole = "admin" | "campaigner" | "viewer";
+export type UserRole = "super_admin" | "admin" | "campaigner" | "viewer";
 
 export async function getUserRole(supabase: SupabaseClient): Promise<UserRole> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -16,19 +16,25 @@ export async function getUserRole(supabase: SupabaseClient): Promise<UserRole> {
 }
 
 export function canEdit(role: UserRole): boolean {
-  return role === "admin" || role === "campaigner";
+  return role === "super_admin" || role === "admin" || role === "campaigner";
 }
 
 export function canDelete(role: UserRole): boolean {
-  return role === "admin";
+  return role === "super_admin" || role === "admin";
 }
 
 export function canManageUsers(role: UserRole): boolean {
-  return role === "admin";
+  return role === "super_admin" || role === "admin";
+}
+
+export function isSuperAdmin(role: UserRole): boolean {
+  return role === "super_admin";
 }
 
 export function getRoleDisplayName(role: UserRole): string {
   switch (role) {
+    case "super_admin":
+      return "Super Admin";
     case "admin":
       return "Admin";
     case "campaigner":

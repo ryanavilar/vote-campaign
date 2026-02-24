@@ -18,6 +18,7 @@ import {
 interface CampaignerUser {
   user_id: string;
   email: string;
+  role?: string;
 }
 
 interface AssignmentMember {
@@ -383,9 +384,16 @@ export default function AdminAssignmentsPage() {
                               {c.email.charAt(0)}
                             </span>
                           </div>
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {c.email}
-                          </p>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {c.email}
+                            </p>
+                            {c.role === "admin" && (
+                              <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#84303F]/10 text-[#84303F]">
+                                Admin
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <span className="text-xs font-semibold text-white bg-[#0B27BC] px-2 py-0.5 rounded-full shrink-0 ml-2">
                           {formatNum(count)}

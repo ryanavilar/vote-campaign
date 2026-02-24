@@ -468,7 +468,14 @@ export default function AdminAlumniPage() {
                         >
                           <td className="px-4 py-3 text-gray-500">{(page - 1) * limit + index + 1}</td>
                           <td className="px-4 py-3"><span className="text-gray-500 font-mono text-xs">{item.nosis || "-"}</span></td>
-                          <td className="px-4 py-3"><span className="font-medium text-foreground">{item.nama}</span></td>
+                          <td className="px-4 py-3">
+                            <span className="font-medium text-foreground">{item.nama}</span>
+                            {item.keterangan?.includes("Almarhum") && (
+                              <span className="ml-1.5 inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                                Almarhum
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-3"><span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium bg-[#0B27BC]/10 text-[#0B27BC]">TN{item.angkatan}</span></td>
                           <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{item.kelanjutan_studi || "-"}</td>
                           <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">{item.program_studi || "-"}</td>

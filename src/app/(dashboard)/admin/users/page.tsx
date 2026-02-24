@@ -28,7 +28,7 @@ interface UserWithRole {
 }
 
 export default function AdminUsersPage() {
-  const { canManageUsers, loading: roleLoading } = useRole();
+  const { canManageUsers, isSuperAdmin, loading: roleLoading } = useRole();
   const { showToast } = useToast();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,9 @@ export default function AdminUsersPage() {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("viewer");
+  const [invitePassword, setInvitePassword] = useState("");
+  const [showInvitePassword, setShowInvitePassword] = useState(false);
+  const [autoConfirm, setAutoConfirm] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
 
   // Delete state
@@ -121,12 +124,26 @@ export default function AdminUsersPage() {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
 
+    if (autoConfirm && invitePassword.length < 6) {
+      showToast("Password minimal 6 karakter", "error");
+      return;
+    }
+
     setInviteLoading(true);
     try {
+      const payload: Record<string, string | boolean> = {
+        email: inviteEmail.trim(),
+        role: inviteRole,
+      };
+      if (autoConfirm) {
+        payload.autoConfirm = true;
+        payload.password = invitePassword;
+      }
+
       const response = await fetch("/api/roles/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -139,6 +156,9 @@ export default function AdminUsersPage() {
       setShowInviteForm(false);
       setInviteEmail("");
       setInviteRole("viewer");
+      setInvitePassword("");
+      setAutoConfirm(false);
+      setShowInvitePassword(false);
       await fetchUsers();
     } catch (err) {
       const message =
@@ -230,6 +250,8 @@ export default function AdminUsersPage() {
 
   function getRoleBadgeClasses(role: string): string {
     switch (role) {
+      case "super_admin":
+        return "bg-purple-100 text-purple-700";
       case "admin":
         return "bg-[#84303F]/10 text-[#84303F]";
       case "campaigner":
@@ -317,40 +339,100 @@ export default function AdminUsersPage() {
                 <X className="w-4 h-4 text-gray-500" />
               </button>
             </div>
-            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="email@contoh.com"
-                required
-                className="flex-1 px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
-              />
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value)}
-                className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white capitalize"
-              >
-                <option value="viewer">Viewer</option>
-                <option value="campaigner">Tim Sukses</option>
-                <option value="admin">Admin</option>
-              </select>
-              <button
-                type="submit"
-                disabled={inviteLoading}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091fa0] transition-colors disabled:opacity-50"
-              >
-                {inviteLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Mail className="w-4 h-4" />
-                )}
-                Kirim Undangan
-              </button>
+            <form onSubmit={handleInvite} className="space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="email@contoh.com"
+                  required
+                  className="flex-1 px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
+                />
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                  className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white capitalize"
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="campaigner">Tim Sukses</option>
+                  <option value="admin">Admin</option>
+                  {isSuperAdmin && <option value="super_admin">Super Admin</option>}
+                </select>
+              </div>
+
+              {/* Auto-confirm toggle — super_admin only */}
+              {isSuperAdmin && (
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoConfirm}
+                      onChange={(e) => {
+                        setAutoConfirm(e.target.checked);
+                        if (!e.target.checked) {
+                          setInvitePassword("");
+                          setShowInvitePassword(false);
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-border text-[#0B27BC] focus:ring-[#0B27BC]/20"
+                    />
+                    <span className="text-sm font-medium text-foreground">
+                      Buat akun langsung aktif
+                    </span>
+                    <span className="text-xs text-muted-foreground">(tanpa konfirmasi email)</span>
+                  </label>
+
+                  {autoConfirm && (
+                    <div className="relative">
+                      <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type={showInvitePassword ? "text" : "password"}
+                        value={invitePassword}
+                        onChange={(e) => setInvitePassword(e.target.value)}
+                        placeholder="Password untuk akun baru (min. 6 karakter)"
+                        required
+                        minLength={6}
+                        className="w-full pl-10 pr-10 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowInvitePassword(!showInvitePassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showInvitePassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={inviteLoading}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091fa0] transition-colors disabled:opacity-50"
+                >
+                  {inviteLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : autoConfirm ? (
+                    <Plus className="w-4 h-4" />
+                  ) : (
+                    <Mail className="w-4 h-4" />
+                  )}
+                  {autoConfirm ? "Buat Akun" : "Kirim Undangan"}
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  {autoConfirm
+                    ? "Akun akan langsung aktif dengan password yang ditentukan."
+                    : "Email undangan akan dikirim ke alamat di atas."}
+                </p>
+              </div>
             </form>
-            <p className="text-xs text-muted-foreground mt-2">
-              Email undangan akan dikirim ke alamat di atas.
-            </p>
           </div>
         )}
 
@@ -436,7 +518,7 @@ export default function AdminUsersPage() {
                           <span
                             className={`hidden sm:inline-block text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadgeClasses(user.role)}`}
                           >
-                            {user.role === "campaigner" ? "Tim Sukses" : user.role === "admin" ? "Admin" : "Viewer"}
+                            {user.role === "super_admin" ? "Super Admin" : user.role === "campaigner" ? "Tim Sukses" : user.role === "admin" ? "Admin" : "Viewer"}
                           </span>
                           <select
                             value={user.role}
@@ -446,6 +528,7 @@ export default function AdminUsersPage() {
                             disabled={updatingUserId === user.user_id}
                             className="px-2 py-1.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white disabled:opacity-50 disabled:cursor-wait capitalize"
                           >
+                            {isSuperAdmin && <option value="super_admin">Super Admin</option>}
                             <option value="admin">Admin</option>
                             <option value="campaigner">Tim Sukses</option>
                             <option value="viewer">Viewer</option>

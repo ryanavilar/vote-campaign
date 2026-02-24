@@ -39,7 +39,7 @@ const EMAIL_TEMPLATE_TYPES = [
 ];
 
 export default function AdminSettingsPage() {
-  const { canManageUsers, loading: roleLoading } = useRole();
+  const { isSuperAdmin, loading: roleLoading } = useRole();
   const { showToast } = useToast();
 
   // Active settings tab
@@ -59,12 +59,12 @@ export default function AdminSettingsPage() {
 
   // Load existing config on mount
   useEffect(() => {
-    if (!roleLoading && canManageUsers) {
+    if (!roleLoading && isSuperAdmin) {
       loadConfig();
-    } else if (!roleLoading && !canManageUsers) {
+    } else if (!roleLoading && !isSuperAdmin) {
       setConfigLoading(false);
     }
-  }, [roleLoading, canManageUsers]);
+  }, [roleLoading, isSuperAdmin]);
 
   async function loadConfig() {
     setConfigLoading(true);
@@ -179,7 +179,7 @@ export default function AdminSettingsPage() {
   }
 
   // Access denied
-  if (!canManageUsers) {
+  if (!isSuperAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-center px-4">
@@ -188,7 +188,7 @@ export default function AdminSettingsPage() {
           </div>
           <h2 className="text-lg font-semibold text-foreground">Akses Ditolak</h2>
           <p className="text-sm text-muted-foreground max-w-sm">
-            Anda tidak memiliki izin untuk mengakses halaman ini. Hanya admin yang dapat mengelola pengaturan.
+            Hanya Super Admin yang dapat mengelola pengaturan.
           </p>
         </div>
       </div>
