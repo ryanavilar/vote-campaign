@@ -127,12 +127,30 @@ function StatusChip({
   value,
   onClick,
   disabled,
+  readOnly,
 }: {
   value: StatusValue;
-  onClick: () => void;
+  onClick?: () => void;
   disabled?: boolean;
+  readOnly?: boolean;
 }) {
   const isSudah = value === "Sudah";
+
+  if (readOnly) {
+    return (
+      <span
+        className={`text-[10px] px-2 py-1 rounded-full font-medium whitespace-nowrap inline-block ${
+          isSudah
+            ? "bg-emerald-100 text-emerald-700"
+            : "bg-gray-100 text-gray-400"
+        }`}
+        title={isSudah ? "Terhubung di WA Group" : "Belum di WA Group"}
+      >
+        {isSudah ? "Sudah" : "Belum"}
+      </span>
+    );
+  }
+
   return (
     <button
       onClick={onClick}
@@ -317,7 +335,7 @@ export default function TargetPage() {
                       no_hp: data.member?.no_hp || t.no_hp,
                       status_dpt: data.member?.status_dpt ?? t.status_dpt,
                       sudah_dikontak: data.member?.sudah_dikontak ?? t.sudah_dikontak,
-                      masuk_grup: data.member?.masuk_grup ?? t.masuk_grup,
+                      // masuk_grup is derived from WA Group — keep existing value
                       vote: data.member?.vote ?? t.vote,
                       dukungan: data.member?.dukungan ?? t.dukungan,
                     }
@@ -589,7 +607,7 @@ export default function TargetPage() {
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.masuk_grup}
-                          onClick={() => toggleBinary(row, "masuk_grup")}
+                          readOnly
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
@@ -672,7 +690,7 @@ export default function TargetPage() {
                       <span className="text-[9px] text-gray-400 w-7">Grup</span>
                       <StatusChip
                         value={row.masuk_grup}
-                        onClick={() => toggleBinary(row, "masuk_grup")}
+                        readOnly
                       />
                     </div>
                     <div className="flex items-center gap-1">

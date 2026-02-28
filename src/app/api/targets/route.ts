@@ -87,6 +87,23 @@ export async function GET() {
       const members = await fetchAll(adminClient, "members", "*", (q) =>
         q.in("id", memberIds).order("no", { ascending: true })
       );
+
+      // Derive masuk_grup from wa_group_members linkage
+      const legacyWaLinked = new Set<string>();
+      try {
+        const waRows = await fetchAll(
+          adminClient,
+          "wa_group_members",
+          "member_id",
+          (q) => q.in("member_id", memberIds).not("member_id", "is", null)
+        );
+        for (const w of waRows) {
+          if (w.member_id) legacyWaLinked.add(w.member_id);
+        }
+      } catch {
+        // Continue without WA group data
+      }
+
       // Return in legacy format wrapped as target rows
       const legacyRows = members.map((m) => ({
         alumni_id: m.alumni_id || m.id,
@@ -101,7 +118,7 @@ export async function GET() {
         no_hp: m.no_hp || "",
         status_dpt: m.status_dpt,
         sudah_dikontak: m.sudah_dikontak,
-        masuk_grup: m.masuk_grup,
+        masuk_grup: legacyWaLinked.has(m.id) ? "Sudah" : "Belum",
         vote: m.vote,
         dukungan: m.dukungan || null,
       }));
@@ -152,9 +169,36 @@ export async function GET() {
     }
   }
 
+  // 3b. Derive masuk_grup from wa_group_members linkage
+  const memberIds = Object.values(membersMap)
+    .map((m) => m.id)
+    .filter(Boolean) as string[];
+
+  const waGroupLinkedIds = new Set<string>();
+  if (memberIds.length > 0) {
+    try {
+      for (let i = 0; i < memberIds.length; i += 500) {
+        const chunk = memberIds.slice(i, i + 500);
+        const waRows = await fetchAll(
+          adminClient,
+          "wa_group_members",
+          "member_id",
+          (q) => q.in("member_id", chunk).not("member_id", "is", null)
+        );
+        for (const w of waRows) {
+          if (w.member_id) waGroupLinkedIds.add(w.member_id);
+        }
+      }
+    } catch {
+      // Continue without WA group data
+    }
+  }
+
   // 4. Combine: alumni with their member data (if exists)
   const combined = alumni.map((a: { id: string; nama: string; angkatan: number; nosis: string | null; kelanjutan_studi: string | null }) => {
     const member = membersMap[a.id];
+    // masuk_grup is derived from wa_group_members linkage
+    const inWaGroup = member?.id ? waGroupLinkedIds.has(member.id) : false;
     return {
       alumni_id: a.id,
       alumni_nama: a.nama,
@@ -168,7 +212,7 @@ export async function GET() {
       no_hp: member?.no_hp || "",
       status_dpt: member?.status_dpt || null,
       sudah_dikontak: member?.sudah_dikontak || null,
-      masuk_grup: member?.masuk_grup || null,
+      masuk_grup: inWaGroup ? "Sudah" : "Belum",
       vote: member?.vote || null,
       dukungan: member?.dukungan || null,
     };
