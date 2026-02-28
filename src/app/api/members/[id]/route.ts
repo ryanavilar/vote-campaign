@@ -58,6 +58,7 @@ export async function PATCH(
     "sudah_dikontak",
     "masuk_grup",
     "vote",
+    "dukungan",
     "referral_name",
     "alumni_id",
   ];

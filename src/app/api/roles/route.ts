@@ -48,7 +48,19 @@ export async function GET() {
     );
   }
 
-  // Combine users with their roles
+  // Fetch angkatan assignments for all campaigners
+  const { data: angkatanData } = await adminClient
+    .from("campaigner_angkatan")
+    .select("user_id, angkatan");
+
+  // Group angkatan by user_id
+  const angkatanMap: Record<string, number[]> = {};
+  for (const row of angkatanData || []) {
+    if (!angkatanMap[row.user_id]) angkatanMap[row.user_id] = [];
+    angkatanMap[row.user_id].push(row.angkatan);
+  }
+
+  // Combine users with their roles, ban status, and angkatan
   const combined = (users || []).map((user) => {
     const userRole = (roles || []).find((r) => r.user_id === user.id);
     return {
@@ -57,6 +69,8 @@ export async function GET() {
       role: userRole?.role || "viewer",
       created_at: user.created_at,
       last_sign_in_at: user.last_sign_in_at,
+      banned_until: user.banned_until || null,
+      angkatan: angkatanMap[user.id] || [],
     };
   });
 
@@ -80,11 +94,93 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { user_id, role } = body;
+  const { user_id, role, action } = body;
 
-  if (!user_id || !role) {
+  if (!user_id) {
     return NextResponse.json(
-      { error: "user_id dan role wajib diisi" },
+      { error: "user_id wajib diisi" },
+      { status: 400 }
+    );
+  }
+
+  // Handle deactivate/activate actions
+  if (action === "deactivate" || action === "activate") {
+    // Admin cannot deactivate super_admin users
+    if (!isSuperAdmin(currentRole)) {
+      const { data: targetUserRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user_id)
+        .single();
+
+      if (targetUserRole?.role === "super_admin") {
+        return NextResponse.json(
+          { error: "Tidak dapat menonaktifkan akun Super Admin" },
+          { status: 403 }
+        );
+      }
+    }
+
+    const adminClient = getAdminClient();
+
+    if (action === "deactivate") {
+      const { error } = await adminClient.auth.admin.updateUserById(user_id, {
+        ban_duration: "876000h", // ~100 years
+      });
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ success: true, banned_until: "2126-01-01T00:00:00Z" });
+    } else {
+      // activate — remove ban
+      const { error } = await adminClient.auth.admin.updateUserById(user_id, {
+        ban_duration: "none",
+      });
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ success: true, banned_until: null });
+    }
+  }
+
+  // Handle set_angkatan action
+  if (action === "set_angkatan") {
+    const { angkatan } = body; // number[]
+    if (!Array.isArray(angkatan)) {
+      return NextResponse.json(
+        { error: "angkatan harus berupa array" },
+        { status: 400 }
+      );
+    }
+
+    const adminClient = getAdminClient();
+
+    // Delete existing angkatan assignments
+    await adminClient
+      .from("campaigner_angkatan")
+      .delete()
+      .eq("user_id", user_id);
+
+    // Insert new assignments
+    if (angkatan.length > 0) {
+      const rows = angkatan.map((a: number) => ({
+        user_id: user_id,
+        angkatan: a,
+      }));
+      const { error } = await adminClient
+        .from("campaigner_angkatan")
+        .insert(rows);
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ success: true, angkatan });
+  }
+
+  if (!role) {
+    return NextResponse.json(
+      { error: "role wajib diisi" },
       { status: 400 }
     );
   }

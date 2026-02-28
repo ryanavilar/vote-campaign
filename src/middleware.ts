@@ -31,6 +31,7 @@ export async function middleware(request: NextRequest) {
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
   // Allow access to login page, API routes, public forms, auth callback, and onboarding
@@ -44,8 +45,8 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // Redirect to login if not authenticated
-  if (!user) {
+  // Redirect to login if not authenticated or user is banned/deleted
+  if (!user || userError) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

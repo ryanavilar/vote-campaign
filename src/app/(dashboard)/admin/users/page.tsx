@@ -17,6 +17,10 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  Ban,
+  UserCheck,
+  GraduationCap,
+  Check,
 } from "lucide-react";
 
 interface UserWithRole {
@@ -25,6 +29,8 @@ interface UserWithRole {
   role: string;
   created_at: string;
   last_sign_in_at: string | null;
+  banned_until: string | null;
+  angkatan: number[];
 }
 
 export default function AdminUsersPage() {
@@ -47,6 +53,14 @@ export default function AdminUsersPage() {
   // Delete state
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Deactivate/activate state
+  const [togglingUserId, setTogglingUserId] = useState<string | null>(null);
+
+  // Angkatan assignment state
+  const [angkatanUserId, setAngkatanUserId] = useState<string | null>(null);
+  const [angkatanDraft, setAngkatanDraft] = useState<number[]>([]);
+  const [angkatanLoading, setAngkatanLoading] = useState(false);
 
   // Password change state
   const [passwordUserId, setPasswordUserId] = useState<string | null>(null);
@@ -235,6 +249,90 @@ export default function AdminUsersPage() {
     } finally {
       setPasswordLoading(false);
     }
+  }
+
+  async function handleToggleActive(userId: string, currentlyBanned: boolean) {
+    setTogglingUserId(userId);
+    try {
+      const response = await fetch("/api/roles", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          action: currentlyBanned ? "activate" : "deactivate",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal mengubah status akun");
+      }
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.user_id === userId
+            ? { ...u, banned_until: data.banned_until }
+            : u
+        )
+      );
+      showToast(
+        currentlyBanned ? "Akun berhasil diaktifkan" : "Akun berhasil dinonaktifkan",
+        "success"
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Gagal mengubah status akun";
+      showToast(message, "error");
+    } finally {
+      setTogglingUserId(null);
+    }
+  }
+
+  function toggleAngkatanDraft(num: number) {
+    setAngkatanDraft((prev) =>
+      prev.includes(num) ? prev.filter((a) => a !== num) : [...prev, num].sort((a, b) => a - b)
+    );
+  }
+
+  async function handleSaveAngkatan(userId: string) {
+    setAngkatanLoading(true);
+    try {
+      const response = await fetch("/api/roles", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          action: "set_angkatan",
+          angkatan: angkatanDraft,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Gagal mengatur angkatan");
+      }
+
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.user_id === userId ? { ...u, angkatan: angkatanDraft } : u
+        )
+      );
+      showToast("Angkatan berhasil diatur", "success");
+      setAngkatanUserId(null);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Gagal mengatur angkatan";
+      showToast(message, "error");
+    } finally {
+      setAngkatanLoading(false);
+    }
+  }
+
+  function isUserBanned(user: UserWithRole): boolean {
+    if (!user.banned_until) return false;
+    return new Date(user.banned_until) > new Date();
   }
 
   function formatDate(dateString: string | null): string {
@@ -509,9 +607,25 @@ export default function AdminUsersPage() {
                     >
                       <td className="px-4 py-3 text-gray-500">{index + 1}</td>
                       <td className="px-4 py-3">
-                        <span className="font-medium text-foreground">
-                          {user.email}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`font-medium ${isUserBanned(user) ? "text-gray-400 line-through" : "text-foreground"}`}>
+                            {user.email}
+                          </span>
+                          {isUserBanned(user) && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">
+                              Nonaktif
+                            </span>
+                          )}
+                        </div>
+                        {user.role === "campaigner" && user.angkatan.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {user.angkatan.sort((a, b) => a - b).map((a) => (
+                              <span key={a} className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B27BC]/10 text-[#0B27BC] font-medium">
+                                TN{a}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -546,6 +660,44 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {user.role === "campaigner" && (
+                            <button
+                              onClick={() => {
+                                if (angkatanUserId === user.user_id) {
+                                  setAngkatanUserId(null);
+                                } else {
+                                  setAngkatanUserId(user.user_id);
+                                  setAngkatanDraft([...(user.angkatan || [])]);
+                                }
+                              }}
+                              className={`p-1.5 rounded-lg transition-colors ${
+                                angkatanUserId === user.user_id
+                                  ? "text-[#84303F] bg-[#84303F]/10"
+                                  : "text-[#84303F] hover:bg-[#84303F]/10"
+                              }`}
+                              title="Atur angkatan"
+                            >
+                              <GraduationCap className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleToggleActive(user.user_id, isUserBanned(user))}
+                            disabled={togglingUserId === user.user_id}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              isUserBanned(user)
+                                ? "text-green-600 hover:bg-green-50"
+                                : "text-orange-500 hover:bg-orange-50"
+                            } disabled:opacity-50`}
+                            title={isUserBanned(user) ? "Aktifkan akun" : "Nonaktifkan akun"}
+                          >
+                            {togglingUserId === user.user_id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : isUserBanned(user) ? (
+                              <UserCheck className="w-3.5 h-3.5" />
+                            ) : (
+                              <Ban className="w-3.5 h-3.5" />
+                            )}
+                          </button>
                           <button
                             onClick={() => {
                               setPasswordUserId(
@@ -635,6 +787,63 @@ export default function AdminUsersPage() {
                               </button>
                             </div>
                           </form>
+                        </td>
+                      </tr>
+                    )}
+                    {/* Angkatan assignment row */}
+                    {angkatanUserId === user.user_id && (
+                      <tr className="bg-[#84303F]/5 border-b border-border">
+                        <td colSpan={6} className="px-4 py-3">
+                          <div className="space-y-2">
+                            <span className="text-xs font-medium text-[#84303F]">
+                              Pilih angkatan untuk {user.email}:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {Array.from({ length: 35 }, (_, i) => i + 1).map((num) => {
+                                const isSelected = angkatanDraft.includes(num);
+                                return (
+                                  <button
+                                    key={num}
+                                    type="button"
+                                    onClick={() => toggleAngkatanDraft(num)}
+                                    className={`w-9 h-7 text-[11px] font-medium rounded-md transition-colors ${
+                                      isSelected
+                                        ? "bg-[#0B27BC] text-white"
+                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                    }`}
+                                  >
+                                    {num}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                onClick={() => handleSaveAngkatan(user.user_id)}
+                                disabled={angkatanLoading}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#84303F] rounded-lg hover:bg-[#6d2834] transition-colors disabled:opacity-50"
+                              >
+                                {angkatanLoading ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Check className="w-3 h-3" />
+                                )}
+                                Simpan
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAngkatanUserId(null)}
+                                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                              >
+                                Batal
+                              </button>
+                              {angkatanDraft.length > 0 && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {angkatanDraft.length} angkatan dipilih
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     )}

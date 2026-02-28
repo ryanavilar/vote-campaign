@@ -14,6 +14,7 @@ export interface Member {
   sudah_dikontak: StatusValue;
   masuk_grup: StatusValue;
   vote: StatusValue;
+  dukungan: string | null;
   referred_by: string | null;
   referral_name: string | null;
   assigned_to: string | null;

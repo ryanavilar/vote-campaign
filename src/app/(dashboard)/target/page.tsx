@@ -1,90 +1,216 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
 import { formatNum } from "@/lib/format";
-import type { Member, StatusValue } from "@/lib/types";
-import { DataTable } from "@/components/DataTable";
+import type { StatusValue } from "@/lib/types";
 import {
   Search,
   Loader2,
-  Plus,
   Crosshair,
-  GraduationCap,
+  Phone,
+  MessageCircle,
+  ThumbsUp,
+  HelpCircle,
+  ArrowLeftRight,
+  Users as UsersIcon,
   ClipboardCheck,
-  Smartphone,
   Vote,
-  ChevronUp,
+  RefreshCw,
 } from "lucide-react";
 
-interface AlumniSearchResult {
-  id: string;
+/* ── Types ─────────────────────────────────────────────── */
+
+interface TargetRow {
+  alumni_id: string;
+  alumni_nama: string;
+  alumni_angkatan: number;
+  alumni_nosis: string | null;
+  alumni_kelanjutan_studi: string | null;
+  member_id: string | null;
+  no: number | null;
   nama: string;
   angkatan: number;
-  kelanjutan_studi: string | null;
-  program_studi: string | null;
-  members: {
-    id: string;
-    nama: string;
-    campaigner_targets: { user_id: string }[];
-  }[];
+  no_hp: string;
+  status_dpt: StatusValue;
+  sudah_dikontak: StatusValue;
+  masuk_grup: StatusValue;
+  vote: StatusValue;
+  dukungan: string | null;
 }
 
+/* ── Dukungan config ───────────────────────────────────── */
+
+const DUKUNGAN_CYCLE = [null, "dukung", "ragu_ragu", "milih_sebelah", "terkonvert"] as const;
+
+const DUKUNGAN_STYLES: Record<string, string> = {
+  dukung: "bg-emerald-100 text-emerald-700",
+  ragu_ragu: "bg-yellow-100 text-yellow-700",
+  milih_sebelah: "bg-red-100 text-red-700",
+  terkonvert: "bg-blue-100 text-blue-700",
+};
+
+const DUKUNGAN_LABELS: Record<string, string> = {
+  dukung: "Dukung",
+  ragu_ragu: "Ragu",
+  milih_sebelah: "Sebelah",
+  terkonvert: "Convert",
+};
+
+/* ── Inline Phone Edit ─────────────────────────────────── */
+
+function InlinePhoneEdit({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editing]);
+
+  const save = () => {
+    const trimmed = draft.trim();
+    if (trimmed !== value) {
+      onSave(trimmed);
+    }
+    setEditing(false);
+  };
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => {
+          setDraft(value);
+          setEditing(true);
+        }}
+        className="text-xs text-left w-full px-2 py-1 rounded hover:bg-gray-100 transition-colors min-w-[90px] truncate"
+      >
+        {value || (
+          <span className="text-gray-300 italic">+ No HP</span>
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      type="tel"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") save();
+        if (e.key === "Escape") {
+          setDraft(value);
+          setEditing(false);
+        }
+      }}
+      className="text-xs w-full px-2 py-1 border border-[#0B27BC] rounded focus:outline-none focus:ring-1 focus:ring-[#0B27BC]/30 min-w-[90px]"
+      placeholder="08xxxxxxxxxx"
+    />
+  );
+}
+
+/* ── Status Chip (binary) ──────────────────────────────── */
+
+function StatusChip({
+  value,
+  onClick,
+  disabled,
+}: {
+  value: StatusValue;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  const isSudah = value === "Sudah";
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`text-[10px] px-2 py-1 rounded-full font-medium transition-colors whitespace-nowrap ${
+        isSudah
+          ? "bg-emerald-100 text-emerald-700"
+          : "bg-gray-100 text-gray-400"
+      } disabled:opacity-50`}
+    >
+      {isSudah ? "Sudah" : "Belum"}
+    </button>
+  );
+}
+
+/* ── Dukungan Chip (cycle) ─────────────────────────────── */
+
+function DukunganChip({
+  value,
+  onClick,
+  disabled,
+}: {
+  value: string | null;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  if (!value) {
+    return (
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className="text-[10px] px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-400 transition-colors whitespace-nowrap disabled:opacity-50"
+      >
+        —
+      </button>
+    );
+  }
+
+  const style = DUKUNGAN_STYLES[value] || "bg-gray-100 text-gray-500";
+  const label = DUKUNGAN_LABELS[value] || value;
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`text-[10px] px-2 py-1 rounded-full font-medium transition-colors whitespace-nowrap ${style} disabled:opacity-50`}
+    >
+      {label}
+    </button>
+  );
+}
+
+/* ── Main Page ─────────────────────────────────────────── */
+
 export default function TargetPage() {
-  const { canEdit: userCanEdit, role, userId, loading: roleLoading } = useRole();
+  const { canEdit: userCanEdit, loading: roleLoading } = useRole();
   const { showToast } = useToast();
-  const router = useRouter();
 
-  // My targets
-  const [targets, setTargets] = useState<Member[]>([]);
+  const [targets, setTargets] = useState<TargetRow[]>([]);
   const [loadingTargets, setLoadingTargets] = useState(true);
-  const [attendanceCounts, setAttendanceCounts] = useState<Record<string, number>>({});
-  const [memberInGroup, setMemberInGroup] = useState<Record<string, boolean>>({});
+  const [updatingField, setUpdatingField] = useState<string | null>(null);
 
-  // Search
+  // Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchAngkatan, setSearchAngkatan] = useState("");
-  const [searchResults, setSearchResults] = useState<AlumniSearchResult[]>([]);
-  const [searchTotal, setSearchTotal] = useState(0);
-  const [searching, setSearching] = useState(false);
-  const [searchPage, setSearchPage] = useState(1);
-  const [showSearch, setShowSearch] = useState(false);
-
-  // Adding
-  const [addingId, setAddingId] = useState<string | null>(null);
-  const [removingId, setRemovingId] = useState<string | null>(null);
-
-  // Target list filter
-  const [targetSearch, setTargetSearch] = useState("");
-  const [targetFilterField, setTargetFilterField] = useState("status_dpt");
-  const [targetFilterValue, setTargetFilterValue] = useState("all");
+  const [filterAngkatan, setFilterAngkatan] = useState<string>("all");
+  const [filterField, setFilterField] = useState("dukungan");
+  const [filterValue, setFilterValue] = useState("all");
 
   // Fetch targets
   const fetchTargets = useCallback(async () => {
     setLoadingTargets(true);
     try {
-      const [targetsRes, attendanceRes, waGroupRes] = await Promise.all([
-        fetch("/api/targets"),
-        supabase.from("event_attendance").select("member_id"),
-        fetch("/api/wa-group/stats").then((r) => r.json()).catch(() => ({ memberInGroup: {} })),
-      ]);
-
-      if (targetsRes.ok) {
-        const data = await targetsRes.json();
+      const res = await fetch("/api/targets");
+      if (res.ok) {
+        const data = await res.json();
         setTargets(data);
-      }
-
-      setMemberInGroup(waGroupRes.memberInGroup || {});
-
-      if (!attendanceRes.error && attendanceRes.data) {
-        const counts: Record<string, number> = {};
-        for (const row of attendanceRes.data) {
-          counts[row.member_id] = (counts[row.member_id] || 0) + 1;
-        }
-        setAttendanceCounts(counts);
+      } else {
+        showToast("Gagal memuat data target", "error");
       }
     } catch {
       showToast("Gagal memuat data target", "error");
@@ -97,193 +223,137 @@ export default function TargetPage() {
     fetchTargets();
   }, [fetchTargets, roleLoading]);
 
-  // Search alumni
-  const searchAlumni = useCallback(
-    async (query: string, angkatan: string, page: number) => {
-      if (query.length < 2 && !angkatan) {
-        setSearchResults([]);
-        setSearchTotal(0);
-        return;
-      }
-      setSearching(true);
-      try {
-        const params = new URLSearchParams();
-        if (query.length >= 2) params.set("q", query);
-        if (angkatan) params.set("angkatan", angkatan);
-        params.set("page", String(page));
-        params.set("limit", "20");
+  // Available angkatan from data
+  const availableAngkatan = useMemo(() => {
+    const set = new Set<number>();
+    targets.forEach((t) => set.add(t.angkatan));
+    return Array.from(set).sort((a, b) => a - b);
+  }, [targets]);
 
-        const res = await fetch(`/api/alumni/search?${params}`);
-        if (res.ok) {
-          const data = await res.json();
-          setSearchResults(data.data);
-          setSearchTotal(data.total);
+  // Stats
+  const stats = useMemo(() => {
+    const total = targets.length;
+    const kontak = targets.filter((t) => t.sudah_dikontak === "Sudah").length;
+    const dukung = targets.filter((t) => t.dukungan === "dukung").length;
+    const ragu = targets.filter((t) => t.dukungan === "ragu_ragu").length;
+    const sebelah = targets.filter((t) => t.dukungan === "milih_sebelah").length;
+    const grup = targets.filter((t) => t.masuk_grup === "Sudah").length;
+    return { total, kontak, dukung, ragu, sebelah, grup };
+  }, [targets]);
+
+  // Filter targets
+  const filteredTargets = useMemo(() => {
+    return targets.filter((t) => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        !q || t.nama.toLowerCase().includes(q) || (t.no_hp && t.no_hp.includes(searchQuery));
+
+      const matchesAngkatan =
+        filterAngkatan === "all" || t.angkatan === Number(filterAngkatan);
+
+      let matchesFilter = true;
+      if (filterValue !== "all") {
+        if (filterField === "dukungan") {
+          matchesFilter = filterValue === "empty" ? !t.dukungan : t.dukungan === filterValue;
+        } else {
+          const val = t[filterField as keyof TargetRow];
+          matchesFilter =
+            filterValue === "empty"
+              ? val === null || val === ""
+              : val === filterValue;
         }
-      } catch {
-        showToast("Gagal mencari alumni", "error");
-      }
-      setSearching(false);
-    },
-    [showToast]
-  );
-
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (showSearch) {
-        setSearchPage(1);
-        searchAlumni(searchQuery, searchAngkatan, 1);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, searchAngkatan, showSearch, searchAlumni]);
-
-  // Add target — optimistic update
-  const handleAddTarget = async (alumniId: string) => {
-    setAddingId(alumniId);
-    try {
-      const res = await fetch("/api/targets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alumni_id: alumniId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        showToast(data.error || "Gagal menambah target", "error");
-        return;
       }
 
-      // Optimistically add the new member to targets state
-      if (data.member) {
-        setTargets((prev) => [...prev, data.member].sort((a, b) => a.no - b.no));
-      }
+      return matchesSearch && matchesAngkatan && matchesFilter;
+    });
+  }, [targets, searchQuery, filterAngkatan, filterField, filterValue]);
 
-      showToast(
-        data.action === "created"
-          ? "Alumni ditambahkan sebagai target baru"
-          : "Anggota ditambahkan ke daftar target",
-        "success"
-      );
+  // Update handler
+  const handleFieldUpdate = useCallback(
+    async (row: TargetRow, field: string, value: string | null) => {
+      const key = `${row.alumni_id}:${field}`;
+      setUpdatingField(key);
 
-      // Only refresh search results for badge update
-      await searchAlumni(searchQuery, searchAngkatan, searchPage);
-    } catch {
-      showToast("Terjadi kesalahan jaringan", "error");
-    }
-    setAddingId(null);
-  };
-
-  // Remove target — optimistic update
-  const handleRemoveTarget = async (memberId: string) => {
-    setRemovingId(memberId);
-    // Optimistically remove from state
-    const previousTargets = targets;
-    setTargets((prev) => prev.filter((m) => m.id !== memberId));
-
-    try {
-      const res = await fetch("/api/targets", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ member_id: memberId }),
-      });
-
-      if (res.ok) {
-        showToast("Target berhasil dihapus dari daftar", "success");
-      } else {
-        // Restore on error
-        setTargets(previousTargets);
-        const data = await res.json();
-        showToast(data.error || "Gagal menghapus target", "error");
-      }
-    } catch {
-      setTargets(previousTargets);
-      showToast("Terjadi kesalahan jaringan", "error");
-    }
-    setRemovingId(null);
-  };
-
-  // Update member status via API (for audit logging)
-  const updateMember = useCallback(
-    async (id: string, field: string, value: StatusValue) => {
       // Optimistic update
       setTargets((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
+        prev.map((t) =>
+          t.alumni_id === row.alumni_id ? { ...t, [field]: value } : t
+        )
       );
 
-      try {
-        const res = await fetch("/api/members", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, field, value }),
-        });
-
-        if (!res.ok) {
+      if (row.member_id) {
+        // Member exists — PATCH directly
+        try {
+          const res = await fetch(`/api/members/${row.member_id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ [field]: value }),
+          });
+          if (!res.ok) {
+            fetchTargets();
+            showToast("Gagal mengupdate", "error");
+          }
+        } catch {
           fetchTargets();
-          showToast("Gagal mengupdate status", "error");
+          showToast("Gagal mengupdate", "error");
         }
-      } catch {
-        fetchTargets();
-        showToast("Gagal mengupdate status", "error");
+      } else {
+        // No member yet — POST to create + update
+        try {
+          const res = await fetch("/api/targets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ alumni_id: row.alumni_id, field, value }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setTargets((prev) =>
+              prev.map((t) =>
+                t.alumni_id === row.alumni_id
+                  ? {
+                      ...t,
+                      member_id: data.member_id,
+                      no: data.member?.no || t.no,
+                      no_hp: data.member?.no_hp || t.no_hp,
+                      status_dpt: data.member?.status_dpt ?? t.status_dpt,
+                      sudah_dikontak: data.member?.sudah_dikontak ?? t.sudah_dikontak,
+                      masuk_grup: data.member?.masuk_grup ?? t.masuk_grup,
+                      vote: data.member?.vote ?? t.vote,
+                      dukungan: data.member?.dukungan ?? t.dukungan,
+                    }
+                  : t
+              )
+            );
+          } else {
+            fetchTargets();
+            showToast("Gagal membuat data anggota", "error");
+          }
+        } catch {
+          fetchTargets();
+          showToast("Gagal membuat data anggota", "error");
+        }
       }
+
+      setUpdatingField(null);
     },
     [fetchTargets, showToast]
   );
 
-  // Target IDs for quick lookup
-  const targetMemberIds = useMemo(
-    () => new Set(targets.map((t) => t.id)),
-    [targets]
-  );
-
-  // Get alumni status relative to current user
-  const getAlumniStatus = (alumni: AlumniSearchResult) => {
-    if (!alumni.members || alumni.members.length === 0) {
-      return "available"; // No linked member — fresh
-    }
-    const member = alumni.members[0];
-    const isMyTarget = member.campaigner_targets?.some(
-      (ct) => ct.user_id === userId
-    );
-    if (isMyTarget) return "mine";
-    return "available"; // Available even if others target it
+  // Toggle binary field
+  const toggleBinary = (row: TargetRow, field: string) => {
+    const current = row[field as keyof TargetRow] as StatusValue;
+    const next = current === "Sudah" ? "Belum" : "Sudah";
+    handleFieldUpdate(row, field, next);
   };
 
-  // Target stats
-  const targetStats = useMemo(() => {
-    const total = targets.length;
-    const dpt = targets.filter((m) => m.status_dpt === "Sudah").length;
-    const grup = targets.filter((m) => memberInGroup[m.id]).length;
-    const vote = targets.filter((m) => m.vote === "Sudah").length;
-    return { total, dpt, grup, vote };
-  }, [targets, memberInGroup]);
-
-  // Filter targets
-  const filteredTargets = useMemo(() => {
-    return targets.filter((m) => {
-      const q = targetSearch.toLowerCase();
-      const matchesSearch =
-        !q ||
-        m.nama.toLowerCase().includes(q) ||
-        (m.no_hp && m.no_hp.includes(targetSearch));
-
-      const statusKey = targetFilterField as keyof Member;
-      const matchesStatus =
-        targetFilterValue === "all" ||
-        (targetFilterValue === "empty" && (m[statusKey] === null || m[statusKey] === "")) ||
-        m[statusKey] === targetFilterValue;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [targets, targetSearch, targetFilterField, targetFilterValue]);
-
-  // Angkatan list from search results
-  const angkatanList = useMemo(() => {
-    const set = new Set<number>();
-    for (let i = 1; i <= 35; i++) set.add(i);
-    return Array.from(set).sort((a, b) => a - b);
-  }, []);
+  // Cycle dukungan
+  const cycleDukungan = (row: TargetRow) => {
+    const currentIdx = DUKUNGAN_CYCLE.indexOf(
+      row.dukungan as (typeof DUKUNGAN_CYCLE)[number]
+    );
+    const nextIdx = (currentIdx + 1) % DUKUNGAN_CYCLE.length;
+    handleFieldUpdate(row, "dukungan", DUKUNGAN_CYCLE[nextIdx]);
+  };
 
   if (roleLoading || loadingTargets) {
     return (
@@ -305,28 +375,23 @@ export default function TargetPage() {
             <div className="flex items-center gap-3">
               <Crosshair className="w-5 h-5 text-[#FE8DA1]" />
               <div>
-                <h1 className="text-lg sm:text-xl font-bold text-white">Target Saya</h1>
+                <h1 className="text-lg sm:text-xl font-bold text-white">
+                  Target Saya
+                </h1>
                 <p className="text-xs text-white/70">
-                  {formatNum(targetStats.total)} target
+                  {formatNum(stats.total)} alumni ·{" "}
+                  {availableAngkatan.length > 0
+                    ? `TN ${availableAngkatan.join(", ")}`
+                    : "Belum ada angkatan"}
                 </p>
               </div>
             </div>
             <button
-              onClick={() => setShowSearch(!showSearch)}
+              onClick={fetchTargets}
               className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors"
             >
-              {showSearch ? (
-                <>
-                  <ChevronUp className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Tutup Pencarian</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Tambah Target</span>
-                  <span className="sm:hidden">Tambah</span>
-                </>
-              )}
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </div>
@@ -335,205 +400,301 @@ export default function TargetPage() {
 
       <div className="px-4 sm:px-6 py-6 space-y-4">
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {[
-            { label: "Target", value: targetStats.total, icon: Crosshair, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
-            { label: "Grup WA", value: targetStats.grup, icon: Smartphone, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
-            { label: "DPT", value: targetStats.dpt, icon: ClipboardCheck, color: "text-emerald-700", bg: "bg-emerald-50" },
-            { label: "Vote", value: targetStats.vote, icon: Vote, color: "text-[#84303F]", bg: "bg-[#84303F]/10" },
+            { label: "Total", value: stats.total, icon: Crosshair, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
+            { label: "Kontak", value: stats.kontak, icon: MessageCircle, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
+            { label: "Dukung", value: stats.dukung, icon: ThumbsUp, color: "text-emerald-700", bg: "bg-emerald-50" },
+            { label: "Ragu", value: stats.ragu, icon: HelpCircle, color: "text-yellow-700", bg: "bg-yellow-50" },
+            { label: "Sebelah", value: stats.sebelah, icon: ArrowLeftRight, color: "text-red-700", bg: "bg-red-50" },
+            { label: "Grup", value: stats.grup, icon: UsersIcon, color: "text-[#84303F]", bg: "bg-[#84303F]/10" },
           ].map((s) => (
-            <div key={s.label} className="bg-white rounded-xl border border-border p-3 shadow-sm text-center">
-              <div className={`inline-flex p-1.5 rounded-lg ${s.bg} mb-1`}>
-                <s.icon className={`w-4 h-4 ${s.color}`} />
+            <div
+              key={s.label}
+              className="bg-white rounded-xl border border-border p-2.5 shadow-sm text-center"
+            >
+              <div className={`inline-flex p-1 rounded-lg ${s.bg} mb-1`}>
+                <s.icon className={`w-3.5 h-3.5 ${s.color}`} />
               </div>
-              <p className="text-xl font-bold text-foreground">{formatNum(s.value)}</p>
+              <p className="text-lg font-bold text-foreground leading-tight">
+                {formatNum(s.value)}
+              </p>
               <p className="text-[10px] text-muted-foreground">{s.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Search Alumni Section */}
-        {showSearch && (
-          <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-border bg-gray-50/80">
-              <div className="flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-[#84303F]" />
-                <h3 className="text-sm font-semibold text-foreground">Cari Alumni</h3>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Cari dari {formatNum(10952)} data alumni, lalu tambahkan sebagai target
-              </p>
-            </div>
-
-            <div className="px-4 py-3 border-b border-border space-y-2">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Ketik nama alumni (min 2 huruf)..."
-                    className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
-                    autoFocus
-                  />
-                </div>
-                <select
-                  value={searchAngkatan}
-                  onChange={(e) => setSearchAngkatan(e.target.value)}
-                  className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
-                >
-                  <option value="">Semua TN</option>
-                  {angkatanList.map((a) => (
-                    <option key={a} value={a}>TN {a}</option>
-                  ))}
-                </select>
-              </div>
-              {searchTotal > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {formatNum(searchTotal)} hasil ditemukan
-                </p>
-              )}
-            </div>
-
-            {/* Search Results */}
-            <div className="max-h-[400px] overflow-y-auto divide-y divide-border">
-              {searching ? (
-                <div className="px-4 py-8 text-center">
-                  <Loader2 className="w-5 h-5 animate-spin text-[#0B27BC] mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground">Mencari...</p>
-                </div>
-              ) : searchResults.length === 0 ? (
-                <div className="px-4 py-8 text-center">
-                  <GraduationCap className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    {searchQuery.length >= 2 || searchAngkatan
-                      ? "Tidak ada alumni ditemukan"
-                      : "Ketik nama alumni untuk mencari"}
-                  </p>
-                </div>
-              ) : (
-                searchResults.map((alumni) => {
-                  const status = getAlumniStatus(alumni);
-                  const isAdding = addingId === alumni.id;
-
-                  return (
-                    <div
-                      key={alumni.id}
-                      className="px-4 py-3 flex items-center justify-between hover:bg-gray-50/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-[#84303F]/10 flex items-center justify-center shrink-0">
-                          <span className="text-xs font-bold text-[#84303F] uppercase">
-                            {alumni.nama.charAt(0)}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {alumni.nama}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            TN {alumni.angkatan}
-                            {alumni.kelanjutan_studi
-                              ? ` · ${alumni.kelanjutan_studi}`
-                              : ""}
-                          </p>
-                        </div>
-                      </div>
-
-                      {status === "mine" ? (
-                        <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full shrink-0">
-                          Target Saya
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handleAddTarget(alumni.id)}
-                          disabled={isAdding}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091fa0] transition-colors disabled:opacity-50 shrink-0"
-                        >
-                          {isAdding ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Plus className="w-3 h-3" />
-                          )}
-                          Tambah
-                        </button>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Load more */}
-            {searchResults.length > 0 && searchResults.length < searchTotal && (
-              <div className="px-4 py-3 border-t border-border text-center">
-                <button
-                  onClick={() => {
-                    const next = searchPage + 1;
-                    setSearchPage(next);
-                    searchAlumni(searchQuery, searchAngkatan, next);
-                  }}
-                  className="text-xs font-medium text-[#0B27BC] hover:underline"
-                >
-                  Muat lebih banyak...
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Target filters */}
+        {/* Filters */}
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
           <div className="px-4 py-3">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
+            <div className="flex flex-wrap gap-2">
+              <div className="relative flex-1 min-w-[150px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   type="text"
-                  value={targetSearch}
-                  onChange={(e) => setTargetSearch(e.target.value)}
-                  placeholder="Cari target..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari nama / HP..."
                   className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
                 />
               </div>
+              {availableAngkatan.length > 1 && (
+                <select
+                  value={filterAngkatan}
+                  onChange={(e) => setFilterAngkatan(e.target.value)}
+                  className="px-3 py-2 text-sm border border-border rounded-lg bg-white"
+                >
+                  <option value="all">Semua TN</option>
+                  {availableAngkatan.map((a) => (
+                    <option key={a} value={a}>
+                      TN {a}
+                    </option>
+                  ))}
+                </select>
+              )}
               <select
-                value={targetFilterField}
+                value={filterField}
                 onChange={(e) => {
-                  setTargetFilterField(e.target.value);
-                  setTargetFilterValue("all");
+                  setFilterField(e.target.value);
+                  setFilterValue("all");
                 }}
                 className="px-3 py-2 text-sm border border-border rounded-lg bg-white"
               >
+                <option value="dukungan">Dukungan</option>
+                <option value="sudah_dikontak">Kontak</option>
+                <option value="masuk_grup">Grup</option>
                 <option value="status_dpt">DPT</option>
                 <option value="vote">Vote</option>
               </select>
               <select
-                value={targetFilterValue}
-                onChange={(e) => setTargetFilterValue(e.target.value)}
+                value={filterValue}
+                onChange={(e) => setFilterValue(e.target.value)}
                 className="px-3 py-2 text-sm border border-border rounded-lg bg-white"
               >
                 <option value="all">Semua</option>
-                <option value="Sudah">Sudah</option>
-                <option value="Belum">Belum</option>
-                <option value="empty">Kosong</option>
+                {filterField === "dukungan" ? (
+                  <>
+                    <option value="dukung">Dukung</option>
+                    <option value="ragu_ragu">Ragu-ragu</option>
+                    <option value="milih_sebelah">Milih Sebelah</option>
+                    <option value="terkonvert">Terkonvert</option>
+                    <option value="empty">Belum diisi</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Sudah">Sudah</option>
+                    <option value="Belum">Belum</option>
+                    <option value="empty">Kosong</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
         </div>
 
-        {/* My Targets Table */}
-        <DataTable
-          data={filteredTargets}
-          attendanceCounts={attendanceCounts}
-          memberInGroup={memberInGroup}
-          onUpdate={updateMember}
-          onRowClick={(id) => router.push(`/anggota/${id}?from=target`)}
-          onDelete={handleRemoveTarget}
-          deletingId={removingId}
-          totalCount={targets.length}
-          title="Daftar Target"
-        />
+        {/* Target Table */}
+        <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border bg-gray-50/80 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">
+              Daftar Target ({formatNum(filteredTargets.length)})
+            </h3>
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-gray-50/50">
+                  <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs w-10">
+                    #
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs">
+                    Nama
+                  </th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs w-[120px]">
+                    <Phone className="w-3 h-3 inline mr-1" />
+                    No HP
+                  </th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
+                    Kontak
+                  </th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
+                    Dukungan
+                  </th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
+                    Grup
+                  </th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
+                    DPT
+                  </th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
+                    Vote
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTargets.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-12 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <Crosshair className="w-8 h-8 text-gray-200" />
+                        <p className="text-sm text-muted-foreground">
+                          {searchQuery || filterValue !== "all"
+                            ? "Tidak ada data yang cocok"
+                            : "Belum ada target. Minta admin mengatur angkatan Anda."}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTargets.map((row, idx) => (
+                    <tr
+                      key={row.alumni_id}
+                      className="border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors"
+                    >
+                      <td className="px-3 py-2 text-gray-400 text-xs">
+                        {idx + 1}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div>
+                          <p className="text-sm font-medium text-foreground truncate max-w-[200px]">
+                            {row.nama}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            TN {row.angkatan}
+                            {row.alumni_kelanjutan_studi
+                              ? ` · ${row.alumni_kelanjutan_studi}`
+                              : ""}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <InlinePhoneEdit
+                          value={row.no_hp}
+                          onSave={(v) => handleFieldUpdate(row, "no_hp", v)}
+                        />
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <StatusChip
+                          value={row.sudah_dikontak}
+                          onClick={() => toggleBinary(row, "sudah_dikontak")}
+                        />
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <DukunganChip
+                          value={row.dukungan}
+                          onClick={() => cycleDukungan(row)}
+                        />
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <StatusChip
+                          value={row.masuk_grup}
+                          onClick={() => toggleBinary(row, "masuk_grup")}
+                        />
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <StatusChip
+                          value={row.status_dpt}
+                          onClick={() => toggleBinary(row, "status_dpt")}
+                        />
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <StatusChip
+                          value={row.vote}
+                          onClick={() => toggleBinary(row, "vote")}
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden divide-y divide-border">
+            {filteredTargets.length === 0 ? (
+              <div className="px-4 py-12 text-center">
+                <Crosshair className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  {searchQuery || filterValue !== "all"
+                    ? "Tidak ada data yang cocok"
+                    : "Belum ada target. Minta admin mengatur angkatan Anda."}
+                </p>
+              </div>
+            ) : (
+              filteredTargets.map((row) => (
+                <div key={row.alumni_id} className="px-4 py-3 space-y-2">
+                  {/* Name + angkatan */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {row.nama}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        TN {row.angkatan}
+                        {row.alumni_kelanjutan_studi
+                          ? ` · ${row.alumni_kelanjutan_studi}`
+                          : ""}
+                      </p>
+                    </div>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B27BC]/10 text-[#0B27BC] font-medium shrink-0">
+                      TN{row.angkatan}
+                    </span>
+                  </div>
+
+                  {/* Phone */}
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                    <InlinePhoneEdit
+                      value={row.no_hp}
+                      onSave={(v) => handleFieldUpdate(row, "no_hp", v)}
+                    />
+                  </div>
+
+                  {/* Status chips grid */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] text-gray-400 w-10">Kontak</span>
+                      <StatusChip
+                        value={row.sudah_dikontak}
+                        onClick={() => toggleBinary(row, "sudah_dikontak")}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] text-gray-400 w-12">Dukung</span>
+                      <DukunganChip
+                        value={row.dukungan}
+                        onClick={() => cycleDukungan(row)}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] text-gray-400 w-7">Grup</span>
+                      <StatusChip
+                        value={row.masuk_grup}
+                        onClick={() => toggleBinary(row, "masuk_grup")}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] text-gray-400 w-6">DPT</span>
+                      <StatusChip
+                        value={row.status_dpt}
+                        onClick={() => toggleBinary(row, "status_dpt")}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] text-gray-400 w-7">Vote</span>
+                      <StatusChip
+                        value={row.vote}
+                        onClick={() => toggleBinary(row, "vote")}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
