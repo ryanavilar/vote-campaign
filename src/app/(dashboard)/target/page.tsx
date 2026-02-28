@@ -42,15 +42,6 @@ interface TargetRow {
 
 /* ── Dukungan config ───────────────────────────────────── */
 
-const DUKUNGAN_CYCLE = [null, "dukung", "ragu_ragu", "milih_sebelah", "terkonvert"] as const;
-
-const DUKUNGAN_STYLES: Record<string, string> = {
-  dukung: "bg-emerald-100 text-emerald-700",
-  ragu_ragu: "bg-yellow-100 text-yellow-700",
-  milih_sebelah: "bg-red-100 text-red-700",
-  terkonvert: "bg-blue-100 text-blue-700",
-};
-
 const DUKUNGAN_LABELS: Record<string, string> = {
   dukung: "Dukung",
   ragu_ragu: "Ragu",
@@ -179,49 +170,44 @@ function StatusChip({
   );
 }
 
-/* ── Dukungan Chip (cycle) ─────────────────────────────── */
+/* ── Dukungan Select ──────────────────────────────────── */
 
-const DUKUNGAN_INTERACTIVE_STYLES: Record<string, string> = {
-  dukung: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 hover:border-emerald-300",
-  ragu_ragu: "bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200 hover:border-yellow-300",
-  milih_sebelah: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:border-red-300",
-  terkonvert: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:border-blue-300",
+const DUKUNGAN_SELECT_STYLES: Record<string, string> = {
+  dukung: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  ragu_ragu: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  milih_sebelah: "bg-red-100 text-red-700 border-red-200",
+  terkonvert: "bg-blue-100 text-blue-700 border-blue-200",
 };
 
-function DukunganChip({
+function DukunganSelect({
   value,
-  onClick,
+  onChange,
   disabled,
 }: {
   value: string | null;
-  onClick: () => void;
+  onChange: (v: string | null) => void;
   disabled?: boolean;
 }) {
-  if (!value) {
-    return (
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        className="text-[10px] px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200 hover:border-gray-300 transition-all whitespace-nowrap cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Klik untuk mengubah"
-      >
-        —
-      </button>
-    );
-  }
-
-  const style = DUKUNGAN_INTERACTIVE_STYLES[value] || "bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200";
-  const label = DUKUNGAN_LABELS[value] || value;
+  const style = value
+    ? DUKUNGAN_SELECT_STYLES[value] || "bg-gray-100 text-gray-500 border-gray-200"
+    : "bg-gray-100 text-gray-500 border-gray-200";
 
   return (
-    <button
-      onClick={onClick}
+    <select
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value || null)}
       disabled={disabled}
-      className={`text-[10px] px-2 py-1 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer border active:scale-95 ${style} disabled:opacity-50 disabled:cursor-not-allowed`}
-      title="Klik untuk mengubah"
+      className={`text-[10px] pl-1.5 pr-5 py-1 rounded-full font-medium border cursor-pointer transition-all appearance-none bg-[length:12px] bg-[right_4px_center] bg-no-repeat disabled:opacity-50 disabled:cursor-not-allowed ${style}`}
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+      }}
     >
-      {label}
-    </button>
+      <option value="">—</option>
+      <option value="dukung">Dukung</option>
+      <option value="ragu_ragu">Ragu</option>
+      <option value="milih_sebelah">Sebelah</option>
+      <option value="terkonvert">Convert</option>
+    </select>
   );
 }
 
@@ -384,15 +370,6 @@ export default function TargetPage() {
     const current = row[field as keyof TargetRow] as StatusValue;
     const next = current === "Sudah" ? "Belum" : "Sudah";
     handleFieldUpdate(row, field, next);
-  };
-
-  // Cycle dukungan
-  const cycleDukungan = (row: TargetRow) => {
-    const currentIdx = DUKUNGAN_CYCLE.indexOf(
-      row.dukungan as (typeof DUKUNGAN_CYCLE)[number]
-    );
-    const nextIdx = (currentIdx + 1) % DUKUNGAN_CYCLE.length;
-    handleFieldUpdate(row, "dukungan", DUKUNGAN_CYCLE[nextIdx]);
   };
 
   if (roleLoading || loadingTargets) {
@@ -621,9 +598,9 @@ export default function TargetPage() {
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
-                        <DukunganChip
+                        <DukunganSelect
                           value={row.dukungan}
-                          onClick={() => cycleDukungan(row)}
+                          onChange={(v) => handleFieldUpdate(row, "dukungan", v)}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
@@ -703,9 +680,9 @@ export default function TargetPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] text-gray-400 w-12">Dukung</span>
-                      <DukunganChip
+                      <DukunganSelect
                         value={row.dukungan}
-                        onClick={() => cycleDukungan(row)}
+                        onChange={(v) => handleFieldUpdate(row, "dukungan", v)}
                       />
                     </div>
                     <div className="flex items-center gap-1">
