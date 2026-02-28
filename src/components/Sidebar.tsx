@@ -35,15 +35,15 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/", minRole: "viewer" },
-  { icon: Calendar, label: "Kegiatan", path: "/kegiatan", minRole: "viewer" },
-  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" },
   { icon: Crosshair, label: "Target Saya", path: "/target", minRole: "campaigner" },
-  { icon: Users, label: "Anggota", path: "/anggota", minRole: "viewer" },
+  { icon: Calendar, label: "Kegiatan", path: "/kegiatan", minRole: "viewer", hideForRole: "campaigner" },
+  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner", hideForRole: "campaigner" },
+  { icon: Users, label: "Anggota", path: "/anggota", minRole: "viewer", hideForRole: "campaigner" },
   { icon: GraduationCap, label: "Alumni", path: "/admin/alumni", minRole: "admin" },
   { icon: UserPlus, label: "Penugasan", path: "/admin/assignments", minRole: "admin" },
   { icon: Smartphone, label: "WA Group", path: "/wa-group", minRole: "admin" },
-  { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer" },
-  { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer" },
+  { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer", hideForRole: "campaigner" },
+  { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer", hideForRole: "campaigner" },
 ];
 
 const adminItems: NavItem[] = [

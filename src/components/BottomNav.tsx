@@ -15,12 +15,12 @@ interface BottomNavItem {
 
 const navItems: BottomNavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Calendar, label: "Kegiatan", path: "/kegiatan" },
-  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner" },
   { icon: Crosshair, label: "Target", path: "/target", minRole: "campaigner" },
-  { icon: Users, label: "Anggota", path: "/anggota" },
-  { icon: Trophy, label: "Leaderboard", path: "/leaderboard" },
-  { icon: MessageSquare, label: "Harapan", path: "/harapan" },
+  { icon: Calendar, label: "Kegiatan", path: "/kegiatan", hideForRole: "campaigner" },
+  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner", hideForRole: "campaigner" },
+  { icon: Users, label: "Anggota", path: "/anggota", hideForRole: "campaigner" },
+  { icon: Trophy, label: "Leaderboard", path: "/leaderboard", hideForRole: "campaigner" },
+  { icon: MessageSquare, label: "Harapan", path: "/harapan", hideForRole: "campaigner" },
 ];
 
 export function BottomNav() {
@@ -35,8 +35,8 @@ export function BottomNav() {
   const canSee = (item: BottomNavItem) => {
     if (item.hideForRole && role === item.hideForRole) return false;
     if (!item.minRole) return true;
-    if (item.minRole === "campaigner") return role === "admin" || role === "campaigner";
-    if (item.minRole === "admin") return role === "admin";
+    if (item.minRole === "campaigner") return role === "super_admin" || role === "admin" || role === "campaigner";
+    if (item.minRole === "admin") return role === "super_admin" || role === "admin";
     return false;
   };
 
