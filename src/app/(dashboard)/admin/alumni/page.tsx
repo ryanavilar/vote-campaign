@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   HelpCircle,
   Unlink,
-  UserPlus,
   RefreshCw,
   Filter,
   CalendarCheck,
@@ -341,7 +340,7 @@ export default function AdminAlumniPage() {
     });
   }, [alumni, searchQuery, filterAngkatan, fLinked, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
 
-  // Field update handler
+  // Field update handler — same flow as Target: auto-create member on first edit
   const handleFieldUpdate = useCallback(
     async (item: AlumniRow, field: string, value: string | null) => {
       const member = item.members && item.members.length > 0 ? item.members[0] : null;
@@ -353,11 +352,13 @@ export default function AdminAlumniPage() {
           if (a.members && a.members.length > 0) {
             return { ...a, members: [{ ...a.members[0], [field]: value }] };
           }
-          return a;
+          // Unlinked: create temporary member object for optimistic UI
+          return { ...a, members: [{ id: "__temp__", no: 0, [field]: value } as MemberInfo] };
         })
       );
 
       if (member) {
+        // Member exists — PATCH directly
         try {
           const res = await fetch(`/api/members/${member.id}`, {
             method: "PATCH",
@@ -373,6 +374,7 @@ export default function AdminAlumniPage() {
           showToast("Gagal mengupdate", "error");
         }
       } else {
+        // No member yet — POST to create + update (same as Target)
         try {
           const res = await fetch("/api/targets", {
             method: "POST",
@@ -380,7 +382,27 @@ export default function AdminAlumniPage() {
             body: JSON.stringify({ alumni_id: item.id, field, value }),
           });
           if (res.ok) {
-            fetchAlumni();
+            const data = await res.json();
+            // Update state with real member data (like Target does)
+            setAlumni((prev) =>
+              prev.map((a) => {
+                if (a.id !== item.id) return a;
+                return {
+                  ...a,
+                  members: [{
+                    id: data.member_id,
+                    no: data.member?.no || 0,
+                    no_hp: data.member?.no_hp || "",
+                    status_dpt: data.member?.status_dpt ?? null,
+                    sudah_dikontak: data.member?.sudah_dikontak ?? null,
+                    masuk_grup: data.member?.masuk_grup ?? null,
+                    vote: data.member?.vote ?? null,
+                    dukungan: data.member?.dukungan ?? null,
+                    attendance_count: 0,
+                  }],
+                };
+              })
+            );
           } else {
             fetchAlumni();
             showToast("Gagal membuat data anggota", "error");
@@ -477,29 +499,6 @@ export default function AdminAlumniPage() {
     });
   };
 
-  // Add to campaign
-  const [addingId, setAddingId] = useState<string | null>(null);
-  const handleAddToCampaign = async (item: AlumniRow) => {
-    if (addingId) return;
-    setAddingId(item.id);
-    try {
-      const res = await fetch("/api/members", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nama: item.nama, angkatan: item.angkatan, alumni_id: item.id }),
-      });
-      if (res.ok) {
-        showToast(`${item.nama} ditambahkan ke kampanye`, "success");
-        fetchAlumni();
-      } else {
-        const result = await res.json();
-        showToast(result.error || "Gagal menambahkan", "error");
-      }
-    } catch {
-      showToast("Terjadi kesalahan jaringan", "error");
-    }
-    setAddingId(null);
-  };
 
   if (roleLoading || loadingData) {
     return (
@@ -730,83 +729,52 @@ export default function AdminAlumniPage() {
                   </tr>
                 ) : (
                   filteredAlumni.map((item, idx) => {
-                    const isLinked = item.members && item.members.length > 0;
-                    const member = isLinked ? item.members![0] : null;
-                    const isAdding = addingId === item.id;
+                    const member = item.members && item.members.length > 0 ? item.members[0] : null;
                     const isGrupSudah = member?.masuk_grup === "Sudah";
 
                     return (
                       <tr key={item.id} className="border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors">
                         <td className="px-3 py-2 text-gray-400 text-xs">{idx + 1}</td>
                         <td className="px-3 py-2">
-                          <div className="flex items-center gap-2">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <p className="text-sm font-medium text-foreground truncate max-w-[200px]">{item.nama}</p>
-                                {item.keterangan?.includes("Almarhum") && (
-                                  <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">Almarhum</span>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-muted-foreground">
-                                TN {item.angkatan}
-                                {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
-                              </p>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium text-foreground truncate max-w-[200px]">{item.nama}</p>
+                              {item.keterangan?.includes("Almarhum") && (
+                                <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">Almarhum</span>
+                              )}
                             </div>
-                            {!isLinked && (
-                              <button
-                                onClick={() => handleAddToCampaign(item)}
-                                disabled={isAdding || !!addingId}
-                                className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border border-[#0B27BC]/30 text-[#0B27BC] hover:bg-[#0B27BC]/10 transition-colors disabled:opacity-50 shrink-0"
-                                title="Tambah ke kampanye"
-                              >
-                                {isAdding ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
-                                Tambah
-                              </button>
-                            )}
+                            <p className="text-[10px] text-muted-foreground">
+                              TN {item.angkatan}
+                              {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
+                            </p>
                           </div>
                         </td>
                         <td className="px-3 py-2">
-                          {isLinked ? (
-                            <InlinePhoneEdit value={member!.no_hp || ""} onSave={(v) => handleFieldUpdate(item, "no_hp", v)} />
-                          ) : (
-                            <span className="text-xs text-gray-300">—</span>
-                          )}
+                          <InlinePhoneEdit value={member?.no_hp || ""} onSave={(v) => handleFieldUpdate(item, "no_hp", v)} />
                         </td>
                         <td className="px-2 py-2 text-center">
-                          {isLinked ? (
-                            <span className={`text-xs font-semibold ${(member!.attendance_count || 0) > 0 ? "text-[#0B27BC]" : "text-gray-300"}`}>
-                              {member!.attendance_count || 0}
-                            </span>
-                          ) : <span className="text-xs text-gray-300">—</span>}
+                          <span className={`text-xs font-semibold ${(member?.attendance_count || 0) > 0 ? "text-[#0B27BC]" : "text-gray-300"}`}>
+                            {member?.attendance_count || 0}
+                          </span>
                         </td>
                         <td className="px-2 py-2 text-center">
-                          {isLinked ? (
-                            <StatusChip
-                              value={member!.sudah_dikontak as StatusValue}
-                              onClick={!isGrupSudah ? () => toggleBinary(item, "sudah_dikontak") : undefined}
-                              readOnly={isGrupSudah}
-                            />
-                          ) : <span className="text-xs text-gray-300">—</span>}
+                          <StatusChip
+                            value={(member?.sudah_dikontak as StatusValue) || null}
+                            onClick={!isGrupSudah ? () => toggleBinary(item, "sudah_dikontak") : undefined}
+                            readOnly={isGrupSudah}
+                          />
                         </td>
                         <td className="px-2 py-2 text-center">
-                          {isLinked ? (
-                            <DukunganSelect value={member!.dukungan || null} onChange={(v) => handleFieldUpdate(item, "dukungan", v)} />
-                          ) : <span className="text-xs text-gray-300">—</span>}
+                          <DukunganSelect value={member?.dukungan || null} onChange={(v) => handleFieldUpdate(item, "dukungan", v)} />
                         </td>
                         <td className="px-2 py-2 text-center">
-                          {isLinked ? (
-                            <StatusChip value={member!.masuk_grup as StatusValue} readOnly />
-                          ) : <span className="text-xs text-gray-300">—</span>}
+                          <StatusChip value={(member?.masuk_grup as StatusValue) || null} readOnly />
                         </td>
                         <td className="px-2 py-2 text-center">
-                          {isLinked ? (
-                            <StatusChip value={member!.status_dpt as StatusValue} onClick={() => toggleBinary(item, "status_dpt")} />
-                          ) : <span className="text-xs text-gray-300">—</span>}
+                          <StatusChip value={(member?.status_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "status_dpt")} />
                         </td>
                         <td className="px-2 py-2 text-center">
-                          {isLinked ? (
-                            <StatusChip value={member!.vote as StatusValue} onClick={() => toggleBinary(item, "vote")} />
-                          ) : <span className="text-xs text-gray-300">—</span>}
+                          <StatusChip value={(member?.vote as StatusValue) || null} onClick={() => toggleBinary(item, "vote")} />
                         </td>
                       </tr>
                     );
@@ -829,13 +797,12 @@ export default function AdminAlumniPage() {
               </div>
             ) : (
               filteredAlumni.map((item) => {
-                const isLinked = item.members && item.members.length > 0;
-                const member = isLinked ? item.members![0] : null;
-                const isAdding = addingId === item.id;
+                const member = item.members && item.members.length > 0 ? item.members[0] : null;
                 const isGrupSudah = member?.masuk_grup === "Sudah";
 
                 return (
                   <div key={item.id} className="px-4 py-3 space-y-2">
+                    {/* Name + angkatan */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -849,58 +816,48 @@ export default function AdminAlumniPage() {
                           {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B27BC]/10 text-[#0B27BC] font-medium">TN{item.angkatan}</span>
-                        {!isLinked && (
-                          <button
-                            onClick={() => handleAddToCampaign(item)}
-                            disabled={isAdding || !!addingId}
-                            className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border border-[#0B27BC]/30 text-[#0B27BC] hover:bg-[#0B27BC]/10 disabled:opacity-50"
-                          >
-                            {isAdding ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
-                          </button>
-                        )}
-                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B27BC]/10 text-[#0B27BC] font-medium shrink-0">TN{item.angkatan}</span>
                     </div>
 
-                    {isLinked ? (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-3 h-3 text-gray-400 shrink-0" />
-                          <InlinePhoneEdit value={member!.no_hp || ""} onSave={(v) => handleFieldUpdate(item, "no_hp", v)} />
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[9px] text-gray-400 w-8">Event</span>
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${(member!.attendance_count || 0) > 0 ? "bg-[#0B27BC]/10 text-[#0B27BC]" : "bg-gray-50 text-gray-300"}`}>
-                              {member!.attendance_count || 0}×
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[9px] text-gray-400 w-10">Kontak</span>
-                            <StatusChip value={member!.sudah_dikontak as StatusValue} onClick={!isGrupSudah ? () => toggleBinary(item, "sudah_dikontak") : undefined} readOnly={isGrupSudah} />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[9px] text-gray-400 w-12">Dukung</span>
-                            <DukunganSelect value={member!.dukungan || null} onChange={(v) => handleFieldUpdate(item, "dukungan", v)} />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[9px] text-gray-400 w-7">Grup</span>
-                            <StatusChip value={member!.masuk_grup as StatusValue} readOnly />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[9px] text-gray-400 w-6">DPT</span>
-                            <StatusChip value={member!.status_dpt as StatusValue} onClick={() => toggleBinary(item, "status_dpt")} />
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[9px] text-gray-400 w-7">Vote</span>
-                            <StatusChip value={member!.vote as StatusValue} onClick={() => toggleBinary(item, "vote")} />
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-[10px] text-gray-300 italic pl-1">Belum terhubung ke kampanye</p>
-                    )}
+                    {/* Phone */}
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                      <InlinePhoneEdit value={member?.no_hp || ""} onSave={(v) => handleFieldUpdate(item, "no_hp", v)} />
+                    </div>
+
+                    {/* Status chips grid */}
+                    <div className="flex flex-wrap gap-1.5">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-gray-400 w-8">Event</span>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${(member?.attendance_count || 0) > 0 ? "bg-[#0B27BC]/10 text-[#0B27BC]" : "bg-gray-50 text-gray-300"}`}>
+                          {member?.attendance_count || 0}×
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-gray-400 w-10">Kontak</span>
+                        <StatusChip
+                          value={(member?.sudah_dikontak as StatusValue) || null}
+                          onClick={!isGrupSudah ? () => toggleBinary(item, "sudah_dikontak") : undefined}
+                          readOnly={isGrupSudah}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-gray-400 w-12">Dukung</span>
+                        <DukunganSelect value={member?.dukungan || null} onChange={(v) => handleFieldUpdate(item, "dukungan", v)} />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-gray-400 w-7">Grup</span>
+                        <StatusChip value={(member?.masuk_grup as StatusValue) || null} readOnly />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-gray-400 w-6">DPT</span>
+                        <StatusChip value={(member?.status_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "status_dpt")} />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-gray-400 w-7">Vote</span>
+                        <StatusChip value={(member?.vote as StatusValue) || null} onClick={() => toggleBinary(item, "vote")} />
+                      </div>
+                    </div>
                   </div>
                 );
               })
