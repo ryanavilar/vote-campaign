@@ -15,8 +15,7 @@ import {
   HelpCircle,
   ArrowLeftRight,
   Users as UsersIcon,
-  ClipboardCheck,
-  Vote,
+  CalendarCheck,
   RefreshCw,
   Filter,
   X,
@@ -40,6 +39,7 @@ interface TargetRow {
   masuk_grup: StatusValue;
   vote: StatusValue;
   dukungan: string | null;
+  attendance_count: number;
 }
 
 /* ── Dukungan config ───────────────────────────────────── */
@@ -647,6 +647,10 @@ export default function TargetPage() {
                     No HP
                   </th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
+                    <CalendarCheck className="w-3 h-3 inline mr-0.5" />
+                    Event
+                  </th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
                     Kontak
                   </th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
@@ -666,7 +670,7 @@ export default function TargetPage() {
               <tbody>
                 {filteredTargets.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center">
+                    <td colSpan={9} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Crosshair className="w-8 h-8 text-gray-200" />
                         <p className="text-sm text-muted-foreground">
@@ -704,6 +708,11 @@ export default function TargetPage() {
                           value={row.no_hp}
                           onSave={(v) => handleFieldUpdate(row, "no_hp", v)}
                         />
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <span className={`text-xs font-semibold ${row.attendance_count > 0 ? "text-[#0B27BC]" : "text-gray-300"}`}>
+                          {row.attendance_count}
+                        </span>
                       </td>
                       <td className="px-2 py-2 text-center">
                         <StatusChip
@@ -786,6 +795,12 @@ export default function TargetPage() {
 
                   {/* Status chips grid */}
                   <div className="flex flex-wrap gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] text-gray-400 w-8">Event</span>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${row.attendance_count > 0 ? "bg-[#0B27BC]/10 text-[#0B27BC]" : "bg-gray-50 text-gray-300"}`}>
+                        {row.attendance_count}×
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] text-gray-400 w-10">Kontak</span>
                       <StatusChip

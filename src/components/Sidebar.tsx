@@ -6,7 +6,6 @@ import Image from "next/image";
 import {
   LayoutDashboard,
   Calendar,
-  UserCheck,
   Users,
   Trophy,
   MessageSquare,
@@ -30,17 +29,15 @@ interface NavItem {
   label: string;
   path: string;
   minRole: "viewer" | "campaigner" | "admin" | "super_admin";
-  hideForRole?: "campaigner";
+  hideForRole?: "campaigner" | "admin";
 }
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/", minRole: "viewer" },
-  { icon: Crosshair, label: "Target Saya", path: "/target", minRole: "campaigner" },
-  { icon: Calendar, label: "Kegiatan", path: "/kegiatan", minRole: "viewer", hideForRole: "campaigner" },
-  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner", hideForRole: "campaigner" },
-  { icon: Users, label: "Anggota", path: "/anggota", minRole: "viewer", hideForRole: "campaigner" },
   { icon: GraduationCap, label: "Alumni", path: "/admin/alumni", minRole: "admin" },
+  { icon: Crosshair, label: "Target Saya", path: "/target", minRole: "campaigner", hideForRole: "admin" },
   { icon: UserPlus, label: "Penugasan", path: "/admin/assignments", minRole: "admin" },
+  { icon: Calendar, label: "Kegiatan", path: "/kegiatan", minRole: "viewer", hideForRole: "campaigner" },
   { icon: Smartphone, label: "WA Group", path: "/wa-group", minRole: "admin" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer", hideForRole: "campaigner" },
   { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer", hideForRole: "campaigner" },
@@ -64,7 +61,8 @@ export function Sidebar() {
   const canSee = (item: NavItem) => {
     const { minRole, hideForRole } = item;
     // Hide if current role matches hideForRole
-    if (hideForRole && role === hideForRole) return false;
+    if (hideForRole === "campaigner" && role === "campaigner") return false;
+    if (hideForRole === "admin" && (role === "admin" || role === "super_admin")) return false;
     // Min role check
     if (minRole === "viewer") return true;
     if (minRole === "campaigner") return role === "super_admin" || role === "admin" || role === "campaigner";

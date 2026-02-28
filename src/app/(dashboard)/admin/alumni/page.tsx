@@ -1,28 +1,36 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
 import { formatNum } from "@/lib/format";
+import type { StatusValue } from "@/lib/types";
 import {
   Loader2,
   GraduationCap,
   Search,
   ChevronLeft,
   ChevronRight,
-  UserPlus,
   AlertTriangle,
   Link2,
   Check,
   X,
-  Save,
   Phone,
   User,
   CheckCircle2,
   HelpCircle,
   Unlink,
+  UserPlus,
+  RefreshCw,
+  Filter,
+  CalendarCheck,
+  ThumbsUp,
+  ArrowLeftRight,
+  Users as UsersIcon,
+  MessageCircle,
 } from "lucide-react";
-import type { Alumni } from "@/lib/types";
+
+/* ── Types ─────────────────────────────────────────────── */
 
 interface MemberInfo {
   id: string;
@@ -33,19 +41,18 @@ interface MemberInfo {
   sudah_dikontak?: string | null;
   masuk_grup?: string | null;
   vote?: string | null;
+  dukungan?: string | null;
 }
 
-interface AlumniWithMember extends Alumni {
+interface AlumniRow {
+  id: string;
+  nama: string;
+  angkatan: number;
+  nosis: string | null;
+  kelanjutan_studi: string | null;
+  program_studi: string | null;
+  keterangan: string | null;
   members: MemberInfo[] | null;
-}
-
-interface EditForm {
-  no_hp: string;
-  pic: string;
-  status_dpt: string;
-  sudah_dikontak: string;
-  masuk_grup: string;
-  vote: string;
 }
 
 interface MatchCandidate {
@@ -69,32 +76,173 @@ interface PreviewResult {
 
 type LinkTab = "certain" | "uncertain";
 
+/* ── Dukungan config ───────────────────────────────────── */
+
+const DUKUNGAN_SELECT_STYLES: Record<string, string> = {
+  dukung: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  ragu_ragu: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  milih_sebelah: "bg-red-100 text-red-700 border-red-200",
+  terkonvert: "bg-blue-100 text-blue-700 border-blue-200",
+};
+
+/* ── Inline Phone Edit ─────────────────────────────────── */
+
+function InlinePhoneEdit({
+  value,
+  onSave,
+}: {
+  value: string;
+  onSave: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) inputRef.current.focus();
+  }, [editing]);
+
+  const save = () => {
+    const digitsOnly = draft.replace(/\D/g, "");
+    if (digitsOnly !== value) onSave(digitsOnly);
+    setDraft(digitsOnly);
+    setEditing(false);
+  };
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => { setDraft(value); setEditing(true); }}
+        className="text-xs text-left w-full px-2 py-1 rounded hover:bg-gray-100 transition-colors min-w-[90px] truncate"
+      >
+        {value || <span className="text-gray-300 italic">+ No HP</span>}
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative min-w-[90px]">
+      <input
+        ref={inputRef}
+        type="tel"
+        inputMode="numeric"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value.replace(/\D/g, ""))}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") { setDraft(value); setEditing(false); }
+        }}
+        className="text-xs w-full px-2 py-1 border border-[#0B27BC] rounded focus:outline-none focus:ring-1 focus:ring-[#0B27BC]/30"
+        placeholder="628xxxxxxxxxx"
+      />
+      <p className="text-[9px] text-[#0B27BC]/70 mt-0.5 px-1">
+        Awali dengan kode negara, misal 628xxx (bukan 08xxx)
+      </p>
+    </div>
+  );
+}
+
+/* ── Status Chip (binary) ──────────────────────────────── */
+
+function StatusChip({
+  value,
+  onClick,
+  disabled,
+  readOnly,
+}: {
+  value: StatusValue;
+  onClick?: () => void;
+  disabled?: boolean;
+  readOnly?: boolean;
+}) {
+  const isSudah = value === "Sudah";
+  if (readOnly) {
+    return (
+      <span className={`text-[10px] px-2 py-1 rounded-full font-medium whitespace-nowrap inline-block ${isSudah ? "bg-emerald-100/60 text-emerald-600" : "bg-gray-50 text-gray-300"}`}>
+        {isSudah ? "Sudah" : "Belum"}
+      </span>
+    );
+  }
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`text-[10px] px-2 py-1 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer border ${isSudah ? "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 hover:border-emerald-300" : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200 hover:border-gray-300"} active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+      title="Klik untuk mengubah"
+    >
+      {isSudah ? "Sudah" : "Belum"}
+    </button>
+  );
+}
+
+/* ── Dukungan Select ──────────────────────────────────── */
+
+function DukunganSelect({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string | null;
+  onChange: (v: string | null) => void;
+  disabled?: boolean;
+}) {
+  const style = value
+    ? DUKUNGAN_SELECT_STYLES[value] || "bg-gray-100 text-gray-500 border-gray-200"
+    : "bg-gray-100 text-gray-500 border-gray-200";
+
+  return (
+    <select
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value || null)}
+      disabled={disabled}
+      className={`text-[10px] pl-1.5 pr-5 py-1 rounded-full font-medium border cursor-pointer transition-all appearance-none bg-[length:12px] bg-[right_4px_center] bg-no-repeat disabled:opacity-50 disabled:cursor-not-allowed ${style}`}
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+      }}
+    >
+      <option value="">—</option>
+      <option value="dukung">Dukung</option>
+      <option value="ragu_ragu">Ragu</option>
+      <option value="milih_sebelah">Sebelah</option>
+      <option value="terkonvert">Convert</option>
+    </select>
+  );
+}
+
+/* ── Main Page ─────────────────────────────────────────── */
+
 export default function AdminAlumniPage() {
   const { canManageUsers, loading: roleLoading } = useRole();
   const { showToast } = useToast();
 
-  const [alumni, setAlumni] = useState<AlumniWithMember[]>([]);
+  const [alumni, setAlumni] = useState<AlumniRow[]>([]);
   const [total, setTotal] = useState(0);
   const [totalAll, setTotalAll] = useState(0);
+  const [totalLinked, setTotalLinked] = useState(0);
   const [page, setPage] = useState(1);
   const [limit] = useState(50);
   const [search, setSearch] = useState("");
   const [filterAngkatan, setFilterAngkatan] = useState("all");
   const [filterLinked, setFilterLinked] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [addingId, setAddingId] = useState<string | null>(null);
+  const [updatingField, setUpdatingField] = useState<string | null>(null);
 
-  // Inline edit state
-  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({
-    no_hp: "",
-    pic: "",
-    status_dpt: "",
-    sudah_dikontak: "",
-    masuk_grup: "",
-    vote: "",
-  });
-  const [saving, setSaving] = useState(false);
+  // Advanced filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [fKontak, setFKontak] = useState("all");
+  const [fDukungan, setFDukungan] = useState("all");
+  const [fGrup, setFGrup] = useState("all");
+  const [fDpt, setFDpt] = useState("all");
+  const [fVote, setFVote] = useState("all");
+  const [fPhone, setFPhone] = useState("all");
+
+  const activeFilterCount = [fKontak, fDukungan, fGrup, fDpt, fVote, fPhone].filter((f) => f !== "all").length;
+
+  const resetFilters = () => {
+    setFKontak("all"); setFDukungan("all"); setFGrup("all");
+    setFDpt("all"); setFVote("all"); setFPhone("all");
+  };
 
   // Auto-link modal state
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -104,6 +252,7 @@ export default function AdminAlumniPage() {
   const [linkTab, setLinkTab] = useState<LinkTab>("certain");
   const [selectedPairs, setSelectedPairs] = useState<Set<string>>(new Set());
 
+  // Fetch
   const fetchAlumni = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -129,36 +278,146 @@ export default function AdminAlumniPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 300);
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, filterAngkatan, filterLinked]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, filterAngkatan, filterLinked]);
 
   useEffect(() => {
-    if (!roleLoading && canManageUsers) {
-      fetchAlumni();
-    } else if (!roleLoading && !canManageUsers) {
-      setLoading(false);
-    }
+    if (!roleLoading && canManageUsers) fetchAlumni();
+    else if (!roleLoading && !canManageUsers) setLoading(false);
   }, [roleLoading, canManageUsers, debouncedSearch, filterAngkatan, filterLinked, page, fetchAlumni]);
-
-  const [totalLinked, setTotalLinked] = useState(0);
 
   const totalPages = Math.ceil(total / limit);
 
-  // ---- Auto-link preview ----
+  // Client-side filtering for advanced column filters (applied on top of API results)
+  const filteredAlumni = useMemo(() => {
+    if (activeFilterCount === 0) return alumni;
+    return alumni.filter((item) => {
+      const member = item.members && item.members.length > 0 ? item.members[0] : null;
+      if (fPhone !== "all") {
+        if (fPhone === "has" && !member?.no_hp) return false;
+        if (fPhone === "empty" && member?.no_hp) return false;
+      }
+      if (fKontak !== "all") {
+        const val = member?.sudah_dikontak || null;
+        if (fKontak === "empty" && val !== null) return false;
+        else if (fKontak !== "empty" && val !== fKontak) return false;
+      }
+      if (fDukungan !== "all") {
+        const val = member?.dukungan || null;
+        if (fDukungan === "pendukung" && val !== "dukung" && val !== "terkonvert") return false;
+        else if (fDukungan === "empty" && val) return false;
+        else if (fDukungan !== "pendukung" && fDukungan !== "empty" && val !== fDukungan) return false;
+      }
+      if (fGrup !== "all") {
+        const val = member?.masuk_grup || "Belum";
+        if (val !== fGrup) return false;
+      }
+      if (fDpt !== "all") {
+        const val = member?.status_dpt || null;
+        if (fDpt === "empty" && val !== null) return false;
+        else if (fDpt !== "empty" && val !== fDpt) return false;
+      }
+      if (fVote !== "all") {
+        const val = member?.vote || null;
+        if (fVote === "empty" && val !== null) return false;
+        else if (fVote !== "empty" && val !== fVote) return false;
+      }
+      return true;
+    });
+  }, [alumni, activeFilterCount, fPhone, fKontak, fDukungan, fGrup, fDpt, fVote]);
+
+  // Stats from page data
+  const stats = useMemo(() => {
+    const linked = alumni.filter((a) => a.members && a.members.length > 0);
+    const kontak = linked.filter((a) => a.members![0].sudah_dikontak === "Sudah").length;
+    const dukung = linked.filter((a) => {
+      const d = a.members![0].dukungan;
+      return d === "dukung" || d === "terkonvert";
+    }).length;
+    const ragu = linked.filter((a) => a.members![0].dukungan === "ragu_ragu").length;
+    const sebelah = linked.filter((a) => a.members![0].dukungan === "milih_sebelah").length;
+    const grup = linked.filter((a) => a.members![0].masuk_grup === "Sudah").length;
+    return { kontak, dukung, ragu, sebelah, grup };
+  }, [alumni]);
+
+  // Field update handler (same pattern as Target page)
+  const handleFieldUpdate = useCallback(
+    async (item: AlumniRow, field: string, value: string | null) => {
+      const member = item.members && item.members.length > 0 ? item.members[0] : null;
+      const key = `${item.id}:${field}`;
+      setUpdatingField(key);
+
+      // Optimistic update
+      setAlumni((prev) =>
+        prev.map((a) => {
+          if (a.id !== item.id) return a;
+          if (a.members && a.members.length > 0) {
+            return { ...a, members: [{ ...a.members[0], [field]: value }] };
+          }
+          return a;
+        })
+      );
+
+      if (member) {
+        // Member exists — PATCH directly
+        try {
+          const res = await fetch(`/api/members/${member.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ [field]: value }),
+          });
+          if (!res.ok) {
+            fetchAlumni();
+            showToast("Gagal mengupdate", "error");
+          }
+        } catch {
+          fetchAlumni();
+          showToast("Gagal mengupdate", "error");
+        }
+      } else {
+        // No member yet — POST to create via targets endpoint
+        try {
+          const res = await fetch("/api/targets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ alumni_id: item.id, field, value }),
+          });
+          if (res.ok) {
+            // Refetch to get fresh data with new member
+            fetchAlumni();
+          } else {
+            fetchAlumni();
+            showToast("Gagal membuat data anggota", "error");
+          }
+        } catch {
+          fetchAlumni();
+          showToast("Gagal membuat data anggota", "error");
+        }
+      }
+
+      setUpdatingField(null);
+    },
+    [fetchAlumni, showToast]
+  );
+
+  // Toggle binary field
+  const toggleBinary = (item: AlumniRow, field: string) => {
+    const member = item.members && item.members.length > 0 ? item.members[0] : null;
+    const current = (member?.[field as keyof MemberInfo] as StatusValue) || null;
+    const next = current === "Sudah" ? "Belum" : "Sudah";
+    handleFieldUpdate(item, field, next);
+  };
+
+  // Auto-link handlers
   const handleAutoLinkPreview = async () => {
     setShowLinkModal(true);
     setLinkLoading(true);
     setLinkPreview(null);
     setLinkTab("certain");
     setSelectedPairs(new Set());
-
     try {
       const res = await fetch("/api/alumni/link/preview");
       const data = await res.json();
@@ -184,11 +443,9 @@ export default function AdminAlumniPage() {
   const handleConfirmLink = async () => {
     if (!linkPreview || selectedPairs.size === 0) return;
     setLinkConfirming(true);
-
     const pairs = linkPreview.candidates
       .filter((c) => selectedPairs.has(c.member_id))
       .map((c) => ({ member_id: c.member_id, alumni_id: c.alumni_id }));
-
     try {
       const res = await fetch("/api/alumni/link", {
         method: "POST",
@@ -197,10 +454,7 @@ export default function AdminAlumniPage() {
       });
       const result = await res.json();
       if (res.ok) {
-        showToast(
-          `${result.linked} anggota berhasil dihubungkan${result.failed > 0 ? `. ${result.failed} gagal.` : "."}`,
-          "success"
-        );
+        showToast(`${result.linked} anggota berhasil dihubungkan`, "success");
         setShowLinkModal(false);
         fetchAlumni();
       } else {
@@ -215,8 +469,7 @@ export default function AdminAlumniPage() {
   const togglePair = (memberId: string) => {
     setSelectedPairs((prev) => {
       const next = new Set(prev);
-      if (next.has(memberId)) next.delete(memberId);
-      else next.add(memberId);
+      if (next.has(memberId)) next.delete(memberId); else next.add(memberId);
       return next;
     });
   };
@@ -228,29 +481,25 @@ export default function AdminAlumniPage() {
     setSelectedPairs((prev) => {
       const next = new Set(prev);
       for (const c of tabCandidates) {
-        if (allSelected) next.delete(c.member_id);
-        else next.add(c.member_id);
+        if (allSelected) next.delete(c.member_id); else next.add(c.member_id);
       }
       return next;
     });
   };
 
-  // ---- Tambah & Edit ----
-  const handleAddToCampaign = async (alumniItem: AlumniWithMember) => {
+  // Add to campaign
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const handleAddToCampaign = async (item: AlumniRow) => {
     if (addingId) return;
-    setAddingId(alumniItem.id);
+    setAddingId(item.id);
     try {
       const res = await fetch("/api/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nama: alumniItem.nama,
-          angkatan: alumniItem.angkatan,
-          alumni_id: alumniItem.id,
-        }),
+        body: JSON.stringify({ nama: item.nama, angkatan: item.angkatan, alumni_id: item.id }),
       });
       if (res.ok) {
-        showToast(`${alumniItem.nama} ditambahkan ke kampanye`, "success");
+        showToast(`${item.nama} ditambahkan ke kampanye`, "success");
         fetchAlumni();
       } else {
         const result = await res.json();
@@ -260,50 +509,6 @@ export default function AdminAlumniPage() {
       showToast("Terjadi kesalahan jaringan", "error");
     }
     setAddingId(null);
-  };
-
-  const startEditing = (member: MemberInfo) => {
-    setEditingMemberId(member.id);
-    setEditForm({
-      no_hp: member.no_hp || "",
-      pic: member.pic || "",
-      status_dpt: member.status_dpt || "Belum",
-      sudah_dikontak: member.sudah_dikontak || "Belum",
-      masuk_grup: member.masuk_grup || "Belum",
-      vote: member.vote || "Belum",
-    });
-  };
-
-  const cancelEditing = () => setEditingMemberId(null);
-
-  const saveEditing = async () => {
-    if (!editingMemberId) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/members/${editingMemberId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          no_hp: editForm.no_hp.trim() || null,
-          pic: editForm.pic.trim() || null,
-          status_dpt: editForm.status_dpt,
-          sudah_dikontak: editForm.sudah_dikontak,
-          masuk_grup: editForm.masuk_grup,
-          vote: editForm.vote,
-        }),
-      });
-      if (res.ok) {
-        showToast("Data anggota berhasil diperbarui", "success");
-        setEditingMemberId(null);
-        fetchAlumni();
-      } else {
-        const result = await res.json();
-        showToast(result.error || "Gagal menyimpan", "error");
-      }
-    } catch {
-      showToast("Terjadi kesalahan jaringan", "error");
-    }
-    setSaving(false);
   };
 
   if (roleLoading) {
@@ -326,7 +531,7 @@ export default function AdminAlumniPage() {
           </div>
           <h2 className="text-lg font-semibold text-foreground">Akses Ditolak</h2>
           <p className="text-sm text-muted-foreground max-w-sm">
-            Anda tidak memiliki izin untuk mengakses halaman ini. Hanya admin yang dapat mengelola database alumni.
+            Anda tidak memiliki izin untuk mengakses halaman ini.
           </p>
         </div>
       </div>
@@ -347,18 +552,19 @@ export default function AdminAlumniPage() {
               <GraduationCap className="w-5 h-5 text-[#FE8DA1]" />
               <div>
                 <h1 className="text-lg sm:text-xl font-bold text-white">Database Alumni</h1>
-                <p className="text-xs text-white/70">Database alumni SMA Taruna Nusantara</p>
+                <p className="text-xs text-white/70">
+                  {formatNum(totalAll)} alumni · {formatNum(totalLinked)} terhubung
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleAutoLinkPreview}
-                disabled={showLinkModal}
-                className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-[#84303F] rounded-lg hover:bg-[#6e2835] transition-colors disabled:opacity-50"
-              >
+              <button onClick={handleAutoLinkPreview} disabled={showLinkModal} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-[#84303F] rounded-lg hover:bg-[#6e2835] transition-colors disabled:opacity-50">
                 <Link2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Auto-Link</span>
-                <span className="sm:hidden">Link</span>
+              </button>
+              <button onClick={fetchAlumni} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors">
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Refresh</span>
               </button>
             </div>
           </div>
@@ -367,86 +573,152 @@ export default function AdminAlumniPage() {
       </header>
 
       <div className="px-4 sm:px-6 py-6 space-y-4">
-        {/* Stats bar */}
-        <div className="bg-white rounded-xl border border-border shadow-sm p-4 flex items-center gap-6 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[#0B27BC]/10">
-              <GraduationCap className="w-5 h-5 text-[#0B27BC]" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{formatNum(totalAll)}</p>
-              <p className="text-xs text-muted-foreground">Total Alumni</p>
-            </div>
-          </div>
-          <div className="h-8 w-px bg-border" />
-          <div>
-            <p className="text-2xl font-bold text-emerald-600">{formatNum(totalLinked)}</p>
-            <p className="text-xs text-muted-foreground">Terhubung Kampanye</p>
-          </div>
-          {(search || filterAngkatan !== "all" || filterLinked !== "all") && (
-            <>
-              <div className="h-8 w-px bg-border" />
-              <div>
-                <p className="text-2xl font-bold text-[#0B27BC]">{formatNum(total)}</p>
-                <p className="text-xs text-muted-foreground">Hasil Filter</p>
+        {/* Stats */}
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {[
+            { label: "Total", value: totalAll, icon: GraduationCap, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
+            { label: "Kontak", value: stats.kontak, icon: MessageCircle, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
+            { label: "Dukung", value: stats.dukung, icon: ThumbsUp, color: "text-emerald-700", bg: "bg-emerald-50" },
+            { label: "Ragu", value: stats.ragu, icon: HelpCircle, color: "text-yellow-700", bg: "bg-yellow-50" },
+            { label: "Sebelah", value: stats.sebelah, icon: ArrowLeftRight, color: "text-red-700", bg: "bg-red-50" },
+            { label: "Grup", value: stats.grup, icon: UsersIcon, color: "text-[#84303F]", bg: "bg-[#84303F]/10" },
+          ].map((s) => (
+            <div key={s.label} className="bg-white rounded-xl border border-border p-2.5 shadow-sm text-center">
+              <div className={`inline-flex p-1 rounded-lg ${s.bg} mb-1`}>
+                <s.icon className={`w-3.5 h-3.5 ${s.color}`} />
               </div>
-            </>
-          )}
+              <p className="text-lg font-bold text-foreground leading-tight">{formatNum(s.value)}</p>
+              <p className="text-[10px] text-muted-foreground">{s.label}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Filter bar */}
-        <div className="bg-white rounded-xl border border-border shadow-sm p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama alumni..." className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white" />
+        {/* Filters */}
+        <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+          <div className="px-4 py-3 space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <div className="relative flex-1 min-w-[150px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama alumni..." className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]" />
+              </div>
+              <select value={filterAngkatan} onChange={(e) => setFilterAngkatan(e.target.value)} className="px-3 py-2 text-sm border border-border rounded-lg bg-white">
+                <option value="all">Semua TN</option>
+                {Array.from({ length: 35 }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={String(n)}>TN {n}</option>
+                ))}
+              </select>
+              <select value={filterLinked} onChange={(e) => setFilterLinked(e.target.value)} className="px-3 py-2 text-sm border border-border rounded-lg bg-white">
+                <option value="all">Semua Status</option>
+                <option value="true">Terhubung</option>
+                <option value="false">Belum Terhubung</option>
+              </select>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors ${activeFilterCount > 0 ? "bg-[#0B27BC] text-white border-[#0B27BC]" : "bg-white text-gray-600 border-border hover:bg-gray-50"}`}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                Filter
+                {activeFilterCount > 0 && (
+                  <span className="bg-white text-[#0B27BC] text-[10px] font-bold rounded-full w-4 h-4 inline-flex items-center justify-center">{activeFilterCount}</span>
+                )}
+              </button>
             </div>
-            <select value={filterAngkatan} onChange={(e) => setFilterAngkatan(e.target.value)} className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white">
-              <option value="all">Semua Angkatan</option>
-              {Array.from({ length: 35 }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={String(n)}>TN {n}</option>
-              ))}
-            </select>
-            <select value={filterLinked} onChange={(e) => setFilterLinked(e.target.value)} className="px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white">
-              <option value="all">Semua Status</option>
-              <option value="true">Terhubung Kampanye</option>
-              <option value="false">Belum Terhubung</option>
-            </select>
+
+            {showFilters && (
+              <div className="pt-2 border-t border-border space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-gray-500">Filter per kolom</p>
+                  {activeFilterCount > 0 && (
+                    <button onClick={resetFilters} className="text-[10px] text-red-500 hover:text-red-700 inline-flex items-center gap-1">
+                      <X className="w-3 h-3" />Reset
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">No HP</label>
+                    <select value={fPhone} onChange={(e) => setFPhone(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
+                      <option value="all">Semua</option><option value="has">Ada</option><option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Kontak</label>
+                    <select value={fKontak} onChange={(e) => setFKontak(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Dukungan</label>
+                    <select value={fDukungan} onChange={(e) => setFDukungan(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
+                      <option value="all">Semua</option><option value="pendukung">Pendukung (Dukung + Convert)</option><option value="dukung">Dukung</option><option value="ragu_ragu">Ragu-ragu</option><option value="milih_sebelah">Milih Sebelah</option><option value="terkonvert">Terkonvert</option><option value="empty">Belum diisi</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Grup WA</label>
+                    <select value={fGrup} onChange={(e) => setFGrup(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">DPT</label>
+                    <select value={fDpt} onChange={(e) => setFDpt(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Vote</label>
+                    <select value={fVote} onChange={(e) => setFVote(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Table */}
+        {/* Alumni Table */}
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="px-4 py-2.5 border-b border-border bg-gray-50/80 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground">
+              Daftar Alumni ({formatNum(activeFilterCount > 0 ? filteredAlumni.length : total)})
+            </h3>
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-gray-50/80">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600 w-12">#</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">NOSIS</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Nama</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">TN</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden md:table-cell">Kelanjutan Studi</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Program Studi</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+                <tr className="border-b border-border bg-gray-50/50">
+                  <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs w-10">#</th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs">Nama</th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs w-[120px]">
+                    <Phone className="w-3 h-3 inline mr-1" />No HP
+                  </th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Kontak</th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Dukungan</th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Grup</th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">DPT</th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Vote</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center">
+                    <td colSpan={8} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Loader2 className="w-6 h-6 animate-spin text-[#0B27BC]" />
                         <p className="text-sm text-muted-foreground">Memuat data alumni...</p>
                       </div>
                     </td>
                   </tr>
-                ) : alumni.length === 0 ? (
+                ) : filteredAlumni.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center">
+                    <td colSpan={8} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
-                        <GraduationCap className="w-8 h-8 text-gray-300" />
+                        <GraduationCap className="w-8 h-8 text-gray-200" />
                         <p className="text-sm text-muted-foreground">
-                          {search || filterAngkatan !== "all" || filterLinked !== "all"
+                          {search || filterAngkatan !== "all" || filterLinked !== "all" || activeFilterCount > 0
                             ? "Tidak ada alumni yang cocok dengan filter"
                             : "Belum ada data alumni."}
                         </p>
@@ -454,100 +726,80 @@ export default function AdminAlumniPage() {
                     </td>
                   </tr>
                 ) : (
-                  alumni.map((item, index) => {
+                  filteredAlumni.map((item, index) => {
                     const isLinked = item.members && item.members.length > 0;
                     const member = isLinked ? item.members![0] : null;
-                    const isEditing = member && editingMemberId === member.id;
                     const isAdding = addingId === item.id;
+                    const isGrupSudah = member?.masuk_grup === "Sudah";
 
                     return (
-                      <React.Fragment key={item.id}>
-                        <tr
-                          className={`border-b border-border last:border-b-0 transition-colors ${isEditing ? "bg-blue-50/60" : isLinked ? "hover:bg-gray-50 cursor-pointer" : "hover:bg-gray-50"}`}
-                          onClick={() => { if (isLinked && member && !isEditing) startEditing(member); }}
-                        >
-                          <td className="px-4 py-3 text-gray-500">{(page - 1) * limit + index + 1}</td>
-                          <td className="px-4 py-3"><span className="text-gray-500 font-mono text-xs">{item.nosis || "-"}</span></td>
-                          <td className="px-4 py-3">
-                            <span className="font-medium text-foreground">{item.nama}</span>
-                            {item.keterangan?.includes("Almarhum") && (
-                              <span className="ml-1.5 inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                                Almarhum
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3"><span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium bg-[#0B27BC]/10 text-[#0B27BC]">TN{item.angkatan}</span></td>
-                          <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{item.kelanjutan_studi || "-"}</td>
-                          <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">{item.program_studi || "-"}</td>
-                          <td className="px-4 py-3">
-                            {isLinked ? (
-                              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-100 text-emerald-700">
-                                <Check className="w-3 h-3" />Anggota
-                              </span>
-                            ) : (
+                      <tr key={item.id} className="border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors">
+                        <td className="px-3 py-2 text-gray-400 text-xs">{(page - 1) * limit + index + 1}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-sm font-medium text-foreground truncate max-w-[200px]">{item.nama}</p>
+                                {item.keterangan?.includes("Almarhum") && (
+                                  <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">Almarhum</span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-muted-foreground">
+                                TN {item.angkatan}
+                                {item.nosis ? ` · ${item.nosis}` : ""}
+                                {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
+                              </p>
+                            </div>
+                            {!isLinked && (
                               <button
-                                onClick={(e) => { e.stopPropagation(); handleAddToCampaign(item); }}
+                                onClick={() => handleAddToCampaign(item)}
                                 disabled={isAdding || !!addingId}
-                                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium border border-[#0B27BC]/30 text-[#0B27BC] hover:bg-[#0B27BC]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border border-[#0B27BC]/30 text-[#0B27BC] hover:bg-[#0B27BC]/10 transition-colors disabled:opacity-50 shrink-0"
+                                title="Tambah ke kampanye"
                               >
                                 {isAdding ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
                                 Tambah
                               </button>
                             )}
-                          </td>
-                        </tr>
-
-                        {isEditing && member && (
-                          <tr className="bg-blue-50/40">
-                            <td colSpan={7} className="px-4 py-4">
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                                    <User className="w-4 h-4 text-[#0B27BC]" />
-                                    Edit Data Anggota — {item.nama}
-                                  </h4>
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); cancelEditing(); }} className="p-1 rounded-md hover:bg-gray-200 text-gray-500 transition-colors">
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1"><Phone className="w-3 h-3 inline mr-1" />No. HP</label>
-                                    <input type="tel" value={editForm.no_hp} onChange={(e) => setEditForm((f) => ({ ...f, no_hp: e.target.value }))} onClick={(e) => e.stopPropagation()} placeholder="08xxxxxxxxxx" className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white" />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1"><User className="w-3 h-3 inline mr-1" />PIC</label>
-                                    <input type="text" value={editForm.pic} onChange={(e) => setEditForm((f) => ({ ...f, pic: e.target.value }))} onClick={(e) => e.stopPropagation()} placeholder="Nama PIC" className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white" />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Status DPT</label>
-                                    <select value={editForm.status_dpt} onChange={(e) => setEditForm((f) => ({ ...f, status_dpt: e.target.value }))} onClick={(e) => e.stopPropagation()} className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"><option value="Belum">Belum</option><option value="Sudah">Sudah</option></select>
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Sudah Dikontak</label>
-                                    <select value={editForm.sudah_dikontak} onChange={(e) => setEditForm((f) => ({ ...f, sudah_dikontak: e.target.value }))} onClick={(e) => e.stopPropagation()} className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"><option value="Belum">Belum</option><option value="Sudah">Sudah</option></select>
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Masuk Grup</label>
-                                    <select value={editForm.masuk_grup} onChange={(e) => setEditForm((f) => ({ ...f, masuk_grup: e.target.value }))} onClick={(e) => e.stopPropagation()} className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"><option value="Belum">Belum</option><option value="Sudah">Sudah</option></select>
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Vote</label>
-                                    <select value={editForm.vote} onChange={(e) => setEditForm((f) => ({ ...f, vote: e.target.value }))} onClick={(e) => e.stopPropagation()} className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"><option value="Belum">Belum</option><option value="Sudah">Sudah</option></select>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 pt-1">
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); saveEditing(); }} disabled={saving} className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091fa0] transition-colors disabled:opacity-50">
-                                    {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                                    Simpan
-                                  </button>
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); cancelEditing(); }} className="px-4 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">Batal</button>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          {isLinked ? (
+                            <InlinePhoneEdit value={member!.no_hp || ""} onSave={(v) => handleFieldUpdate(item, "no_hp", v)} />
+                          ) : (
+                            <span className="text-xs text-gray-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          {isLinked ? (
+                            <StatusChip
+                              value={member!.sudah_dikontak as StatusValue}
+                              onClick={!isGrupSudah ? () => toggleBinary(item, "sudah_dikontak") : undefined}
+                              readOnly={isGrupSudah}
+                            />
+                          ) : <span className="text-xs text-gray-300">—</span>}
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          {isLinked ? (
+                            <DukunganSelect value={member!.dukungan || null} onChange={(v) => handleFieldUpdate(item, "dukungan", v)} />
+                          ) : <span className="text-xs text-gray-300">—</span>}
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          {isLinked ? (
+                            <StatusChip value={member!.masuk_grup as StatusValue} readOnly />
+                          ) : <span className="text-xs text-gray-300">—</span>}
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          {isLinked ? (
+                            <StatusChip value={member!.status_dpt as StatusValue} onClick={() => toggleBinary(item, "status_dpt")} />
+                          ) : <span className="text-xs text-gray-300">—</span>}
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          {isLinked ? (
+                            <StatusChip value={member!.vote as StatusValue} onClick={() => toggleBinary(item, "vote")} />
+                          ) : <span className="text-xs text-gray-300">—</span>}
+                        </td>
+                      </tr>
                     );
                   })
                 )}
@@ -555,10 +807,96 @@ export default function AdminAlumniPage() {
             </table>
           </div>
 
+          {/* Mobile Cards */}
+          <div className="md:hidden divide-y divide-border">
+            {loading ? (
+              <div className="px-4 py-12 text-center">
+                <Loader2 className="w-6 h-6 animate-spin text-[#0B27BC] mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Memuat data alumni...</p>
+              </div>
+            ) : filteredAlumni.length === 0 ? (
+              <div className="px-4 py-12 text-center">
+                <GraduationCap className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Tidak ada data yang cocok</p>
+              </div>
+            ) : (
+              filteredAlumni.map((item) => {
+                const isLinked = item.members && item.members.length > 0;
+                const member = isLinked ? item.members![0] : null;
+                const isAdding = addingId === item.id;
+                const isGrupSudah = member?.masuk_grup === "Sudah";
+
+                return (
+                  <div key={item.id} className="px-4 py-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-medium text-foreground truncate">{item.nama}</p>
+                          {item.keterangan?.includes("Almarhum") && (
+                            <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-gray-100 text-gray-500">Almarhum</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          TN {item.angkatan}
+                          {item.nosis ? ` · ${item.nosis}` : ""}
+                          {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B27BC]/10 text-[#0B27BC] font-medium">TN{item.angkatan}</span>
+                        {!isLinked && (
+                          <button
+                            onClick={() => handleAddToCampaign(item)}
+                            disabled={isAdding || !!addingId}
+                            className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium border border-[#0B27BC]/30 text-[#0B27BC] hover:bg-[#0B27BC]/10 disabled:opacity-50"
+                          >
+                            {isAdding ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {isLinked && (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                          <InlinePhoneEdit value={member!.no_hp || ""} onSave={(v) => handleFieldUpdate(item, "no_hp", v)} />
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] text-gray-400 w-10">Kontak</span>
+                            <StatusChip value={member!.sudah_dikontak as StatusValue} onClick={!isGrupSudah ? () => toggleBinary(item, "sudah_dikontak") : undefined} readOnly={isGrupSudah} />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] text-gray-400 w-12">Dukung</span>
+                            <DukunganSelect value={member!.dukungan || null} onChange={(v) => handleFieldUpdate(item, "dukungan", v)} />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] text-gray-400 w-7">Grup</span>
+                            <StatusChip value={member!.masuk_grup as StatusValue} readOnly />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] text-gray-400 w-6">DPT</span>
+                            <StatusChip value={member!.status_dpt as StatusValue} onClick={() => toggleBinary(item, "status_dpt")} />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] text-gray-400 w-7">Vote</span>
+                            <StatusChip value={member!.vote as StatusValue} onClick={() => toggleBinary(item, "vote")} />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Pagination */}
           {totalPages > 0 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-gray-50/50">
               <p className="text-sm text-muted-foreground">
-                Menampilkan {formatNum(total)} alumni — Halaman {page} dari {formatNum(totalPages)}
+                Halaman {page} dari {formatNum(totalPages)} · {formatNum(total)} alumni
               </p>
               <div className="flex items-center gap-2">
                 <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium border border-border rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
@@ -577,19 +915,15 @@ export default function AdminAlumniPage() {
       {showLinkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => !linkLoading && !linkConfirming && setShowLinkModal(false)}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            {/* Modal header */}
             <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0">
               <div>
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <Link2 className="w-4 h-4 text-[#0B27BC]" />
-                  Auto-Link Preview
+                  <Link2 className="w-4 h-4 text-[#0B27BC]" />Auto-Link Preview
                 </h3>
                 {linkPreview && (
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {formatNum(linkPreview.total_unlinked)} anggota belum terhubung
-                    {linkPreview.total_no_match > 0 && (
-                      <span className="ml-1">&middot; {formatNum(linkPreview.total_no_match)} tidak ditemukan kecocokan</span>
-                    )}
+                    {linkPreview.total_no_match > 0 && <span className="ml-1">&middot; {formatNum(linkPreview.total_no_match)} tidak ditemukan kecocokan</span>}
                   </p>
                 )}
               </div>
@@ -605,88 +939,75 @@ export default function AdminAlumniPage() {
               </div>
             ) : linkPreview ? (
               <>
-                {/* Tabs */}
                 <div className="flex border-b border-border shrink-0">
                   <button onClick={() => setLinkTab("certain")} className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${linkTab === "certain" ? "text-emerald-700 border-b-2 border-emerald-500 bg-emerald-50/50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"}`}>
-                    <CheckCircle2 className="w-4 h-4" />
-                    Pasti ({formatNum(certainCandidates.length)})
+                    <CheckCircle2 className="w-4 h-4" />Pasti ({formatNum(certainCandidates.length)})
                   </button>
                   <button onClick={() => setLinkTab("uncertain")} className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${linkTab === "uncertain" ? "text-amber-700 border-b-2 border-amber-500 bg-amber-50/50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"}`}>
-                    <HelpCircle className="w-4 h-4" />
-                    Tidak Pasti ({formatNum(uncertainCandidates.length)})
+                    <HelpCircle className="w-4 h-4" />Tidak Pasti ({formatNum(uncertainCandidates.length)})
                   </button>
                 </div>
 
-                {/* Select all */}
                 {currentTabCandidates.length > 0 && (
                   <div className="px-5 py-2 border-b border-border flex items-center justify-between bg-gray-50/50 shrink-0">
                     <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                       <input type="checkbox" checked={currentTabCandidates.every((c) => selectedPairs.has(c.member_id))} onChange={() => toggleAllInTab(linkTab)} className="rounded border-gray-300 text-[#0B27BC] focus:ring-[#0B27BC]/20" />
                       Pilih semua {linkTab === "certain" ? "pasti" : "tidak pasti"}
                     </label>
-                    <span className="text-xs text-muted-foreground">
-                      {currentTabCandidates.filter((c) => selectedPairs.has(c.member_id)).length} dipilih
-                    </span>
+                    <span className="text-xs text-muted-foreground">{currentTabCandidates.filter((c) => selectedPairs.has(c.member_id)).length} dipilih</span>
                   </div>
                 )}
 
-                {/* Candidate list */}
                 <div className="flex-1 overflow-y-auto">
                   {currentTabCandidates.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 gap-2">
                       <Unlink className="w-8 h-8 text-gray-300" />
-                      <p className="text-sm text-muted-foreground">
-                        {linkTab === "certain" ? "Tidak ada kecocokan pasti" : "Tidak ada kecocokan tidak pasti"}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{linkTab === "certain" ? "Tidak ada kecocokan pasti" : "Tidak ada kecocokan tidak pasti"}</p>
                     </div>
                   ) : (
                     <>
-                    {/* Column header */}
-                    <div className="flex items-center gap-3 px-5 py-2 bg-gray-100/80 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                      <div className="w-4 shrink-0" />
-                      <div className="flex-1 grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
-                        <span className="flex items-center gap-1"><User className="w-3 h-3" /> Data Anggota</span>
-                        <span />
-                        <span className="flex items-center gap-1"><GraduationCap className="w-3 h-3" /> Data Alumni</span>
+                      <div className="flex items-center gap-3 px-5 py-2 bg-gray-100/80 border-b border-border text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                        <div className="w-4 shrink-0" />
+                        <div className="flex-1 grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+                          <span className="flex items-center gap-1"><User className="w-3 h-3" /> Data Anggota</span>
+                          <span />
+                          <span className="flex items-center gap-1"><GraduationCap className="w-3 h-3" /> Data Alumni</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="divide-y divide-border">
-                      {currentTabCandidates.map((candidate) => {
-                        const isSelected = selectedPairs.has(candidate.member_id);
-                        return (
-                          <label key={candidate.member_id} className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors ${isSelected ? "bg-blue-50/40" : "hover:bg-gray-50"}`}>
-                            <input type="checkbox" checked={isSelected} onChange={() => togglePair(candidate.member_id)} className="rounded border-gray-300 text-[#0B27BC] focus:ring-[#0B27BC]/20 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
-                                <div className="min-w-0">
-                                  <span className="text-sm font-medium text-foreground block truncate">{candidate.member_nama}</span>
-                                  <span className="text-xs text-muted-foreground">TN{candidate.member_angkatan}</span>
+                      <div className="divide-y divide-border">
+                        {currentTabCandidates.map((candidate) => {
+                          const isSelected = selectedPairs.has(candidate.member_id);
+                          return (
+                            <label key={candidate.member_id} className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors ${isSelected ? "bg-blue-50/40" : "hover:bg-gray-50"}`}>
+                              <input type="checkbox" checked={isSelected} onChange={() => togglePair(candidate.member_id)} className="rounded border-gray-300 text-[#0B27BC] focus:ring-[#0B27BC]/20 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+                                  <div className="min-w-0">
+                                    <span className="text-sm font-medium text-foreground block truncate">{candidate.member_nama}</span>
+                                    <span className="text-xs text-muted-foreground">TN{candidate.member_angkatan}</span>
+                                  </div>
+                                  <span className="text-xs text-gray-400">&rarr;</span>
+                                  <div className="min-w-0">
+                                    <span className="text-sm text-[#0B27BC] font-medium block truncate">{candidate.alumni_nama}</span>
+                                    <span className="text-xs text-muted-foreground">TN{candidate.alumni_angkatan}</span>
+                                  </div>
                                 </div>
-                                <span className="text-xs text-gray-400">&rarr;</span>
-                                <div className="min-w-0">
-                                  <span className="text-sm text-[#0B27BC] font-medium block truncate">{candidate.alumni_nama}</span>
-                                  <span className="text-xs text-muted-foreground">TN{candidate.alumni_angkatan}</span>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${candidate.similarity >= 85 ? "bg-emerald-100 text-emerald-700" : candidate.similarity >= 70 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}>
+                                    {candidate.similarity}% cocok
+                                  </span>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${candidate.similarity >= 85 ? "bg-emerald-100 text-emerald-700" : candidate.similarity >= 70 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}>
-                                  {candidate.similarity}% cocok
-                                </span>
-                              </div>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </>
                   )}
                 </div>
 
-                {/* Modal footer */}
                 <div className="px-5 py-3 border-t border-border flex items-center justify-between bg-gray-50/50 shrink-0">
-                  <p className="text-xs text-muted-foreground">
-                    {formatNum(selectedPairs.size)} dari {formatNum(linkPreview.candidates.length)} dipilih
-                  </p>
+                  <p className="text-xs text-muted-foreground">{formatNum(selectedPairs.size)} dari {formatNum(linkPreview.candidates.length)} dipilih</p>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setShowLinkModal(false)} disabled={linkConfirming} className="px-4 py-2 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">Batal</button>
                     <button onClick={handleConfirmLink} disabled={selectedPairs.size === 0 || linkConfirming} className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091fa0] transition-colors disabled:opacity-50">

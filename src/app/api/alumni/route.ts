@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from("alumni")
     .select(
-      "*, members!alumni_id(id, no, no_hp, pic, status_dpt, sudah_dikontak, masuk_grup, vote)",
+      "*, members!alumni_id(id, no, no_hp, pic, status_dpt, sudah_dikontak, masuk_grup, vote, dukungan)",
       { count: "exact" }
     );
 

@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { LayoutDashboard, Calendar, UserCheck, Users, Trophy, MessageSquare, Crosshair } from "lucide-react";
+import { LayoutDashboard, Calendar, Trophy, MessageSquare, Crosshair, GraduationCap, UserPlus } from "lucide-react";
 import { useRole } from "@/lib/RoleContext";
 
 interface BottomNavItem {
@@ -10,15 +10,15 @@ interface BottomNavItem {
   label: string;
   path: string;
   minRole?: "campaigner" | "admin";
-  hideForRole?: "campaigner";
+  hideForRole?: "campaigner" | "admin";
 }
 
 const navItems: BottomNavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Crosshair, label: "Target", path: "/target", minRole: "campaigner" },
+  { icon: GraduationCap, label: "Alumni", path: "/admin/alumni", minRole: "admin" },
+  { icon: Crosshair, label: "Target", path: "/target", minRole: "campaigner", hideForRole: "admin" },
+  { icon: UserPlus, label: "Penugasan", path: "/admin/assignments", minRole: "admin" },
   { icon: Calendar, label: "Kegiatan", path: "/kegiatan", hideForRole: "campaigner" },
-  { icon: UserCheck, label: "Check-in", path: "/checkin", minRole: "campaigner", hideForRole: "campaigner" },
-  { icon: Users, label: "Anggota", path: "/anggota", hideForRole: "campaigner" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard", hideForRole: "campaigner" },
   { icon: MessageSquare, label: "Harapan", path: "/harapan", hideForRole: "campaigner" },
 ];
@@ -33,7 +33,8 @@ export function BottomNav() {
   };
 
   const canSee = (item: BottomNavItem) => {
-    if (item.hideForRole && role === item.hideForRole) return false;
+    if (item.hideForRole === "campaigner" && role === "campaigner") return false;
+    if (item.hideForRole === "admin" && (role === "admin" || role === "super_admin")) return false;
     if (!item.minRole) return true;
     if (item.minRole === "campaigner") return role === "super_admin" || role === "admin" || role === "campaigner";
     if (item.minRole === "admin") return role === "super_admin" || role === "admin";

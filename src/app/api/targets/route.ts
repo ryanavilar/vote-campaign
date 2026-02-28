@@ -104,6 +104,24 @@ export async function GET() {
         // Continue without WA group data
       }
 
+      // Get event attendance counts for legacy members
+      const legacyAttCounts: Record<string, number> = {};
+      try {
+        const attRows = await fetchAll(
+          adminClient,
+          "event_attendance",
+          "member_id",
+          (q) => q.in("member_id", memberIds)
+        );
+        for (const a of attRows) {
+          if (a.member_id) {
+            legacyAttCounts[a.member_id] = (legacyAttCounts[a.member_id] || 0) + 1;
+          }
+        }
+      } catch {
+        // Continue without attendance data
+      }
+
       // Return in legacy format wrapped as target rows
       const legacyRows = members.map((m) => {
         const inGroup = legacyWaLinked.has(m.id);
@@ -123,6 +141,7 @@ export async function GET() {
           masuk_grup: inGroup ? "Sudah" : "Belum",
           vote: m.vote,
           dukungan: m.dukungan || null,
+          attendance_count: legacyAttCounts[m.id] || 0,
         };
       });
       return NextResponse.json(legacyRows);
@@ -197,6 +216,29 @@ export async function GET() {
     }
   }
 
+  // 3c. Get event attendance counts per member
+  const attendanceCounts: Record<string, number> = {};
+  if (memberIds.length > 0) {
+    try {
+      for (let i = 0; i < memberIds.length; i += 500) {
+        const chunk = memberIds.slice(i, i + 500);
+        const attRows = await fetchAll(
+          adminClient,
+          "event_attendance",
+          "member_id",
+          (q) => q.in("member_id", chunk)
+        );
+        for (const a of attRows) {
+          if (a.member_id) {
+            attendanceCounts[a.member_id] = (attendanceCounts[a.member_id] || 0) + 1;
+          }
+        }
+      }
+    } catch {
+      // Continue without attendance data
+    }
+  }
+
   // 4. Combine: alumni with their member data (if exists)
   const combined = alumni.map((a: { id: string; nama: string; angkatan: number; nosis: string | null; kelanjutan_studi: string | null }) => {
     const member = membersMap[a.id];
@@ -220,6 +262,7 @@ export async function GET() {
       masuk_grup: inWaGroup ? "Sudah" : "Belum",
       vote: member?.vote || null,
       dukungan: member?.dukungan || null,
+      attendance_count: member?.id ? (attendanceCounts[member.id] || 0) : 0,
     };
   });
 
