@@ -26,6 +26,7 @@ import {
   Users as UsersIcon,
   MessageCircle,
   AlertOctagon,
+  Merge,
 } from "lucide-react";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -213,7 +214,7 @@ function DukunganSelect({
 /* ── Main Page ─────────────────────────────────────────── */
 
 export default function AdminAlumniPage() {
-  const { canManageUsers, loading: roleLoading } = useRole();
+  const { canManageUsers, isSuperAdmin: isSA, loading: roleLoading } = useRole();
   const { showToast } = useToast();
 
   const [alumni, setAlumni] = useState<AlumniRow[]>([]);
@@ -506,6 +507,31 @@ export default function AdminAlumniPage() {
     });
   };
 
+  // Merge handler for multi-linked alumni
+  const [mergingId, setMergingId] = useState<string | null>(null);
+
+  const handleMerge = async (alumniId: string, alumniNama: string) => {
+    if (!confirm(`Merge semua member untuk ${alumniNama} menjadi satu?\n\nData terbaik akan dipertahankan, nomor HP tambahan dijadikan alt_phones.`)) return;
+    setMergingId(alumniId);
+    try {
+      const res = await fetch("/api/members/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alumni_id: alumniId }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        showToast(`Berhasil merge ${result.merged_count} member duplikat untuk ${alumniNama}`, "success");
+        fetchAlumni();
+      } else {
+        showToast(result.error || "Gagal merge", "error");
+      }
+    } catch {
+      showToast("Terjadi kesalahan jaringan", "error");
+    }
+    setMergingId(null);
+  };
+
 
   if (roleLoading || loadingData) {
     return (
@@ -759,11 +785,22 @@ export default function AdminAlumniPage() {
                               {item.keterangan?.includes("Almarhum") && (
                                 <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">Almarhum</span>
                               )}
-                              {multiCount > 1 && (
-                                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0" title={`Terhubung ke ${multiCount} member`}>
-                                  <AlertOctagon className="w-3 h-3" />
+                              {multiCount >= 1 && (
+                                <span className={`inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${multiCount > 1 ? "bg-amber-100 text-amber-700" : "bg-emerald-100/60 text-emerald-600"}`} title={`Terhubung ke ${multiCount} member`}>
+                                  {multiCount > 1 ? <AlertOctagon className="w-3 h-3" /> : <Check className="w-3 h-3" />}
                                   {multiCount} member
                                 </span>
+                              )}
+                              {multiCount > 1 && isSA && (
+                                <button
+                                  onClick={() => handleMerge(item.id, item.nama)}
+                                  disabled={mergingId === item.id}
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#0B27BC] text-white hover:bg-[#091fa0] transition-colors disabled:opacity-50 shrink-0"
+                                  title="Gabung semua member menjadi satu"
+                                >
+                                  {mergingId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Merge className="w-3 h-3" />}
+                                  Merge
+                                </button>
                               )}
                             </div>
                             <p className="text-[10px] text-muted-foreground">
@@ -846,11 +883,21 @@ export default function AdminAlumniPage() {
                           {item.keterangan?.includes("Almarhum") && (
                             <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-gray-100 text-gray-500">Almarhum</span>
                           )}
-                          {multiCount > 1 && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
-                              <AlertOctagon className="w-3 h-3" />
+                          {multiCount >= 1 && (
+                            <span className={`inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded ${multiCount > 1 ? "bg-amber-100 text-amber-700" : "bg-emerald-100/60 text-emerald-600"}`}>
+                              {multiCount > 1 ? <AlertOctagon className="w-3 h-3" /> : <Check className="w-3 h-3" />}
                               {multiCount} member
                             </span>
+                          )}
+                          {multiCount > 1 && isSA && (
+                            <button
+                              onClick={() => handleMerge(item.id, item.nama)}
+                              disabled={mergingId === item.id}
+                              className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#0B27BC] text-white hover:bg-[#091fa0] transition-colors disabled:opacity-50"
+                            >
+                              {mergingId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Merge className="w-3 h-3" />}
+                              Merge
+                            </button>
                           )}
                         </div>
                         <p className="text-[10px] text-muted-foreground">

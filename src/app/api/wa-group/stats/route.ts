@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
-import { normalizePhone } from "@/lib/phone";
+import { getAllMemberPhones } from "@/lib/phone";
 
 // GET — returns WA group membership stats and member phone set
 export async function GET() {
@@ -24,19 +24,18 @@ export async function GET() {
   const phones = waData.map((w) => w.phone);
 
   // Also fetch all members to build a member_id → inGroup map
+  // Check both no_hp AND alt_phones so alternate numbers are recognized
   const { data: members } = await supabase
     .from("members")
-    .select("id, no_hp");
+    .select("id, no_hp, alt_phones");
 
   const memberInGroup: Record<string, boolean> = {};
   if (members) {
     const phoneSet = new Set(phones);
     for (const m of members) {
-      if (m.no_hp) {
-        const normalized = normalizePhone(m.no_hp);
-        if (normalized && phoneSet.has(normalized)) {
-          memberInGroup[m.id] = true;
-        }
+      const allPhones = getAllMemberPhones(m);
+      if (allPhones.some((p) => phoneSet.has(p))) {
+        memberInGroup[m.id] = true;
       }
     }
   }
