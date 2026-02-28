@@ -302,6 +302,7 @@ export default function Dashboard() {
       contacted,
       grupSudah,
       grupLinked: waGroupStats.linked,
+      grupUnlinked: waGroupStats.unlinked,
       dptSudah,
       voteSudah,
     };
@@ -443,7 +444,7 @@ export default function Dashboard() {
       icon: Smartphone,
       color: "text-[#0B27BC]",
       bg: "bg-[#0B27BC]/10",
-      sub: `${formatNum(opStats.grupLinked)} linked`,
+      sub: `${formatNum(opStats.grupLinked)} linked · ${formatNum(opStats.grupUnlinked)} unlinked`,
       loading: !waGroupLoaded,
     },
     {
