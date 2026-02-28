@@ -147,7 +147,7 @@ function StatusChip({
             ? "bg-emerald-100/60 text-emerald-600"
             : "bg-gray-50 text-gray-300"
         }`}
-        title={isSudah ? "Terhubung di WA Group" : "Belum di WA Group"}
+        title={isSudah ? "Otomatis dari WA Group" : "Belum di WA Group"}
       >
         {isSudah ? "Sudah" : "Belum"}
       </span>
@@ -594,7 +594,8 @@ export default function TargetPage() {
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.sudah_dikontak}
-                          onClick={() => toggleBinary(row, "sudah_dikontak")}
+                          onClick={row.masuk_grup !== "Sudah" ? () => toggleBinary(row, "sudah_dikontak") : undefined}
+                          readOnly={row.masuk_grup === "Sudah"}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
@@ -675,7 +676,8 @@ export default function TargetPage() {
                       <span className="text-[9px] text-gray-400 w-10">Kontak</span>
                       <StatusChip
                         value={row.sudah_dikontak}
-                        onClick={() => toggleBinary(row, "sudah_dikontak")}
+                        onClick={row.masuk_grup !== "Sudah" ? () => toggleBinary(row, "sudah_dikontak") : undefined}
+                        readOnly={row.masuk_grup === "Sudah"}
                       />
                     </div>
                     <div className="flex items-center gap-1">

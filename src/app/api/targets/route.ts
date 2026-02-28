@@ -105,23 +105,26 @@ export async function GET() {
       }
 
       // Return in legacy format wrapped as target rows
-      const legacyRows = members.map((m) => ({
-        alumni_id: m.alumni_id || m.id,
-        alumni_nama: m.nama,
-        alumni_angkatan: m.angkatan,
-        alumni_nosis: null,
-        alumni_kelanjutan_studi: null,
-        member_id: m.id,
-        no: m.no,
-        nama: m.nama,
-        angkatan: m.angkatan,
-        no_hp: m.no_hp || "",
-        status_dpt: m.status_dpt,
-        sudah_dikontak: m.sudah_dikontak,
-        masuk_grup: legacyWaLinked.has(m.id) ? "Sudah" : "Belum",
-        vote: m.vote,
-        dukungan: m.dukungan || null,
-      }));
+      const legacyRows = members.map((m) => {
+        const inGroup = legacyWaLinked.has(m.id);
+        return {
+          alumni_id: m.alumni_id || m.id,
+          alumni_nama: m.nama,
+          alumni_angkatan: m.angkatan,
+          alumni_nosis: null,
+          alumni_kelanjutan_studi: null,
+          member_id: m.id,
+          no: m.no,
+          nama: m.nama,
+          angkatan: m.angkatan,
+          no_hp: m.no_hp || "",
+          status_dpt: m.status_dpt,
+          sudah_dikontak: inGroup ? "Sudah" : m.sudah_dikontak,
+          masuk_grup: inGroup ? "Sudah" : "Belum",
+          vote: m.vote,
+          dukungan: m.dukungan || null,
+        };
+      });
       return NextResponse.json(legacyRows);
     } catch (err) {
       return NextResponse.json(
@@ -199,6 +202,8 @@ export async function GET() {
     const member = membersMap[a.id];
     // masuk_grup is derived from wa_group_members linkage
     const inWaGroup = member?.id ? waGroupLinkedIds.has(member.id) : false;
+    // If in WA group, they've been contacted
+    const sudahDikontak = inWaGroup ? "Sudah" : (member?.sudah_dikontak || null);
     return {
       alumni_id: a.id,
       alumni_nama: a.nama,
@@ -211,7 +216,7 @@ export async function GET() {
       angkatan: member?.angkatan || a.angkatan,
       no_hp: member?.no_hp || "",
       status_dpt: member?.status_dpt || null,
-      sudah_dikontak: member?.sudah_dikontak || null,
+      sudah_dikontak: sudahDikontak,
       masuk_grup: inWaGroup ? "Sudah" : "Belum",
       vote: member?.vote || null,
       dukungan: member?.dukungan || null,
