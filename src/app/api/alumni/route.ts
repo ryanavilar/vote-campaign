@@ -96,8 +96,38 @@ export async function GET(request: NextRequest) {
     (linkedMembersResult.data || []).map((r: { alumni_id: string }) => r.alumni_id)
   ).size;
 
+  // Get event attendance counts for linked members in this page
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const memberIds = (data || []).flatMap((a: any) =>
+    (a.members || []).map((m: { id: string }) => m.id)
+  ).filter(Boolean) as string[];
+
+  const attendanceCounts: Record<string, number> = {};
+  if (memberIds.length > 0) {
+    const { data: attRows } = await adminClient
+      .from("event_attendance")
+      .select("member_id")
+      .in("member_id", memberIds);
+
+    for (const a of attRows || []) {
+      if (a.member_id) {
+        attendanceCounts[a.member_id] = (attendanceCounts[a.member_id] || 0) + 1;
+      }
+    }
+  }
+
+  // Enrich members with attendance_count
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const enrichedData = (data || []).map((a: any) => ({
+    ...a,
+    members: (a.members || []).map((m: { id: string }) => ({
+      ...m,
+      attendance_count: attendanceCounts[m.id] || 0,
+    })),
+  }));
+
   return NextResponse.json({
-    data: data || [],
+    data: enrichedData,
     total: count || 0,
     totalAll: totalAllResult.count || 0,
     totalLinked: distinctLinked,
