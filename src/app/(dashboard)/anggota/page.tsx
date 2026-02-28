@@ -226,6 +226,7 @@ export default function AnggotaPage() {
       Nama: m.nama,
       Angkatan: m.angkatan,
       "No HP": m.no_hp || "",
+      "No HP Tambahan": (m.alt_phones || []).join(", "),
       PIC: m.pic || "",
       "Masuk Grup WA": memberInGroup[m.id] ? "Sudah" : "Belum",
       "Status DPT": m.status_dpt || "",

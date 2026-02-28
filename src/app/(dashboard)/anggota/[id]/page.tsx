@@ -122,6 +122,9 @@ export default function MemberDetailPage() {
   const [auditExpanded, setAuditExpanded] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
   const [inWaGroup, setInWaGroup] = useState<boolean>(false);
+  const [addingAltPhone, setAddingAltPhone] = useState(false);
+  const [newAltPhone, setNewAltPhone] = useState("");
+  const [altPhoneLoading, setAltPhoneLoading] = useState(false);
 
   const isAssignedToMe = member?.campaigner_targets?.some(t => t.user_id === userId)
     || member?.assigned_to === userId;
@@ -345,6 +348,56 @@ export default function MemberDetailPage() {
     }
   };
 
+  const handleAddAltPhone = async () => {
+    if (!member || !newAltPhone.trim()) return;
+    setAltPhoneLoading(true);
+    try {
+      const currentAlt = member.alt_phones || [];
+      const updated = [...currentAlt, newAltPhone.trim()];
+      const res = await fetch(`/api/members/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alt_phones: updated }),
+      });
+      if (res.ok) {
+        showToast("No. HP tambahan berhasil ditambahkan", "success");
+        setNewAltPhone("");
+        setAddingAltPhone(false);
+        await fetchMember();
+      } else {
+        const result = await res.json();
+        showToast(result.error || "Gagal menambah no. HP", "error");
+      }
+    } catch {
+      showToast("Terjadi kesalahan jaringan", "error");
+    }
+    setAltPhoneLoading(false);
+  };
+
+  const handleRemoveAltPhone = async (index: number) => {
+    if (!member) return;
+    setAltPhoneLoading(true);
+    try {
+      const currentAlt = member.alt_phones || [];
+      const updated = currentAlt.filter((_, i) => i !== index);
+      const res = await fetch(`/api/members/${member.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alt_phones: updated }),
+      });
+      if (res.ok) {
+        showToast("No. HP tambahan berhasil dihapus", "success");
+        await fetchMember();
+      } else {
+        const result = await res.json();
+        showToast(result.error || "Gagal menghapus no. HP", "error");
+      }
+    } catch {
+      showToast("Terjadi kesalahan jaringan", "error");
+    }
+    setAltPhoneLoading(false);
+  };
+
   const handleSaveEdit = async (data: Partial<Member>) => {
     if (!member) return;
 
@@ -508,10 +561,79 @@ export default function MemberDetailPage() {
                     )}
                   </div>
                   <div className="mt-3 space-y-1.5">
+                    {/* Primary Phone */}
                     {member.no_hp && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Phone className="w-3.5 h-3.5" />
                         <span className="font-mono">{member.no_hp}</span>
+                        {(member.alt_phones?.length ?? 0) > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#0B27BC]/10 text-[#0B27BC] font-semibold">
+                            Utama
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {/* Alt Phones */}
+                    {member.alt_phones && member.alt_phones.length > 0 && (
+                      <div className="space-y-1">
+                        {member.alt_phones.map((phone, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Phone className="w-3.5 h-3.5" />
+                            <span className="font-mono">{phone}</span>
+                            {canManageUsers && (
+                              <button
+                                onClick={() => handleRemoveAltPhone(idx)}
+                                disabled={altPhoneLoading}
+                                className="p-0.5 rounded-full hover:bg-red-100 text-red-400 hover:text-red-600 transition-colors"
+                                title="Hapus nomor"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Add Alt Phone */}
+                    {canManageUsers && member.no_hp && (
+                      <div>
+                        {addingAltPhone ? (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <input
+                              type="tel"
+                              value={newAltPhone}
+                              onChange={(e) => setNewAltPhone(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleAddAltPhone();
+                                if (e.key === "Escape") { setAddingAltPhone(false); setNewAltPhone(""); }
+                              }}
+                              placeholder="08xxx / 628xxx"
+                              autoFocus
+                              className="px-2 py-1 text-sm font-mono border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white w-40"
+                            />
+                            <button
+                              onClick={handleAddAltPhone}
+                              disabled={altPhoneLoading || !newAltPhone.trim()}
+                              className="px-2 py-1 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#0B27BC]/90 disabled:opacity-50 transition-colors"
+                            >
+                              {altPhoneLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Simpan"}
+                            </button>
+                            <button
+                              onClick={() => { setAddingAltPhone(false); setNewAltPhone(""); }}
+                              className="p-1 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setAddingAltPhone(true)}
+                            className="inline-flex items-center gap-1 text-xs text-[#0B27BC] font-medium hover:underline mt-0.5"
+                          >
+                            <Plus className="w-3 h-3" />
+                            Tambah No. HP
+                          </button>
+                        )}
                       </div>
                     )}
                     {member.pic && (
@@ -888,6 +1010,7 @@ export default function MemberDetailPage() {
                       no_hp: "No. HP",
                       pic: "PIC",
                       referral_name: "Referral",
+                      alt_phones: "No. HP Tambahan",
                       alumni_id: "Link Alumni",
                     };
                     const actionLabels: Record<string, string> = {

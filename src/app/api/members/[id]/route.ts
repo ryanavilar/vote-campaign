@@ -53,6 +53,7 @@ export async function PATCH(
   // Only allow specific fields to be updated
   const allowedFields = [
     "no_hp",
+    "alt_phones",
     "pic",
     "status_dpt",
     "sudah_dikontak",

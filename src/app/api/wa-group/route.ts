@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getUserRole, canManageUsers, isSuperAdmin } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
-import { normalizePhone, wahaPhoneToNormalized } from "@/lib/phone";
+import { normalizePhone, wahaPhoneToNormalized, getAllMemberPhones } from "@/lib/phone";
 
 // GET — list all wa_group_members with linked member data
 export async function GET() {
@@ -195,7 +195,7 @@ export async function POST() {
   // 4. Clean member phone numbers: strip all symbols, normalize 0→62
   const { data: allMembers } = await supabase
     .from("members")
-    .select("id, no_hp, nama, angkatan");
+    .select("id, no_hp, alt_phones, nama, angkatan");
 
   if (allMembers) {
     for (const m of allMembers) {
@@ -220,20 +220,18 @@ export async function POST() {
   // Re-fetch members after cleaning
   const { data: cleanedMembers } = await supabase
     .from("members")
-    .select("id, no_hp, nama, angkatan");
+    .select("id, no_hp, alt_phones, nama, angkatan");
 
   const linked: { phone: string; wa_name: string | null; member_nama: string; angkatan: number }[] = [];
   const stillUnlinked: { phone: string; wa_name: string | null }[] = [];
 
   if (unlinked && cleanedMembers) {
-    // Build normalized phone → member map
+    // Build normalized phone → member map (primary + alt_phones)
     const memberPhoneMap = new Map<string, { id: string; nama: string; angkatan: number }>();
     for (const m of cleanedMembers) {
-      if (m.no_hp) {
-        const normalized = normalizePhone(m.no_hp);
-        if (normalized) {
-          memberPhoneMap.set(normalized, { id: m.id, nama: m.nama, angkatan: m.angkatan });
-        }
+      const allPhones = getAllMemberPhones(m);
+      for (const phone of allPhones) {
+        memberPhoneMap.set(phone, { id: m.id, nama: m.nama, angkatan: m.angkatan });
       }
     }
 

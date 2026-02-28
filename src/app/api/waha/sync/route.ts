@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getUserRole, canManageUsers } from "@/lib/roles";
 import { createClient } from "@supabase/supabase-js";
-import { normalizePhone, wahaPhoneToNormalized } from "@/lib/phone";
+import { wahaPhoneToNormalized, getAllMemberPhones } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
 
 function getAdminClient() {
@@ -61,24 +61,22 @@ export async function POST(request: NextRequest) {
     const adminClient = getAdminClient();
     const { data: members, error: membersError } = await adminClient
       .from("members")
-      .select("id, no_hp, masuk_grup");
+      .select("id, no_hp, alt_phones, masuk_grup");
 
     if (membersError) {
       throw new Error(membersError.message);
     }
 
-    // Determine which members need updating
+    // Determine which members need updating (check all phones: primary + alt)
     const updates: { id: string; masuk_grup: string }[] = [];
     let matched = 0;
     let alreadyCorrect = 0;
 
     for (const member of members || []) {
-      if (!member.no_hp) continue;
+      const allPhones = getAllMemberPhones(member);
+      if (allPhones.length === 0) continue;
 
-      const normalized = normalizePhone(member.no_hp);
-      if (!normalized) continue;
-
-      const inGroup = participantPhones.has(normalized);
+      const inGroup = allPhones.some((p) => participantPhones.has(p));
       const shouldBe = inGroup ? "Sudah" : "Belum";
 
       if (inGroup) matched++;

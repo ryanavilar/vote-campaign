@@ -25,3 +25,27 @@ export function normalizePhone(phone: string): string | null {
 export function wahaPhoneToNormalized(wahaId: string): string {
   return wahaId.replace(/@.*$/, "");
 }
+
+/**
+ * Get all normalized phone numbers for a member (primary + alternates).
+ * Returns a deduplicated array of normalized phones, excluding nulls/empties.
+ */
+export function getAllMemberPhones(member: {
+  no_hp?: string | null;
+  alt_phones?: string[] | null;
+}): string[] {
+  const phones: string[] = [];
+  if (member.no_hp) {
+    const normalized = normalizePhone(member.no_hp);
+    if (normalized) phones.push(normalized);
+  }
+  if (member.alt_phones) {
+    for (const p of member.alt_phones) {
+      const normalized = normalizePhone(p);
+      if (normalized && !phones.includes(normalized)) {
+        phones.push(normalized);
+      }
+    }
+  }
+  return phones;
+}

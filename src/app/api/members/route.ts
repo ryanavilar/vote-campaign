@@ -139,6 +139,7 @@ export async function PATCH(request: NextRequest) {
     "nama",
     "angkatan",
     "no_hp",
+    "alt_phones",
     "alumni_id",
   ];
 

@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getUserRole, isSuperAdmin } from "@/lib/roles";
+import { normalizePhone } from "@/lib/phone";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -75,17 +76,34 @@ export async function POST(request: NextRequest) {
       // Check if alumni already has a linked member
       const { data: existingMember } = await adminClient
         .from("members")
-        .select("id, no_hp")
+        .select("id, no_hp, alt_phones")
         .eq("alumni_id", pair.alumni_id)
         .maybeSingle();
 
       if (existingMember) {
-        // Member exists — update phone if current is empty
         if (!existingMember.no_hp && phone) {
+          // No primary phone — set it
           await adminClient
             .from("members")
             .update({ no_hp: phone })
             .eq("id", existingMember.id);
+          updated++;
+        } else if (
+          phone &&
+          existingMember.no_hp &&
+          normalizePhone(existingMember.no_hp) !== normalizePhone(phone)
+        ) {
+          // Primary phone exists and is different — add as alternate if unique
+          const existingAlt: string[] = existingMember.alt_phones || [];
+          const normalizedNew = normalizePhone(phone);
+          const alreadyExists =
+            existingAlt.some((p: string) => normalizePhone(p) === normalizedNew);
+          if (!alreadyExists && normalizedNew) {
+            await adminClient
+              .from("members")
+              .update({ alt_phones: [...existingAlt, normalizedNew] })
+              .eq("id", existingMember.id);
+          }
           updated++;
         } else {
           updated++;

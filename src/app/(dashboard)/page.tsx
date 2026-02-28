@@ -346,6 +346,7 @@ export default function Dashboard() {
       Nama: m.nama,
       Angkatan: m.angkatan,
       "No HP": m.no_hp || "",
+      "No HP Tambahan": (m.alt_phones || []).join(", "),
       PIC: m.pic || "",
       "Sudah Dikontak": m.sudah_dikontak || "",
       Dukungan: m.dukungan || "",

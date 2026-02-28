@@ -6,6 +6,7 @@ export interface Member {
   nama: string;
   angkatan: number;
   no_hp: string;
+  alt_phones: string[];
   pic: string | null;
   email: string | null;
   domisili: string | null;
