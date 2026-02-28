@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       const allAlumni = await fetchAllRows(
         adminClient,
         "alumni",
-        "*, members!alumni_id(id, no, no_hp, pic, status_dpt, sudah_dikontak, masuk_grup, vote, dukungan)",
+        "*, members!alumni_id(id, no, nama, no_hp, pic, status_dpt, sudah_dikontak, masuk_grup, vote, dukungan)",
         (q) => q.order("angkatan").order("nama")
       );
 
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
   let query = supabase
     .from("alumni")
     .select(
-      "*, members!alumni_id(id, no, no_hp, pic, status_dpt, sudah_dikontak, masuk_grup, vote, dukungan)",
+      "*, members!alumni_id(id, no, nama, no_hp, pic, status_dpt, sudah_dikontak, masuk_grup, vote, dukungan)",
       { count: "exact" }
     );
 

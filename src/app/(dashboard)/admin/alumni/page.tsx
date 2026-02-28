@@ -25,6 +25,7 @@ import {
   ArrowLeftRight,
   Users as UsersIcon,
   MessageCircle,
+  AlertOctagon,
 } from "lucide-react";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -32,6 +33,7 @@ import {
 interface MemberInfo {
   id: string;
   no: number;
+  nama?: string | null;
   no_hp?: string | null;
   pic?: string | null;
   status_dpt?: string | null;
@@ -228,6 +230,7 @@ export default function AdminAlumniPage() {
   const [fVote, setFVote] = useState("all");
   const [fPhone, setFPhone] = useState("all");
   const [fLinked, setFLinked] = useState("all");
+  const [fMultiLink, setFMultiLink] = useState(false);
 
   const activeFilterCount = [fKontak, fDukungan, fGrup, fDpt, fVote, fPhone].filter((f) => f !== "all").length;
 
@@ -286,7 +289,8 @@ export default function AdminAlumniPage() {
     const ragu = linked.filter((a) => a.members![0].dukungan === "ragu_ragu").length;
     const sebelah = linked.filter((a) => a.members![0].dukungan === "milih_sebelah").length;
     const grup = linked.filter((a) => a.members![0].masuk_grup === "Sudah").length;
-    return { total, linked: linked.length, kontak, dukung, ragu, sebelah, grup };
+    const multiLinked = alumni.filter((a) => a.members && a.members.length > 1).length;
+    return { total, linked: linked.length, kontak, dukung, ragu, sebelah, grup, multiLinked };
   }, [alumni]);
 
   // Filter all alumni client-side
@@ -304,6 +308,9 @@ export default function AdminAlumniPage() {
       // Linked filter
       if (fLinked === "true" && !member) return false;
       if (fLinked === "false" && member) return false;
+
+      // Multi-link filter
+      if (fMultiLink && (!item.members || item.members.length < 2)) return false;
 
       // Per-column filters
       if (fPhone !== "all") {
@@ -338,7 +345,7 @@ export default function AdminAlumniPage() {
 
       return true;
     });
-  }, [alumni, searchQuery, filterAngkatan, fLinked, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+  }, [alumni, searchQuery, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
 
   // Field update handler — same flow as Target: auto-create member on first edit
   const handleFieldUpdate = useCallback(
@@ -620,6 +627,15 @@ export default function AdminAlumniPage() {
                 <option value="true">Terhubung</option>
                 <option value="false">Belum Terhubung</option>
               </select>
+              {stats.multiLinked > 0 && (
+                <button
+                  onClick={() => setFMultiLink(!fMultiLink)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors ${fMultiLink ? "bg-amber-100 text-amber-700 border-amber-300" : "bg-white text-gray-600 border-border hover:bg-gray-50"}`}
+                >
+                  <AlertOctagon className="w-3.5 h-3.5" />
+                  Multi ({stats.multiLinked})
+                </button>
+              )}
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors ${activeFilterCount > 0 ? "bg-[#0B27BC] text-white border-[#0B27BC]" : "bg-white text-gray-600 border-border hover:bg-gray-50"}`}
@@ -731,9 +747,10 @@ export default function AdminAlumniPage() {
                   filteredAlumni.map((item, idx) => {
                     const member = item.members && item.members.length > 0 ? item.members[0] : null;
                     const isGrupSudah = member?.masuk_grup === "Sudah";
+                    const multiCount = item.members?.length || 0;
 
                     return (
-                      <tr key={item.id} className="border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors">
+                      <tr key={item.id} className={`border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors ${multiCount > 1 ? "bg-amber-50/40" : ""}`}>
                         <td className="px-3 py-2 text-gray-400 text-xs">{idx + 1}</td>
                         <td className="px-3 py-2">
                           <div>
@@ -742,11 +759,29 @@ export default function AdminAlumniPage() {
                               {item.keterangan?.includes("Almarhum") && (
                                 <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-gray-100 text-gray-500 shrink-0">Almarhum</span>
                               )}
+                              {multiCount > 1 && (
+                                <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0" title={`Terhubung ke ${multiCount} member`}>
+                                  <AlertOctagon className="w-3 h-3" />
+                                  {multiCount} member
+                                </span>
+                              )}
                             </div>
                             <p className="text-[10px] text-muted-foreground">
                               TN {item.angkatan}
                               {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
                             </p>
+                            {multiCount > 1 && (
+                              <div className="mt-1 space-y-0.5">
+                                {item.members!.map((m, mi) => (
+                                  <a key={m.id} href={`/anggota/${m.id}`} className="flex items-center gap-1 text-[10px] text-amber-700 hover:text-amber-900 hover:underline">
+                                    <User className="w-2.5 h-2.5" />
+                                    <span>{m.nama || `Member #${m.no}`}</span>
+                                    {m.no_hp && <span className="font-mono text-[9px] text-gray-400">({m.no_hp})</span>}
+                                    {mi === 0 && <span className="text-[8px] px-1 rounded bg-amber-200 text-amber-800">utama</span>}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-3 py-2">
@@ -799,22 +834,41 @@ export default function AdminAlumniPage() {
               filteredAlumni.map((item) => {
                 const member = item.members && item.members.length > 0 ? item.members[0] : null;
                 const isGrupSudah = member?.masuk_grup === "Sudah";
+                const multiCount = item.members?.length || 0;
 
                 return (
-                  <div key={item.id} className="px-4 py-3 space-y-2">
+                  <div key={item.id} className={`px-4 py-3 space-y-2 ${multiCount > 1 ? "bg-amber-50/40" : ""}`}>
                     {/* Name + angkatan */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-sm font-medium text-foreground truncate">{item.nama}</p>
                           {item.keterangan?.includes("Almarhum") && (
                             <span className="text-[9px] font-semibold px-1 py-0.5 rounded bg-gray-100 text-gray-500">Almarhum</span>
+                          )}
+                          {multiCount > 1 && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
+                              <AlertOctagon className="w-3 h-3" />
+                              {multiCount} member
+                            </span>
                           )}
                         </div>
                         <p className="text-[10px] text-muted-foreground">
                           TN {item.angkatan}
                           {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
                         </p>
+                        {multiCount > 1 && (
+                          <div className="mt-1 space-y-0.5">
+                            {item.members!.map((m, mi) => (
+                              <a key={m.id} href={`/anggota/${m.id}`} className="flex items-center gap-1 text-[10px] text-amber-700 hover:text-amber-900 hover:underline">
+                                <User className="w-2.5 h-2.5" />
+                                <span>{m.nama || `Member #${m.no}`}</span>
+                                {m.no_hp && <span className="font-mono text-[9px] text-gray-400">({m.no_hp})</span>}
+                                {mi === 0 && <span className="text-[8px] px-1 rounded bg-amber-200 text-amber-800">utama</span>}
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B27BC]/10 text-[#0B27BC] font-medium shrink-0">TN{item.angkatan}</span>
                     </div>
