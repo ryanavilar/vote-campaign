@@ -18,6 +18,8 @@ import {
   ClipboardCheck,
   Vote,
   RefreshCw,
+  Filter,
+  X,
 } from "lucide-react";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -224,8 +226,24 @@ export default function TargetPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [filterAngkatan, setFilterAngkatan] = useState<string>("all");
-  const [filterField, setFilterField] = useState("dukungan");
-  const [filterValue, setFilterValue] = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [fKontak, setFKontak] = useState("all");
+  const [fDukungan, setFDukungan] = useState("all");
+  const [fGrup, setFGrup] = useState("all");
+  const [fDpt, setFDpt] = useState("all");
+  const [fVote, setFVote] = useState("all");
+  const [fPhone, setFPhone] = useState("all");
+
+  const activeFilterCount = [fKontak, fDukungan, fGrup, fDpt, fVote, fPhone].filter((f) => f !== "all").length;
+
+  const resetFilters = () => {
+    setFKontak("all");
+    setFDukungan("all");
+    setFGrup("all");
+    setFDpt("all");
+    setFVote("all");
+    setFPhone("all");
+  };
 
   // Fetch targets
   const fetchTargets = useCallback(async () => {
@@ -256,43 +274,53 @@ export default function TargetPage() {
     return Array.from(set).sort((a, b) => a - b);
   }, [targets]);
 
-  // Stats
+  // Stats — terkonvert counts as pendukung
   const stats = useMemo(() => {
     const total = targets.length;
     const kontak = targets.filter((t) => t.sudah_dikontak === "Sudah").length;
-    const dukung = targets.filter((t) => t.dukungan === "dukung").length;
+    const dukung = targets.filter((t) => t.dukungan === "dukung" || t.dukungan === "terkonvert").length;
     const ragu = targets.filter((t) => t.dukungan === "ragu_ragu").length;
     const sebelah = targets.filter((t) => t.dukungan === "milih_sebelah").length;
     const grup = targets.filter((t) => t.masuk_grup === "Sudah").length;
     return { total, kontak, dukung, ragu, sebelah, grup };
   }, [targets]);
 
-  // Filter targets
+  // Filter targets — per-column
   const filteredTargets = useMemo(() => {
     return targets.filter((t) => {
       const q = searchQuery.toLowerCase();
-      const matchesSearch =
-        !q || t.nama.toLowerCase().includes(q) || (t.no_hp && t.no_hp.includes(searchQuery));
+      if (q && !t.nama.toLowerCase().includes(q) && !(t.no_hp && t.no_hp.includes(searchQuery))) return false;
+      if (filterAngkatan !== "all" && t.angkatan !== Number(filterAngkatan)) return false;
 
-      const matchesAngkatan =
-        filterAngkatan === "all" || t.angkatan === Number(filterAngkatan);
-
-      let matchesFilter = true;
-      if (filterValue !== "all") {
-        if (filterField === "dukungan") {
-          matchesFilter = filterValue === "empty" ? !t.dukungan : t.dukungan === filterValue;
-        } else {
-          const val = t[filterField as keyof TargetRow];
-          matchesFilter =
-            filterValue === "empty"
-              ? val === null || val === ""
-              : val === filterValue;
-        }
+      // Per-column filters
+      if (fKontak !== "all") {
+        if (fKontak === "empty") { if (t.sudah_dikontak !== null) return false; }
+        else if (t.sudah_dikontak !== fKontak) return false;
+      }
+      if (fDukungan !== "all") {
+        if (fDukungan === "pendukung") { if (t.dukungan !== "dukung" && t.dukungan !== "terkonvert") return false; }
+        else if (fDukungan === "empty") { if (t.dukungan) return false; }
+        else if (t.dukungan !== fDukungan) return false;
+      }
+      if (fGrup !== "all") {
+        if (t.masuk_grup !== fGrup) return false;
+      }
+      if (fDpt !== "all") {
+        if (fDpt === "empty") { if (t.status_dpt !== null) return false; }
+        else if (t.status_dpt !== fDpt) return false;
+      }
+      if (fVote !== "all") {
+        if (fVote === "empty") { if (t.vote !== null) return false; }
+        else if (t.vote !== fVote) return false;
+      }
+      if (fPhone !== "all") {
+        if (fPhone === "has" && !t.no_hp) return false;
+        if (fPhone === "empty" && t.no_hp) return false;
       }
 
-      return matchesSearch && matchesAngkatan && matchesFilter;
+      return true;
     });
-  }, [targets, searchQuery, filterAngkatan, filterField, filterValue]);
+  }, [targets, searchQuery, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
 
   // Update handler
   const handleFieldUpdate = useCallback(
@@ -443,7 +471,8 @@ export default function TargetPage() {
 
         {/* Filters */}
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
-          <div className="px-4 py-3">
+          <div className="px-4 py-3 space-y-2">
+            {/* Search + angkatan + filter toggle */}
             <div className="flex flex-wrap gap-2">
               <div className="relative flex-1 min-w-[150px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -469,43 +498,128 @@ export default function TargetPage() {
                   ))}
                 </select>
               )}
-              <select
-                value={filterField}
-                onChange={(e) => {
-                  setFilterField(e.target.value);
-                  setFilterValue("all");
-                }}
-                className="px-3 py-2 text-sm border border-border rounded-lg bg-white"
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors ${
+                  activeFilterCount > 0
+                    ? "bg-[#0B27BC] text-white border-[#0B27BC]"
+                    : "bg-white text-gray-600 border-border hover:bg-gray-50"
+                }`}
               >
-                <option value="dukungan">Dukungan</option>
-                <option value="sudah_dikontak">Kontak</option>
-                <option value="masuk_grup">Grup</option>
-                <option value="status_dpt">DPT</option>
-                <option value="vote">Vote</option>
-              </select>
-              <select
-                value={filterValue}
-                onChange={(e) => setFilterValue(e.target.value)}
-                className="px-3 py-2 text-sm border border-border rounded-lg bg-white"
-              >
-                <option value="all">Semua</option>
-                {filterField === "dukungan" ? (
-                  <>
-                    <option value="dukung">Dukung</option>
-                    <option value="ragu_ragu">Ragu-ragu</option>
-                    <option value="milih_sebelah">Milih Sebelah</option>
-                    <option value="terkonvert">Terkonvert</option>
-                    <option value="empty">Belum diisi</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="Sudah">Sudah</option>
-                    <option value="Belum">Belum</option>
-                    <option value="empty">Kosong</option>
-                  </>
+                <Filter className="w-3.5 h-3.5" />
+                Filter
+                {activeFilterCount > 0 && (
+                  <span className="bg-white text-[#0B27BC] text-[10px] font-bold rounded-full w-4 h-4 inline-flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
                 )}
-              </select>
+              </button>
             </div>
+
+            {/* Advanced per-column filters */}
+            {showFilters && (
+              <div className="pt-2 border-t border-border space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-gray-500">Filter per kolom</p>
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={resetFilters}
+                      className="text-[10px] text-red-500 hover:text-red-700 inline-flex items-center gap-1"
+                    >
+                      <X className="w-3 h-3" />
+                      Reset
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                  {/* No HP */}
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">No HP</label>
+                    <select
+                      value={fPhone}
+                      onChange={(e) => setFPhone(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white"
+                    >
+                      <option value="all">Semua</option>
+                      <option value="has">Ada</option>
+                      <option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                  {/* Kontak */}
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Kontak</label>
+                    <select
+                      value={fKontak}
+                      onChange={(e) => setFKontak(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white"
+                    >
+                      <option value="all">Semua</option>
+                      <option value="Sudah">Sudah</option>
+                      <option value="Belum">Belum</option>
+                      <option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                  {/* Dukungan */}
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Dukungan</label>
+                    <select
+                      value={fDukungan}
+                      onChange={(e) => setFDukungan(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white"
+                    >
+                      <option value="all">Semua</option>
+                      <option value="pendukung">Pendukung (Dukung + Convert)</option>
+                      <option value="dukung">Dukung</option>
+                      <option value="ragu_ragu">Ragu-ragu</option>
+                      <option value="milih_sebelah">Milih Sebelah</option>
+                      <option value="terkonvert">Terkonvert</option>
+                      <option value="empty">Belum diisi</option>
+                    </select>
+                  </div>
+                  {/* Grup */}
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Grup WA</label>
+                    <select
+                      value={fGrup}
+                      onChange={(e) => setFGrup(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white"
+                    >
+                      <option value="all">Semua</option>
+                      <option value="Sudah">Sudah</option>
+                      <option value="Belum">Belum</option>
+                    </select>
+                  </div>
+                  {/* DPT */}
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">DPT</label>
+                    <select
+                      value={fDpt}
+                      onChange={(e) => setFDpt(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white"
+                    >
+                      <option value="all">Semua</option>
+                      <option value="Sudah">Sudah</option>
+                      <option value="Belum">Belum</option>
+                      <option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                  {/* Vote */}
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Vote</label>
+                    <select
+                      value={fVote}
+                      onChange={(e) => setFVote(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white"
+                    >
+                      <option value="all">Semua</option>
+                      <option value="Sudah">Sudah</option>
+                      <option value="Belum">Belum</option>
+                      <option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -556,7 +670,7 @@ export default function TargetPage() {
                       <div className="flex flex-col items-center gap-2">
                         <Crosshair className="w-8 h-8 text-gray-200" />
                         <p className="text-sm text-muted-foreground">
-                          {searchQuery || filterValue !== "all"
+                          {searchQuery || activeFilterCount > 0
                             ? "Tidak ada data yang cocok"
                             : "Belum ada target. Minta admin mengatur angkatan Anda."}
                         </p>
@@ -635,7 +749,7 @@ export default function TargetPage() {
               <div className="px-4 py-12 text-center">
                 <Crosshair className="w-8 h-8 text-gray-200 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  {searchQuery || filterValue !== "all"
+                  {searchQuery || activeFilterCount > 0
                     ? "Tidak ada data yang cocok"
                     : "Belum ada target. Minta admin mengatur angkatan Anda."}
                 </p>
