@@ -39,6 +39,7 @@ const navItems: NavItem[] = [
   { icon: Crosshair, label: "Target Saya", path: "/target", minRole: "campaigner", hideForRole: "admin" },
   { icon: UserPlus, label: "Penugasan", path: "/admin/assignments", minRole: "admin" },
   { icon: Calendar, label: "Kegiatan", path: "/kegiatan", minRole: "viewer", hideForRole: "campaigner" },
+  { icon: Users, label: "Anggota", path: "/anggota", minRole: "super_admin" },
   { icon: Smartphone, label: "WA Group", path: "/wa-group", minRole: "admin" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer", hideForRole: "campaigner" },
   { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer", hideForRole: "campaigner" },
