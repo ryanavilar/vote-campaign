@@ -2,6 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getUserRole, isSuperAdmin } from "@/lib/roles";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { normalizePhone, getAllMemberPhones } from "@/lib/phone";
 
 const MIMIN_BASE_URL = "https://mimin-api.mimin.io/mimin-backend";
 
@@ -196,32 +197,43 @@ export async function GET() {
     );
   }
 
-  // Get already-linked members (alumni that already have members with phone data)
-  // We want to match Mimin customers to alumni, then those alumni can become members
-  let existingMembers: { alumni_id: string; no_hp: string }[];
+  // Get all existing members to check which phones are already linked
+  let existingMembers: { id: string; alumni_id: string | null; no_hp: string | null; alt_phones: string[] | null; nama: string }[];
   try {
     existingMembers = await fetchAll(
       adminClient,
       "members",
-      "alumni_id, no_hp",
-      (q) => q.not("alumni_id", "is", null)
+      "id, alumni_id, no_hp, alt_phones, nama"
     );
   } catch {
     existingMembers = [];
   }
 
-  // Build a set of alumni IDs that already have members with matching phone
-  const linkedAlumniPhones = new Map<string, string>();
+  // Build a set of all normalized phones already in the members table
+  const allLinkedPhones = new Map<string, { member_id: string; member_nama: string }>();
   for (const m of existingMembers) {
-    if (m.alumni_id && m.no_hp) {
-      linkedAlumniPhones.set(m.alumni_id, m.no_hp);
+    const phones = getAllMemberPhones(m);
+    for (const p of phones) {
+      allLinkedPhones.set(p, { member_id: m.id, member_nama: m.nama });
     }
   }
 
   const candidates: MatchCandidate[] = [];
 
+  let alreadyLinkedCount = 0;
+
   for (const customer of uniqueCustomers) {
     if (!customer.name) continue;
+
+    // Skip if this customer's phone is already in the members table
+    if (customer.phone) {
+      const normalizedCustPhone = normalizePhone(customer.phone.replace(/\D/g, ""));
+      if (normalizedCustPhone && allLinkedPhones.has(normalizedCustPhone)) {
+        alreadyLinkedCount++;
+        continue;
+      }
+    }
+
     const normalizedCustomer = normalizeName(customer.name);
 
     let bestMatch: {
@@ -286,6 +298,7 @@ export async function GET() {
     total_customers: uniqueCustomers.length,
     total_certain: candidates.filter((c) => c.confidence === "certain").length,
     total_uncertain: candidates.filter((c) => c.confidence === "uncertain").length,
-    total_no_match: uniqueCustomers.length - candidates.length,
+    total_no_match: uniqueCustomers.length - candidates.length - alreadyLinkedCount,
+    total_already_linked: alreadyLinkedCount,
   });
 }

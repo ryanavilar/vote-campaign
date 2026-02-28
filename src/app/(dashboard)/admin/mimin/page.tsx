@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
+import { supabase } from "@/lib/supabase";
+import { normalizePhone, getAllMemberPhones } from "@/lib/phone";
 import {
   Loader2,
   Bot,
@@ -18,6 +20,7 @@ import {
   Users as UsersIcon,
   Filter,
   GraduationCap,
+  UserCheck,
 } from "lucide-react";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -47,6 +50,7 @@ interface LinkPreviewResult {
   total_certain: number;
   total_uncertain: number;
   total_no_match: number;
+  total_already_linked: number;
 }
 
 type LinkTab = "certain" | "uncertain";
@@ -63,6 +67,9 @@ export default function MiminDataPage() {
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Linked phones map: normalized phone → member name
+  const [linkedPhones, setLinkedPhones] = useState<Map<string, string>>(new Map());
+
   // Link preview
   const [linkPreview, setLinkPreview] = useState<LinkPreviewResult | null>(null);
   const [linkLoading, setLinkLoading] = useState(false);
@@ -71,14 +78,30 @@ export default function MiminDataPage() {
   const [selectedPairs, setSelectedPairs] = useState<Set<string>>(new Set());
   const [confirmLoading, setConfirmLoading] = useState(false);
 
-  // Load customers on mount
+  // Load customers and linked phones on mount
   useEffect(() => {
     if (!roleLoading && isSuperAdmin) {
       loadCustomers();
+      loadLinkedPhones();
     } else if (!roleLoading && !isSuperAdmin) {
       setLoading(false);
     }
   }, [roleLoading, isSuperAdmin]);
+
+  async function loadLinkedPhones() {
+    const { data: members } = await supabase
+      .from("members")
+      .select("nama, no_hp, alt_phones");
+    if (!members) return;
+    const map = new Map<string, string>();
+    for (const m of members) {
+      const phones = getAllMemberPhones(m);
+      for (const p of phones) {
+        map.set(p, m.nama);
+      }
+    }
+    setLinkedPhones(map);
+  }
 
   async function loadCustomers() {
     setLoading(true);
@@ -123,14 +146,27 @@ export default function MiminDataPage() {
     );
   }, [deduplicated, search]);
 
+  // Check if a customer phone is already linked to a member
+  const getLinkedMember = (phone: string | undefined): string | null => {
+    if (!phone || linkedPhones.size === 0) return null;
+    const normalized = normalizePhone(phone.replace(/\D/g, ""));
+    if (!normalized) return null;
+    return linkedPhones.get(normalized) || null;
+  };
+
   // Stats
   const stats = useMemo(() => {
     const total = deduplicated.length;
     const duplicates = customers.length - deduplicated.length;
     const withPhone = deduplicated.filter((c) => c.phone).length;
     const withName = deduplicated.filter((c) => c.name).length;
-    return { total, duplicates, withPhone, withName };
-  }, [customers, deduplicated]);
+    const alreadyLinked = deduplicated.filter((c) => {
+      if (!c.phone || linkedPhones.size === 0) return false;
+      const normalized = normalizePhone(c.phone.replace(/\D/g, ""));
+      return normalized ? linkedPhones.has(normalized) : false;
+    }).length;
+    return { total, duplicates, withPhone, withName, alreadyLinked };
+  }, [customers, deduplicated, linkedPhones]);
 
   // Link preview
   async function handleLoadLinkPreview() {
@@ -191,6 +227,8 @@ export default function MiminDataPage() {
       );
       setShowLinkModal(false);
       setLinkPreview(null);
+      // Refresh linked phones to update tags
+      await loadLinkedPhones();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Gagal menghubungkan";
       showToast(msg, "error");
@@ -277,7 +315,7 @@ export default function MiminDataPage() {
       <div className="px-4 sm:px-6 py-4 space-y-4 max-w-7xl mx-auto">
         {/* Stats Cards */}
         {!loading && !error && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 <UsersIcon className="w-4 h-4 text-[#0B27BC]" />
@@ -290,7 +328,14 @@ export default function MiminDataPage() {
             </div>
             <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
-                <Phone className="w-4 h-4 text-emerald-600" />
+                <UserCheck className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs text-gray-500">Terhubung</span>
+              </div>
+              <p className="text-xl font-bold text-emerald-600">{stats.alreadyLinked.toLocaleString()}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <Phone className="w-4 h-4 text-[#0B27BC]" />
                 <span className="text-xs text-gray-500">Punya HP</span>
               </div>
               <p className="text-xl font-bold text-foreground">{stats.withPhone.toLocaleString()}</p>
@@ -404,30 +449,41 @@ export default function MiminDataPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {filtered.map((customer, idx) => (
-                      <tr key={customer._id} className="hover:bg-gray-50/50">
-                        <td className="px-4 py-2.5 text-gray-400 text-xs">{idx + 1}</td>
-                        <td className="px-4 py-2.5">
-                          <span className="font-medium text-foreground">{customer.name || "—"}</span>
-                        </td>
-                        <td className="px-4 py-2.5">
-                          {customer.phone ? (
-                            <span className="font-mono text-xs text-gray-600">{customer.phone}</span>
-                          ) : (
-                            <span className="text-gray-400 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-xs text-gray-500">
-                          {customer.created_at
-                            ? new Date(customer.created_at).toLocaleDateString("id-ID", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : "—"}
-                        </td>
-                      </tr>
-                    ))}
+                    {filtered.map((customer, idx) => {
+                      const linkedMember = getLinkedMember(customer.phone);
+                      return (
+                        <tr key={customer._id} className={`hover:bg-gray-50/50 ${linkedMember ? "bg-emerald-50/30" : ""}`}>
+                          <td className="px-4 py-2.5 text-gray-400 text-xs">{idx + 1}</td>
+                          <td className="px-4 py-2.5">
+                            <span className="font-medium text-foreground">{customer.name || "—"}</span>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-2">
+                              {customer.phone ? (
+                                <span className="font-mono text-xs text-gray-600">{customer.phone}</span>
+                              ) : (
+                                <span className="text-gray-400 text-xs">—</span>
+                              )}
+                              {linkedMember && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-medium whitespace-nowrap">
+                                  <UserCheck className="w-3 h-3" />
+                                  {linkedMember}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5 text-xs text-gray-500">
+                            {customer.created_at
+                              ? new Date(customer.created_at).toLocaleDateString("id-ID", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })
+                              : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -435,37 +491,48 @@ export default function MiminDataPage() {
 
             {/* Mobile Cards */}
             <div className="md:hidden space-y-2">
-              {filtered.map((customer, idx) => (
-                <div
-                  key={customer._id}
-                  className="bg-white rounded-xl border border-border p-3 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-400 shrink-0">{idx + 1}.</span>
-                        <span className="text-sm font-medium text-foreground truncate">
-                          {customer.name || "—"}
-                        </span>
-                      </div>
-                      {customer.phone && (
-                        <div className="flex items-center gap-1.5 mt-1 ml-5">
-                          <Phone className="w-3 h-3 text-gray-400" />
-                          <span className="font-mono text-xs text-gray-600">{customer.phone}</span>
+              {filtered.map((customer, idx) => {
+                const linkedMember = getLinkedMember(customer.phone);
+                return (
+                  <div
+                    key={customer._id}
+                    className={`bg-white rounded-xl border p-3 shadow-sm ${linkedMember ? "border-emerald-200 bg-emerald-50/30" : "border-border"}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400 shrink-0">{idx + 1}.</span>
+                          <span className="text-sm font-medium text-foreground truncate">
+                            {customer.name || "—"}
+                          </span>
                         </div>
-                      )}
+                        {customer.phone && (
+                          <div className="flex items-center gap-1.5 mt-1 ml-5">
+                            <Phone className="w-3 h-3 text-gray-400" />
+                            <span className="font-mono text-xs text-gray-600">{customer.phone}</span>
+                          </div>
+                        )}
+                        {linkedMember && (
+                          <div className="flex items-center gap-1.5 mt-1 ml-5">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-medium">
+                              <UserCheck className="w-3 h-3" />
+                              Terhubung: {linkedMember}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-gray-400 shrink-0">
+                        {customer.created_at
+                          ? new Date(customer.created_at).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                            })
+                          : ""}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-gray-400 shrink-0">
-                      {customer.created_at
-                        ? new Date(customer.created_at).toLocaleDateString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                          })
-                        : ""}
-                    </span>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
@@ -483,7 +550,10 @@ export default function MiminDataPage() {
                   Auto-Link: Customer → Alumni
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {linkPreview.total_customers} customer total &middot;{" "}
+                  {linkPreview.total_customers} total &middot;{" "}
+                  {linkPreview.total_already_linked > 0 && (
+                    <span className="text-emerald-600">{linkPreview.total_already_linked} sudah terhubung &middot; </span>
+                  )}
                   {linkPreview.total_certain} pasti &middot;{" "}
                   {linkPreview.total_uncertain} ragu &middot;{" "}
                   {linkPreview.total_no_match} tidak cocok
