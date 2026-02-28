@@ -168,7 +168,15 @@ export async function GET() {
     );
   }
 
-  if (allCustomers.length === 0) {
+  // Deduplicate: same name + same phone → treat as one
+  const seenKeys = new Map<string, MiminCustomer>();
+  for (const c of allCustomers) {
+    const key = `${(c.name || "").trim().toLowerCase()}||${(c.phone || "").replace(/\D/g, "")}`;
+    if (!seenKeys.has(key)) seenKeys.set(key, c);
+  }
+  const uniqueCustomers = Array.from(seenKeys.values());
+
+  if (uniqueCustomers.length === 0) {
     return NextResponse.json({ candidates: [], total_customers: 0 });
   }
 
@@ -212,7 +220,7 @@ export async function GET() {
 
   const candidates: MatchCandidate[] = [];
 
-  for (const customer of allCustomers) {
+  for (const customer of uniqueCustomers) {
     if (!customer.name) continue;
     const normalizedCustomer = normalizeName(customer.name);
 
@@ -275,9 +283,9 @@ export async function GET() {
 
   return NextResponse.json({
     candidates,
-    total_customers: allCustomers.length,
+    total_customers: uniqueCustomers.length,
     total_certain: candidates.filter((c) => c.confidence === "certain").length,
     total_uncertain: candidates.filter((c) => c.confidence === "uncertain").length,
-    total_no_match: allCustomers.length - candidates.length,
+    total_no_match: uniqueCustomers.length - candidates.length,
   });
 }

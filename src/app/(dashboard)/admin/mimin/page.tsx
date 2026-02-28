@@ -100,24 +100,37 @@ export default function MiminDataPage() {
     }
   }
 
+  // Deduplicate: same name + same phone → treat as one
+  const deduplicated = useMemo(() => {
+    const seen = new Map<string, MiminCustomer>();
+    for (const c of customers) {
+      const key = `${(c.name || "").trim().toLowerCase()}||${(c.phone || "").replace(/\D/g, "")}`;
+      if (!seen.has(key)) {
+        seen.set(key, c);
+      }
+    }
+    return Array.from(seen.values());
+  }, [customers]);
+
   // Filtered customers
   const filtered = useMemo(() => {
-    if (!search.trim()) return customers;
+    if (!search.trim()) return deduplicated;
     const q = search.toLowerCase();
-    return customers.filter(
+    return deduplicated.filter(
       (c) =>
         (c.name || "").toLowerCase().includes(q) ||
         (c.phone || "").includes(q)
     );
-  }, [customers, search]);
+  }, [deduplicated, search]);
 
   // Stats
   const stats = useMemo(() => {
-    const total = customers.length;
-    const withPhone = customers.filter((c) => c.phone).length;
-    const withName = customers.filter((c) => c.name).length;
-    return { total, withPhone, withName };
-  }, [customers]);
+    const total = deduplicated.length;
+    const duplicates = customers.length - deduplicated.length;
+    const withPhone = deduplicated.filter((c) => c.phone).length;
+    const withName = deduplicated.filter((c) => c.name).length;
+    return { total, duplicates, withPhone, withName };
+  }, [customers, deduplicated]);
 
   // Link preview
   async function handleLoadLinkPreview() {
@@ -264,13 +277,16 @@ export default function MiminDataPage() {
       <div className="px-4 sm:px-6 py-4 space-y-4 max-w-7xl mx-auto">
         {/* Stats Cards */}
         {!loading && !error && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 <UsersIcon className="w-4 h-4 text-[#0B27BC]" />
-                <span className="text-xs text-gray-500">Total Customer</span>
+                <span className="text-xs text-gray-500">Unik</span>
               </div>
               <p className="text-xl font-bold text-foreground">{stats.total.toLocaleString()}</p>
+              {stats.duplicates > 0 && (
+                <p className="text-[10px] text-gray-400">{stats.duplicates} duplikat dihapus</p>
+              )}
             </div>
             <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
@@ -285,6 +301,13 @@ export default function MiminDataPage() {
                 <span className="text-xs text-gray-500">Punya Nama</span>
               </div>
               <p className="text-xl font-bold text-foreground">{stats.withName.toLocaleString()}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <Filter className="w-4 h-4 text-gray-400" />
+                <span className="text-xs text-gray-500">Raw Total</span>
+              </div>
+              <p className="text-xl font-bold text-gray-400">{customers.length.toLocaleString()}</p>
             </div>
           </div>
         )}
@@ -363,9 +386,9 @@ export default function MiminDataPage() {
         {!loading && !error && customers.length > 0 && (
           <>
             <div className="text-xs text-gray-500">
-              {filtered.length === customers.length
-                ? `${customers.length} customer`
-                : `${filtered.length} dari ${customers.length} customer`}
+              {filtered.length === deduplicated.length
+                ? `${deduplicated.length} customer (unik)`
+                : `${filtered.length} dari ${deduplicated.length} customer (unik)`}
             </div>
 
             {/* Desktop Table */}
