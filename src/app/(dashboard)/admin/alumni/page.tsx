@@ -27,7 +27,13 @@ import {
   MessageCircle,
   AlertOctagon,
   Merge,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
+
+const PAGE_SIZE = 50;
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -347,6 +353,20 @@ export default function AdminAlumniPage() {
       return true;
     });
   }, [alumni, searchQuery, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filteredAlumni.length / PAGE_SIZE));
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+
+  const paginatedAlumni = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredAlumni.slice(start, start + PAGE_SIZE);
+  }, [filteredAlumni, page]);
 
   // Field update handler — same flow as Target: auto-create member on first edit
   const handleFieldUpdate = useCallback(
@@ -770,14 +790,15 @@ export default function AdminAlumniPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredAlumni.map((item, idx) => {
+                  paginatedAlumni.map((item, idx) => {
                     const member = item.members && item.members.length > 0 ? item.members[0] : null;
                     const isGrupSudah = member?.masuk_grup === "Sudah";
                     const multiCount = item.members?.length || 0;
+                    const globalIdx = (page - 1) * PAGE_SIZE + idx;
 
                     return (
                       <tr key={item.id} className={`border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors ${multiCount > 1 ? "bg-amber-50/40" : ""}`}>
-                        <td className="px-3 py-2 text-gray-400 text-xs">{idx + 1}</td>
+                        <td className="px-3 py-2 text-gray-400 text-xs">{globalIdx + 1}</td>
                         <td className="px-3 py-2">
                           <div>
                             <div className="flex items-center gap-1.5">
@@ -868,7 +889,7 @@ export default function AdminAlumniPage() {
                 </p>
               </div>
             ) : (
-              filteredAlumni.map((item) => {
+              paginatedAlumni.map((item) => {
                 const member = item.members && item.members.length > 0 ? item.members[0] : null;
                 const isGrupSudah = member?.masuk_grup === "Sudah";
                 const multiCount = item.members?.length || 0;
@@ -964,6 +985,52 @@ export default function AdminAlumniPage() {
               })
             )}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-4 py-3 border-t border-border bg-gray-50/50 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {formatNum((page - 1) * PAGE_SIZE + 1)}–{formatNum(Math.min(page * PAGE_SIZE, filteredAlumni.length))} dari {formatNum(filteredAlumni.length)}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage(1)}
+                  disabled={page === 1}
+                  className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Halaman pertama"
+                >
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Sebelumnya"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="px-3 py-1 text-xs font-medium text-foreground">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Berikutnya"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setPage(totalPages)}
+                  disabled={page === totalPages}
+                  className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Halaman terakhir"
+                >
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
