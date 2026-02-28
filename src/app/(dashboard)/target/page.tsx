@@ -78,10 +78,12 @@ function InlinePhoneEdit({
   }, [editing]);
 
   const save = () => {
-    const trimmed = draft.trim();
-    if (trimmed !== value) {
-      onSave(trimmed);
+    // Strip all non-digit characters before saving
+    const digitsOnly = draft.replace(/\D/g, "");
+    if (digitsOnly !== value) {
+      onSave(digitsOnly);
     }
+    setDraft(digitsOnly);
     setEditing(false);
   };
 
@@ -102,22 +104,32 @@ function InlinePhoneEdit({
   }
 
   return (
-    <input
-      ref={inputRef}
-      type="tel"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={save}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") save();
-        if (e.key === "Escape") {
-          setDraft(value);
-          setEditing(false);
-        }
-      }}
-      className="text-xs w-full px-2 py-1 border border-[#0B27BC] rounded focus:outline-none focus:ring-1 focus:ring-[#0B27BC]/30 min-w-[90px]"
-      placeholder="08xxxxxxxxxx"
-    />
+    <div className="relative min-w-[90px]">
+      <input
+        ref={inputRef}
+        type="tel"
+        inputMode="numeric"
+        value={draft}
+        onChange={(e) => {
+          // Only allow digits
+          const cleaned = e.target.value.replace(/\D/g, "");
+          setDraft(cleaned);
+        }}
+        onBlur={save}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") {
+            setDraft(value);
+            setEditing(false);
+          }
+        }}
+        className="text-xs w-full px-2 py-1 border border-[#0B27BC] rounded focus:outline-none focus:ring-1 focus:ring-[#0B27BC]/30"
+        placeholder="628xxxxxxxxxx"
+      />
+      <p className="text-[9px] text-[#0B27BC]/70 mt-0.5 px-1">
+        Awali dengan kode negara, misal 628xxx (bukan 08xxx)
+      </p>
+    </div>
   );
 }
 
@@ -141,8 +153,8 @@ function StatusChip({
       <span
         className={`text-[10px] px-2 py-1 rounded-full font-medium whitespace-nowrap inline-block ${
           isSudah
-            ? "bg-emerald-100 text-emerald-700"
-            : "bg-gray-100 text-gray-400"
+            ? "bg-emerald-100/60 text-emerald-600"
+            : "bg-gray-50 text-gray-300"
         }`}
         title={isSudah ? "Terhubung di WA Group" : "Belum di WA Group"}
       >
@@ -155,11 +167,12 @@ function StatusChip({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`text-[10px] px-2 py-1 rounded-full font-medium transition-colors whitespace-nowrap ${
+      className={`text-[10px] px-2 py-1 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer border ${
         isSudah
-          ? "bg-emerald-100 text-emerald-700"
-          : "bg-gray-100 text-gray-400"
-      } disabled:opacity-50`}
+          ? "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 hover:border-emerald-300"
+          : "bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200 hover:border-gray-300"
+      } active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+      title="Klik untuk mengubah"
     >
       {isSudah ? "Sudah" : "Belum"}
     </button>
@@ -167,6 +180,13 @@ function StatusChip({
 }
 
 /* ── Dukungan Chip (cycle) ─────────────────────────────── */
+
+const DUKUNGAN_INTERACTIVE_STYLES: Record<string, string> = {
+  dukung: "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200 hover:border-emerald-300",
+  ragu_ragu: "bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-200 hover:border-yellow-300",
+  milih_sebelah: "bg-red-100 text-red-700 border-red-200 hover:bg-red-200 hover:border-red-300",
+  terkonvert: "bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:border-blue-300",
+};
 
 function DukunganChip({
   value,
@@ -182,21 +202,23 @@ function DukunganChip({
       <button
         onClick={onClick}
         disabled={disabled}
-        className="text-[10px] px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-400 transition-colors whitespace-nowrap disabled:opacity-50"
+        className="text-[10px] px-2 py-1 rounded-full font-medium bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200 hover:border-gray-300 transition-all whitespace-nowrap cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+        title="Klik untuk mengubah"
       >
         —
       </button>
     );
   }
 
-  const style = DUKUNGAN_STYLES[value] || "bg-gray-100 text-gray-500";
+  const style = DUKUNGAN_INTERACTIVE_STYLES[value] || "bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200";
   const label = DUKUNGAN_LABELS[value] || value;
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`text-[10px] px-2 py-1 rounded-full font-medium transition-colors whitespace-nowrap ${style} disabled:opacity-50`}
+      className={`text-[10px] px-2 py-1 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer border active:scale-95 ${style} disabled:opacity-50 disabled:cursor-not-allowed`}
+      title="Klik untuk mengubah"
     >
       {label}
     </button>
