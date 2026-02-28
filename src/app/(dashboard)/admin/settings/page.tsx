@@ -15,6 +15,9 @@ import {
   Mail,
   Copy,
   ExternalLink,
+  Bot,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface WahaConfig {
@@ -43,7 +46,7 @@ export default function AdminSettingsPage() {
   const { showToast } = useToast();
 
   // Active settings tab
-  const [activeTab, setActiveTab] = useState<"whatsapp" | "email">("whatsapp");
+  const [activeTab, setActiveTab] = useState<"whatsapp" | "email" | "mimin">("whatsapp");
 
   // WAHA state
   const [config, setConfig] = useState<WahaConfig>(DEFAULT_CONFIG);
@@ -51,6 +54,14 @@ export default function AdminSettingsPage() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "success" | "failed">("idle");
+
+  // Mimin.io state
+  const [miminToken, setMiminToken] = useState("");
+  const [miminLoading, setMiminLoading] = useState(false);
+  const [miminSaveLoading, setMiminSaveLoading] = useState(false);
+  const [showMiminToken, setShowMiminToken] = useState(false);
+  const [miminTestLoading, setMiminTestLoading] = useState(false);
+  const [miminStatus, setMiminStatus] = useState<"idle" | "success" | "failed">("idle");
 
   // Email template state
   const [activeEmailTab, setActiveEmailTab] = useState("invite");
@@ -61,6 +72,7 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     if (!roleLoading && isSuperAdmin) {
       loadConfig();
+      loadMiminToken();
     } else if (!roleLoading && !isSuperAdmin) {
       setConfigLoading(false);
     }
@@ -142,6 +154,69 @@ export default function AdminSettingsPage() {
       showToast(message, "error");
     } finally {
       setSaveLoading(false);
+    }
+  }
+
+  // Mimin.io token helpers
+  async function loadMiminToken() {
+    setMiminLoading(true);
+    try {
+      const response = await fetch("/api/settings?key=mimin_token");
+      if (!response.ok) throw new Error("Gagal memuat token Mimin.io");
+      const data = await response.json();
+      if (data.value) {
+        setMiminToken(typeof data.value === "string" ? data.value : "");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Gagal memuat token";
+      showToast(message, "error");
+    } finally {
+      setMiminLoading(false);
+    }
+  }
+
+  async function handleSaveMiminToken() {
+    if (!miminToken.trim()) {
+      showToast("Token harus diisi", "error");
+      return;
+    }
+    setMiminSaveLoading(true);
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "mimin_token", value: miminToken.trim() }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal menyimpan token");
+      }
+      showToast("Token Mimin.io berhasil disimpan", "success");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Gagal menyimpan token";
+      showToast(message, "error");
+    } finally {
+      setMiminSaveLoading(false);
+    }
+  }
+
+  async function handleTestMimin() {
+    if (!miminToken.trim()) {
+      showToast("Token harus diisi", "error");
+      return;
+    }
+    setMiminTestLoading(true);
+    setMiminStatus("idle");
+    try {
+      const response = await fetch("/api/mimin/customers?limit=1");
+      if (!response.ok) throw new Error("Koneksi gagal");
+      setMiminStatus("success");
+      showToast("Koneksi Mimin.io berhasil!", "success");
+    } catch {
+      setMiminStatus("failed");
+      showToast("Koneksi gagal. Periksa token Mimin.io.", "error");
+    } finally {
+      setMiminTestLoading(false);
     }
   }
 
@@ -237,6 +312,17 @@ export default function AdminSettingsPage() {
           >
             <Mail className="w-4 h-4" />
             Email Templates
+          </button>
+          <button
+            onClick={() => setActiveTab("mimin")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === "mimin"
+                ? "bg-[#0B27BC] text-white shadow-sm"
+                : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            <Bot className="w-4 h-4" />
+            Mimin.io
           </button>
         </div>
 
@@ -341,6 +427,93 @@ export default function AdminSettingsPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Mimin.io Tab ──────────────────────────────────────────── */}
+        {activeTab === "mimin" && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-border p-4 sm:p-6 shadow-sm">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-4">
+                <Bot className="w-4 h-4 text-[#0B27BC]" />
+                Token Mimin.io
+              </h3>
+
+              {miminLoading ? (
+                <div className="flex items-center gap-2 py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#0B27BC]" />
+                  <span className="text-sm text-gray-500">Memuat...</span>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">API Token</label>
+                    <div className="relative">
+                      <input
+                        type={showMiminToken ? "text" : "password"}
+                        value={miminToken}
+                        onChange={(e) => setMiminToken(e.target.value)}
+                        placeholder="Paste token Mimin.io Anda di sini"
+                        className="w-full px-3 py-2 pr-10 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] font-mono text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowMiminToken(!showMiminToken)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showMiminToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Token untuk mengakses Mimin.io WABA API. Generate token dari dashboard Mimin.io.
+                    </p>
+                  </div>
+
+                  {miminStatus !== "idle" && (
+                    <div
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+                        miminStatus === "success"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-red-50 text-red-700 border border-red-200"
+                      }`}
+                    >
+                      {miminStatus === "success" ? (
+                        <><Check className="w-4 h-4" /><span>Koneksi Mimin.io berhasil</span></>
+                      ) : (
+                        <><X className="w-4 h-4" /><span>Koneksi gagal. Periksa token.</span></>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      onClick={handleTestMimin}
+                      disabled={miminTestLoading || !miminToken.trim()}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-[#0B27BC] bg-[#0B27BC]/10 rounded-lg hover:bg-[#0B27BC]/20 transition-colors disabled:opacity-50"
+                    >
+                      {miminTestLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : miminStatus === "success" ? (
+                        <Wifi className="w-4 h-4" />
+                      ) : miminStatus === "failed" ? (
+                        <WifiOff className="w-4 h-4" />
+                      ) : (
+                        <Wifi className="w-4 h-4" />
+                      )}
+                      Test Koneksi
+                    </button>
+                    <button
+                      onClick={handleSaveMiminToken}
+                      disabled={miminSaveLoading || !miminToken.trim()}
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091fa0] transition-colors disabled:opacity-50"
+                    >
+                      {miminSaveLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      Simpan Token
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

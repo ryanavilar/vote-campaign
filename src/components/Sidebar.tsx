@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Crosshair,
   Smartphone,
+  Bot,
 } from "lucide-react";
 import { useState } from "react";
 import { useRole } from "@/lib/RoleContext";
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
 
 const adminItems: NavItem[] = [
   { icon: Settings, label: "Pengguna", path: "/admin/users", minRole: "admin" },
+  { icon: Bot, label: "Mimin.io", path: "/admin/mimin", minRole: "super_admin" },
   { icon: Settings2, label: "Pengaturan", path: "/admin/settings", minRole: "super_admin" },
 ];
 
