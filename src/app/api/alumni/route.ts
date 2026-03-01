@@ -66,7 +66,7 @@ interface AlumniWithMembers {
  *
  * Query params:
  *   page, limit, search, angkatan, linked, multiLink,
- *   kontak, dukungan, grup, dpt, vote, phone
+ *   kontak, dukungan, grup, dpt, vote, phone, skipStats
  */
 export async function GET(request: NextRequest) {
   await createSupabaseServerClient(); // auth check
@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
   const fDpt = searchParams.get("dpt") || "";
   const fVote = searchParams.get("vote") || "";
   const fPhone = searchParams.get("phone") || "";
+  const skipStats = searchParams.get("skipStats") === "true";
 
   try {
     // ── 1. Parallel lightweight fetches (stats + filtering + grup) ──
@@ -121,27 +122,32 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── 4. Compute GLOBAL stats (before filters) ──
+    // ── 4. Compute GLOBAL stats (before filters) — skipped when skipStats ──
     const allAlumni = allAlumniLite || [];
-    const linkedAlumni = allAlumni.filter((a) => memberByAlumni[a.id]);
-    const stats = {
-      total: allAlumni.length,
-      linked: linkedAlumni.length,
-      kontak: linkedAlumni.filter((a) => memberByAlumni[a.id].sudah_dikontak === "Sudah").length,
-      dukung: linkedAlumni.filter((a) => {
-        const d = memberByAlumni[a.id].dukungan;
-        return d === "dukung" || d === "terkonvert";
-      }).length,
-      ragu: linkedAlumni.filter((a) => memberByAlumni[a.id].dukungan === "ragu_ragu").length,
-      sebelah: linkedAlumni.filter((a) => memberByAlumni[a.id].dukungan === "milih_sebelah").length,
-      grup: linkedAlumni.filter((a) => memberByAlumni[a.id].masuk_grup === "Sudah").length,
-      multiLinked: allAlumni.filter((a) => (memberCountByAlumni[a.id] || 0) > 1).length,
-    };
+    let stats = null;
+    let availableAngkatan = null;
 
-    // ── 5. Available angkatan for filter dropdown ──
-    const angkatanSet = new Set<number>();
-    allAlumni.forEach((a) => angkatanSet.add(a.angkatan));
-    const availableAngkatan = Array.from(angkatanSet).sort((a, b) => a - b);
+    if (!skipStats) {
+      const linkedAlumni = allAlumni.filter((a) => memberByAlumni[a.id]);
+      stats = {
+        total: allAlumni.length,
+        linked: linkedAlumni.length,
+        kontak: linkedAlumni.filter((a) => memberByAlumni[a.id].sudah_dikontak === "Sudah").length,
+        dukung: linkedAlumni.filter((a) => {
+          const d = memberByAlumni[a.id].dukungan;
+          return d === "dukung" || d === "terkonvert";
+        }).length,
+        ragu: linkedAlumni.filter((a) => memberByAlumni[a.id].dukungan === "ragu_ragu").length,
+        sebelah: linkedAlumni.filter((a) => memberByAlumni[a.id].dukungan === "milih_sebelah").length,
+        grup: linkedAlumni.filter((a) => memberByAlumni[a.id].masuk_grup === "Sudah").length,
+        multiLinked: allAlumni.filter((a) => (memberCountByAlumni[a.id] || 0) > 1).length,
+      };
+
+      // ── 5. Available angkatan for filter dropdown ──
+      const angkatanSet = new Set<number>();
+      allAlumni.forEach((a) => angkatanSet.add(a.angkatan));
+      availableAngkatan = Array.from(angkatanSet).sort((a, b) => a - b);
+    }
 
     // ── 6. Apply filters ──
     let filtered = allAlumni as { id: string; nama: string; angkatan: number }[];

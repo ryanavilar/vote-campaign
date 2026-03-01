@@ -202,13 +202,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 2. Fetch alumni for those angkatans
-  let alumni;
+  // 2. Fetch lightweight alumni list for these angkatans (for filtering + pagination)
+  let alumniLite: { id: string; nama: string; angkatan: number }[];
   try {
-    alumni = await fetchAll(
+    alumniLite = await fetchAll(
       adminClient,
       "alumni",
-      "id, nama, angkatan, nosis, kelanjutan_studi, program_studi, keterangan",
+      "id, nama, angkatan",
       (q) => q.in("angkatan", angkatanList).order("angkatan").order("nama")
     );
   } catch (err) {
@@ -218,83 +218,144 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // 3. Get all alumni_ids, fetch linked members (parallel chunks)
-  const alumniIds = alumni.map((a: { id: string }) => a.id);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const membersMap: Record<string, any> = {};
-  if (alumniIds.length > 0) {
-    try {
-      const chunks: string[][] = [];
-      for (let i = 0; i < alumniIds.length; i += 500) chunks.push(alumniIds.slice(i, i + 500));
-      const results = await Promise.all(
-        chunks.map((chunk) => fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) => q.in("alumni_id", chunk)))
-      );
-      for (const rows of results) {
-        for (const m of rows) { if (m.alumni_id) membersMap[m.alumni_id] = m; }
-      }
-    } catch {
-      // Continue without member data
+  // ── Non-paginated path: flat array (backward compat for Target Saya page) ──
+  const pageParam = searchParams.get("page");
+  if (!pageParam) {
+    // Full fetch for legacy callers — same as before
+    const alumniIds = alumniLite.map((a) => a.id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const membersMap: Record<string, any> = {};
+    if (alumniIds.length > 0) {
+      try {
+        const chunks: string[][] = [];
+        for (let i = 0; i < alumniIds.length; i += 500) chunks.push(alumniIds.slice(i, i + 500));
+        const results = await Promise.all(
+          chunks.map((chunk) => fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) => q.in("alumni_id", chunk)))
+        );
+        for (const rows of results) {
+          for (const m of rows) { if (m.alumni_id) membersMap[m.alumni_id] = m; }
+        }
+      } catch { /* continue */ }
     }
+    const mIds = Object.values(membersMap).map((m) => m.id).filter(Boolean) as string[];
+    const waLinked = new Set<string>();
+    const attCounts: Record<string, number> = {};
+    if (mIds.length > 0) {
+      const mChunks: string[][] = [];
+      for (let i = 0; i < mIds.length; i += 500) mChunks.push(mIds.slice(i, i + 500));
+      const [waRes, attRes] = await Promise.all([
+        Promise.all(mChunks.map((c) => fetchAll(adminClient, "wa_group_members", "member_id", (q) => q.in("member_id", c).not("member_id", "is", null)).catch(() => []))),
+        Promise.all(mChunks.map((c) => fetchAll(adminClient, "event_attendance", "member_id", (q) => q.in("member_id", c)).catch(() => []))),
+      ]);
+      for (const rows of waRes) for (const w of rows) if (w.member_id) waLinked.add(w.member_id);
+      for (const rows of attRes) for (const a of rows) if (a.member_id) attCounts[a.member_id] = (attCounts[a.member_id] || 0) + 1;
+    }
+    const flat = alumniLite.map((a) => {
+      const member = membersMap[a.id];
+      const inGroup = member?.id ? waLinked.has(member.id) : false;
+      return {
+        alumni_id: a.id, alumni_nama: a.nama, alumni_angkatan: a.angkatan,
+        alumni_nosis: null, alumni_kelanjutan_studi: null,
+        member_id: member?.id || null, no: member?.no || null,
+        nama: member?.nama || a.nama, angkatan: member?.angkatan || a.angkatan,
+        no_hp: member?.no_hp || "", status_dpt: member?.status_dpt || null,
+        sudah_dikontak: inGroup ? "Sudah" : (member?.sudah_dikontak || null),
+        masuk_grup: inGroup ? "Sudah" : "Belum",
+        vote: member?.vote || null, dukungan: member?.dukungan || null,
+        attendance_count: member?.id ? (attCounts[member.id] || 0) : 0,
+      };
+    });
+    return NextResponse.json(flat);
   }
 
-  // 3b. Derive masuk_grup + attendance counts (parallel)
-  const memberIds = Object.values(membersMap).map((m) => m.id).filter(Boolean) as string[];
+  // ── Paginated path: only fetch member data for the current page ──
+  const search = (searchParams.get("search") || "").trim().toLowerCase();
+  const angkatanFilter = searchParams.get("angkatan") || "";
+  const page = Math.max(1, parseInt(pageParam));
+  const limit = Math.max(1, Math.min(200, parseInt(searchParams.get("limit") || "50")));
+
+  // Available angkatan (from lightweight list, cheap)
+  const angSet = new Set<number>();
+  alumniLite.forEach((a) => angSet.add(a.angkatan));
+  const availableAngkatan = Array.from(angSet).sort((a, b) => a - b);
+
+  // Apply search + angkatan filter on the lightweight list
+  let filtered = alumniLite;
+  if (angkatanFilter) {
+    const num = Number(angkatanFilter);
+    filtered = filtered.filter((a) => a.angkatan === num);
+  }
+  if (search) {
+    filtered = filtered.filter((a) => a.nama.toLowerCase().includes(search));
+  }
+
+  // Paginate
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * limit;
+  const pageSlice = filtered.slice(offset, offset + limit);
+  const pageAlumniIds = pageSlice.map((a) => a.id);
+
+  if (pageAlumniIds.length === 0) {
+    return NextResponse.json({ data: [], total, page: safePage, limit, totalPages, availableAngkatan });
+  }
+
+  // Fetch full alumni data + members + wa_group + attendance ONLY for this page
+  const [fullAlumniRes, pageMembers] = await Promise.all([
+    adminClient
+      .from("alumni")
+      .select("id, nama, angkatan, nosis, kelanjutan_studi")
+      .in("id", pageAlumniIds),
+    fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) =>
+      q.in("alumni_id", pageAlumniIds)
+    ).catch(() => []),
+  ]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fullAlumniMap = new Map((fullAlumniRes.data || []).map((a: any) => [a.id, a]));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pageMembersMap: Record<string, any> = {};
+  for (const m of pageMembers) { if (m.alumni_id) pageMembersMap[m.alumni_id] = m; }
+
+  // Fetch wa_group + attendance only for page's member IDs
+  const pageMemberIds = pageMembers.map((m) => m.id).filter(Boolean) as string[];
   const waGroupLinkedIds = new Set<string>();
   const attendanceCounts: Record<string, number> = {};
 
-  if (memberIds.length > 0) {
-    const mChunks: string[][] = [];
-    for (let i = 0; i < memberIds.length; i += 500) mChunks.push(memberIds.slice(i, i + 500));
-
-    // Fetch WA group linkage + attendance in parallel
-    const [waResults, attResults] = await Promise.all([
-      Promise.all(
-        mChunks.map((chunk) =>
-          fetchAll(adminClient, "wa_group_members", "member_id", (q) =>
-            q.in("member_id", chunk).not("member_id", "is", null)
-          ).catch(() => [])
-        )
-      ),
-      Promise.all(
-        mChunks.map((chunk) =>
-          fetchAll(adminClient, "event_attendance", "member_id", (q) =>
-            q.in("member_id", chunk)
-          ).catch(() => [])
-        )
-      ),
+  if (pageMemberIds.length > 0) {
+    const [waRows, attRows] = await Promise.all([
+      fetchAll(adminClient, "wa_group_members", "member_id", (q) =>
+        q.in("member_id", pageMemberIds).not("member_id", "is", null)
+      ).catch(() => []),
+      fetchAll(adminClient, "event_attendance", "member_id", (q) =>
+        q.in("member_id", pageMemberIds)
+      ).catch(() => []),
     ]);
-
-    for (const rows of waResults) {
-      for (const w of rows) { if (w.member_id) waGroupLinkedIds.add(w.member_id); }
-    }
-    for (const rows of attResults) {
-      for (const a of rows) {
-        if (a.member_id) attendanceCounts[a.member_id] = (attendanceCounts[a.member_id] || 0) + 1;
-      }
+    for (const w of waRows) { if (w.member_id) waGroupLinkedIds.add(w.member_id); }
+    for (const a of attRows) {
+      if (a.member_id) attendanceCounts[a.member_id] = (attendanceCounts[a.member_id] || 0) + 1;
     }
   }
 
-  // 4. Combine: alumni with their member data (if exists)
-  const combined = alumni.map((a: { id: string; nama: string; angkatan: number; nosis: string | null; kelanjutan_studi: string | null }) => {
-    const member = membersMap[a.id];
-    // masuk_grup is derived from wa_group_members linkage
+  // Combine page results preserving sort order
+  const data = pageSlice.map((a) => {
+    const full = fullAlumniMap.get(a.id) || a;
+    const member = pageMembersMap[a.id];
     const inWaGroup = member?.id ? waGroupLinkedIds.has(member.id) : false;
-    // If in WA group, they've been contacted
-    const sudahDikontak = inWaGroup ? "Sudah" : (member?.sudah_dikontak || null);
     return {
       alumni_id: a.id,
       alumni_nama: a.nama,
       alumni_angkatan: a.angkatan,
-      alumni_nosis: a.nosis,
-      alumni_kelanjutan_studi: a.kelanjutan_studi,
+      alumni_nosis: full.nosis || null,
+      alumni_kelanjutan_studi: full.kelanjutan_studi || null,
       member_id: member?.id || null,
       no: member?.no || null,
       nama: member?.nama || a.nama,
       angkatan: member?.angkatan || a.angkatan,
       no_hp: member?.no_hp || "",
       status_dpt: member?.status_dpt || null,
-      sudah_dikontak: sudahDikontak,
+      sudah_dikontak: inWaGroup ? "Sudah" : (member?.sudah_dikontak || null),
       masuk_grup: inWaGroup ? "Sudah" : "Belum",
       vote: member?.vote || null,
       dukungan: member?.dukungan || null,
@@ -302,7 +363,7 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  return maybePaginate(combined, searchParams);
+  return NextResponse.json({ data, total, page: safePage, limit, totalPages, availableAngkatan });
 }
 
 /**

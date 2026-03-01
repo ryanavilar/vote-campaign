@@ -270,13 +270,19 @@ export default function AdminAlumniPage() {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+  // AbortController to prevent stale responses
+  const abortRef = useRef<AbortController | null>(null);
+  // Track whether first load (with stats) is complete
+  const initialLoadDone = useRef(false);
 
   // Fetch paginated data from API
-  const fetchAlumni = useCallback(async (p?: number) => {
+  // forceStats: when true, always fetch stats (used by Refresh button)
+  const fetchAlumni = useCallback(async (p?: number, forceStats?: boolean) => {
+    // Cancel any in-flight request
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoadingData(true);
     const currentPage = p ?? page;
     try {
@@ -293,24 +299,38 @@ export default function AdminAlumniPage() {
       if (fDpt !== "all") params.set("dpt", fDpt);
       if (fVote !== "all") params.set("vote", fVote);
       if (fPhone !== "all") params.set("phone", fPhone);
+      // Skip expensive stats computation on subsequent loads (pagination, filters, search)
+      if (initialLoadDone.current && !forceStats) {
+        params.set("skipStats", "true");
+      }
 
-      const res = await fetch(`/api/alumni?${params.toString()}`);
+      const res = await fetch(`/api/alumni?${params.toString()}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (res.ok) {
         const json = await res.json();
+        if (controller.signal.aborted) return;
         setAlumni(json.data || []);
-        setStats(json.stats);
-        setAvailableAngkatan(json.availableAngkatan || []);
+        // Only update stats + availableAngkatan when the API returns them (non-null)
+        if (json.stats !== null) setStats(json.stats);
+        if (json.availableAngkatan !== null) setAvailableAngkatan(json.availableAngkatan);
         setTotalFiltered(json.total);
         setTotalPages(json.totalPages);
         setPage(json.page);
+        initialLoadDone.current = true;
       } else {
         showToast("Gagal memuat data alumni", "error");
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       showToast("Gagal memuat data alumni", "error");
     }
-    setLoadingData(false);
+    if (!controller.signal.aborted) setLoadingData(false);
   }, [page, debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone, showToast]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
 
   // Fetch on mount + when filters/page change
   useEffect(() => {
@@ -463,7 +483,7 @@ export default function AdminAlumniPage() {
       if (res.ok) {
         showToast(`${result.linked} anggota berhasil dihubungkan`, "success");
         setShowLinkModal(false);
-        fetchAlumni();
+        fetchAlumni(undefined, true);
       } else {
         showToast(result.error || "Gagal menghubungkan", "error");
       }
@@ -509,7 +529,7 @@ export default function AdminAlumniPage() {
       const result = await res.json();
       if (res.ok) {
         showToast(`Berhasil merge ${result.merged_count} member duplikat untuk ${alumniNama}`, "success");
-        fetchAlumni();
+        fetchAlumni(undefined, true);
       } else {
         showToast(result.error || "Gagal merge", "error");
       }
@@ -576,7 +596,7 @@ export default function AdminAlumniPage() {
                 <Link2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Auto-Link</span>
               </button>
-              <button onClick={() => fetchAlumni()} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors">
+              <button onClick={() => fetchAlumni(undefined, true)} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors">
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
