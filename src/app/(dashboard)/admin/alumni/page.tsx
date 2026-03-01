@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
 import { formatNum } from "@/lib/format";
@@ -234,13 +234,11 @@ export default function AdminAlumniPage() {
   const { canManageUsers, isSuperAdmin: isSA, loading: roleLoading } = useRole();
   const { showToast } = useToast();
 
-  // Data from API
-  const [alumni, setAlumni] = useState<AlumniRow[]>([]);
+  // All data from API — fetched ONCE, filtered/paginated client-side
+  const [allAlumni, setAllAlumni] = useState<AlumniRow[]>([]);
   const [stats, setStats] = useState<AlumniStats>({ total: 0, linked: 0, kontak: 0, dukung: 0, ragu: 0, sebelah: 0, grup: 0, multiLinked: 0 });
   const [availableAngkatan, setAvailableAngkatan] = useState<number[]>([]);
   const [loadingData, setLoadingData] = useState(true);
-  const [totalFiltered, setTotalFiltered] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
 
   // Filters
@@ -270,75 +268,127 @@ export default function AdminAlumniPage() {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // AbortController to prevent stale responses
-  const abortRef = useRef<AbortController | null>(null);
-  // Track whether first load (with stats) is complete
-  const initialLoadDone = useRef(false);
-
-  // Fetch paginated data from API
-  // forceStats: when true, always fetch stats (used by Refresh button)
-  const fetchAlumni = useCallback(async (p?: number, forceStats?: boolean) => {
-    // Cancel any in-flight request
-    if (abortRef.current) abortRef.current.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setLoadingData(true);
-    const currentPage = p ?? page;
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(currentPage));
-      params.set("limit", String(PAGE_SIZE));
-      if (debouncedSearch) params.set("search", debouncedSearch);
-      if (filterAngkatan !== "all") params.set("angkatan", filterAngkatan);
-      if (fLinked !== "all") params.set("linked", fLinked);
-      if (fMultiLink) params.set("multiLink", "true");
-      if (fKontak !== "all") params.set("kontak", fKontak);
-      if (fDukungan !== "all") params.set("dukungan", fDukungan);
-      if (fGrup !== "all") params.set("grup", fGrup);
-      if (fDpt !== "all") params.set("dpt", fDpt);
-      if (fVote !== "all") params.set("vote", fVote);
-      if (fPhone !== "all") params.set("phone", fPhone);
-      // Skip expensive stats computation on subsequent loads (pagination, filters, search)
-      if (initialLoadDone.current && !forceStats) {
-        params.set("skipStats", "true");
-      }
-
-      const res = await fetch(`/api/alumni?${params.toString()}`, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      if (res.ok) {
-        const json = await res.json();
-        if (controller.signal.aborted) return;
-        setAlumni(json.data || []);
-        // Only update stats + availableAngkatan when the API returns them (non-null)
-        if (json.stats !== null) setStats(json.stats);
-        if (json.availableAngkatan !== null) setAvailableAngkatan(json.availableAngkatan);
-        setTotalFiltered(json.total);
-        setTotalPages(json.totalPages);
-        setPage(json.page);
-        initialLoadDone.current = true;
-      } else {
-        showToast("Gagal memuat data alumni", "error");
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      showToast("Gagal memuat data alumni", "error");
-    }
-    if (!controller.signal.aborted) setLoadingData(false);
-  }, [page, debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone, showToast]);
-
-  // Reset page when filters change
+  // Reset page when any filter changes
   useEffect(() => {
     setPage(1);
   }, [debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
 
-  // Fetch on mount + when filters/page change
+  // Fetch ALL data once from API
+  const fetchAlumni = useCallback(async () => {
+    setLoadingData(true);
+    try {
+      const res = await fetch("/api/alumni");
+      if (res.ok) {
+        const json = await res.json();
+        setAllAlumni(json.data || []);
+        setStats(json.stats);
+        setAvailableAngkatan(json.availableAngkatan || []);
+      } else {
+        showToast("Gagal memuat data alumni", "error");
+      }
+    } catch {
+      showToast("Gagal memuat data alumni", "error");
+    }
+    setLoadingData(false);
+  }, [showToast]);
+
+  // Fetch once on mount
   useEffect(() => {
     if (roleLoading) return;
     if (canManageUsers) fetchAlumni();
     else setLoadingData(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roleLoading, canManageUsers, page, debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+  }, [roleLoading, canManageUsers, fetchAlumni]);
+
+  // ── Client-side filtering ──
+  const filtered = useMemo(() => {
+    let result = allAlumni;
+
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      result = result.filter((item) => {
+        const member = item.members && item.members.length > 0 ? item.members[0] : null;
+        return (
+          item.nama.toLowerCase().includes(q) ||
+          (member?.no_hp && member.no_hp.includes(debouncedSearch))
+        );
+      });
+    }
+
+    if (filterAngkatan !== "all") {
+      const num = Number(filterAngkatan);
+      result = result.filter((item) => item.angkatan === num);
+    }
+
+    if (fLinked === "true") {
+      result = result.filter((item) => item.members && item.members.length > 0);
+    } else if (fLinked === "false") {
+      result = result.filter((item) => !item.members || item.members.length === 0);
+    }
+
+    if (fMultiLink) {
+      result = result.filter((item) => (item.members?.length || 0) > 1);
+    }
+
+    if (fPhone !== "all") {
+      result = result.filter((item) => {
+        const m = item.members?.[0];
+        if (fPhone === "has") return m?.no_hp;
+        if (fPhone === "empty") return !m?.no_hp;
+        return true;
+      });
+    }
+
+    if (fKontak !== "all") {
+      result = result.filter((item) => {
+        const val = item.members?.[0]?.sudah_dikontak || null;
+        if (fKontak === "empty") return val === null;
+        return val === fKontak;
+      });
+    }
+
+    if (fDukungan !== "all") {
+      result = result.filter((item) => {
+        const val = item.members?.[0]?.dukungan || null;
+        if (fDukungan === "pendukung") return val === "dukung" || val === "terkonvert";
+        if (fDukungan === "empty") return !val;
+        return val === fDukungan;
+      });
+    }
+
+    if (fGrup !== "all") {
+      result = result.filter((item) => {
+        const val = item.members?.[0]?.masuk_grup || "Belum";
+        return val === fGrup;
+      });
+    }
+
+    if (fDpt !== "all") {
+      result = result.filter((item) => {
+        const val = item.members?.[0]?.status_dpt || null;
+        if (fDpt === "empty") return val === null;
+        return val === fDpt;
+      });
+    }
+
+    if (fVote !== "all") {
+      result = result.filter((item) => {
+        const val = item.members?.[0]?.vote || null;
+        if (fVote === "empty") return val === null;
+        return val === fVote;
+      });
+    }
+
+    return result;
+  }, [allAlumni, debouncedSearch, filterAngkatan, fLinked, fMultiLink, fPhone, fKontak, fDukungan, fGrup, fDpt, fVote]);
+
+  // ── Client-side pagination ──
+  const totalFiltered = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const alumni = useMemo(() => {
+    const offset = (safePage - 1) * PAGE_SIZE;
+    return filtered.slice(offset, offset + PAGE_SIZE);
+  }, [filtered, safePage]);
 
   // Auto-link modal state
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -358,7 +408,7 @@ export default function AdminAlumniPage() {
       const hasRealMember = member && member.id && member.id !== "__temp__";
 
       // Optimistic update
-      setAlumni((prev) =>
+      setAllAlumni((prev) =>
         prev.map((a) => {
           if (a.id !== item.id) return a;
           if (a.members && a.members.length > 0) {
@@ -397,7 +447,7 @@ export default function AdminAlumniPage() {
           });
           if (res.ok) {
             const data = await res.json();
-            setAlumni((prev) =>
+            setAllAlumni((prev) =>
               prev.map((a) => {
                 if (a.id !== item.id) return a;
                 return {
@@ -483,7 +533,7 @@ export default function AdminAlumniPage() {
       if (res.ok) {
         showToast(`${result.linked} anggota berhasil dihubungkan`, "success");
         setShowLinkModal(false);
-        fetchAlumni(undefined, true);
+        fetchAlumni();
       } else {
         showToast(result.error || "Gagal menghubungkan", "error");
       }
@@ -529,7 +579,7 @@ export default function AdminAlumniPage() {
       const result = await res.json();
       if (res.ok) {
         showToast(`Berhasil merge ${result.merged_count} member duplikat untuk ${alumniNama}`, "success");
-        fetchAlumni(undefined, true);
+        fetchAlumni();
       } else {
         showToast(result.error || "Gagal merge", "error");
       }
@@ -596,7 +646,7 @@ export default function AdminAlumniPage() {
                 <Link2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Auto-Link</span>
               </button>
-              <button onClick={() => fetchAlumni(undefined, true)} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors">
+              <button onClick={() => fetchAlumni()} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors">
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
@@ -784,7 +834,7 @@ export default function AdminAlumniPage() {
                     const member = item.members && item.members.length > 0 ? item.members[0] : null;
                     const isGrupSudah = member?.masuk_grup === "Sudah";
                     const multiCount = item.members?.length || 0;
-                    const globalIdx = (page - 1) * PAGE_SIZE + idx;
+                    const globalIdx = (safePage - 1) * PAGE_SIZE + idx;
 
                     return (
                       <tr key={item.id} className={`border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors ${multiCount > 1 ? "bg-amber-50/40" : ""}`}>
@@ -980,22 +1030,22 @@ export default function AdminAlumniPage() {
           {totalPages > 1 && (
             <div className="px-4 py-3 border-t border-border bg-gray-50/50 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                {formatNum((page - 1) * PAGE_SIZE + 1)}–{formatNum(Math.min(page * PAGE_SIZE, totalFiltered))} dari {formatNum(totalFiltered)}
+                {formatNum((safePage - 1) * PAGE_SIZE + 1)}–{formatNum(Math.min(safePage * PAGE_SIZE, totalFiltered))} dari {formatNum(totalFiltered)}
               </p>
               <div className="flex items-center gap-1">
-                <button onClick={() => goPage(1)} disabled={page === 1} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Halaman pertama">
+                <button onClick={() => goPage(1)} disabled={safePage === 1} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Halaman pertama">
                   <ChevronsLeft className="w-4 h-4" />
                 </button>
-                <button onClick={() => goPage(page - 1)} disabled={page === 1} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Sebelumnya">
+                <button onClick={() => goPage(safePage - 1)} disabled={safePage === 1} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Sebelumnya">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <span className="px-3 py-1 text-xs font-medium text-foreground">
-                  {page} / {totalPages}
+                  {safePage} / {totalPages}
                 </span>
-                <button onClick={() => goPage(page + 1)} disabled={page === totalPages} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Berikutnya">
+                <button onClick={() => goPage(safePage + 1)} disabled={safePage === totalPages} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Berikutnya">
                   <ChevronRight className="w-4 h-4" />
                 </button>
-                <button onClick={() => goPage(totalPages)} disabled={page === totalPages} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Halaman terakhir">
+                <button onClick={() => goPage(totalPages)} disabled={safePage === totalPages} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Halaman terakhir">
                   <ChevronsRight className="w-4 h-4" />
                 </button>
               </div>
