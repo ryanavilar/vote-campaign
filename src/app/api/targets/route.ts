@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getUserRole, canEdit } from "@/lib/roles";
+import { getUserRole, canEdit, canManageUsers } from "@/lib/roles";
 import { logMemberAudit } from "@/lib/audit";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -38,8 +38,11 @@ async function fetchAll<T = any>(
 /**
  * GET /api/targets — Returns alumni list based on campaigner's assigned angkatan(s)
  * Falls back to legacy campaigner_targets if no angkatan assigned
+ *
+ * Query params:
+ *   user_id — (admin/super_admin only) impersonate a campaigner to view their targets
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const role = await getUserRole(supabase);
 
@@ -57,13 +60,19 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Admin impersonation: if ?user_id= is provided and caller is admin/super_admin
+  const { searchParams } = new URL(request.url);
+  const impersonateUserId = searchParams.get("user_id");
+  const targetUserId =
+    impersonateUserId && canManageUsers(role) ? impersonateUserId : user.id;
+
   const adminClient = getAdminClient();
 
-  // 1. Get user's assigned angkatan(s)
+  // 1. Get target user's assigned angkatan(s)
   const { data: angkatanRows, error: angError } = await adminClient
     .from("campaigner_angkatan")
     .select("angkatan")
-    .eq("user_id", user.id);
+    .eq("user_id", targetUserId);
 
   if (angError) {
     return NextResponse.json({ error: angError.message }, { status: 500 });
@@ -76,7 +85,7 @@ export async function GET() {
     const { data: targets } = await adminClient
       .from("campaigner_targets")
       .select("member_id")
-      .eq("user_id", user.id);
+      .eq("user_id", targetUserId);
 
     if (!targets || targets.length === 0) {
       return NextResponse.json([]);
