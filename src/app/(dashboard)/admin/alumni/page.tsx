@@ -238,7 +238,8 @@ export default function AdminAlumniPage() {
   const [allAlumni, setAllAlumni] = useState<AlumniRow[]>([]);
   const [stats, setStats] = useState<AlumniStats>({ total: 0, linked: 0, kontak: 0, dukung: 0, ragu: 0, sebelah: 0, grup: 0, multiLinked: 0 });
   const [availableAngkatan, setAvailableAngkatan] = useState<number[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true); // only for first load
+  const [refreshing, setRefreshing] = useState(false); // only for manual Refresh button
   const [page, setPage] = useState(1);
 
   // Filters
@@ -273,14 +274,12 @@ export default function AdminAlumniPage() {
     setPage(1);
   }, [debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
 
-  // Stable ref for showToast so fetchAlumni never changes identity
+  // Stable ref for showToast
   const showToastRef = useRef(showToast);
   showToastRef.current = showToast;
-  const fetchedRef = useRef(false);
 
-  // Fetch ALL data once from API — zero deps so identity is always stable
-  const fetchAlumni = useCallback(async () => {
-    setLoadingData(true);
+  // Load data from API — called ONCE on mount, silently on error recovery
+  const loadData = useCallback(async () => {
     try {
       const res = await fetch("/api/alumni");
       if (res.ok) {
@@ -294,20 +293,28 @@ export default function AdminAlumniPage() {
     } catch {
       showToastRef.current("Gagal memuat data alumni", "error");
     }
-    setLoadingData(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch once on mount — guarded by ref to prevent duplicate calls
+  // Manual refresh — only the Refresh button uses this
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
+
+  // Fetch once on mount — NO re-fetch on any state change
   useEffect(() => {
-    if (roleLoading || fetchedRef.current) return;
-    if (canManageUsers) {
-      fetchedRef.current = true;
-      fetchAlumni();
-    } else {
-      setLoadingData(false);
-    }
-  }, [roleLoading, canManageUsers, fetchAlumni]);
+    if (roleLoading) return;
+    if (!canManageUsers) { setInitialLoading(false); return; }
+    let cancelled = false;
+    (async () => {
+      await loadData();
+      if (!cancelled) setInitialLoading(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Client-side filtering ──
   const filtered = useMemo(() => {
@@ -437,11 +444,11 @@ export default function AdminAlumniPage() {
             body: JSON.stringify({ [field]: value }),
           });
           if (!res.ok) {
-            fetchAlumni();
+            loadData();
             showToastRef.current("Gagal mengupdate", "error");
           }
         } catch {
-          fetchAlumni();
+          loadData();
           showToastRef.current("Gagal mengupdate", "error");
         }
       } else {
@@ -477,18 +484,18 @@ export default function AdminAlumniPage() {
               })
             );
           } else {
-            fetchAlumni();
+            loadData();
             showToastRef.current("Gagal membuat data anggota", "error");
           }
         } catch {
-          fetchAlumni();
+          loadData();
           showToastRef.current("Gagal membuat data anggota", "error");
         } finally {
           creatingLockRef.current.delete(item.id);
         }
       }
     },
-    [fetchAlumni]
+    [loadData]
   );
 
   const toggleBinary = (item: AlumniRow, field: string) => {
@@ -543,7 +550,7 @@ export default function AdminAlumniPage() {
       if (res.ok) {
         showToast(`${result.linked} anggota berhasil dihubungkan`, "success");
         setShowLinkModal(false);
-        fetchAlumni();
+        loadData();
       } else {
         showToast(result.error || "Gagal menghubungkan", "error");
       }
@@ -589,7 +596,7 @@ export default function AdminAlumniPage() {
       const result = await res.json();
       if (res.ok) {
         showToast(`Berhasil merge ${result.merged_count} member duplikat untuk ${alumniNama}`, "success");
-        fetchAlumni();
+        loadData();
       } else {
         showToast(result.error || "Gagal merge", "error");
       }
@@ -602,7 +609,7 @@ export default function AdminAlumniPage() {
   // Page navigation
   const goPage = (p: number) => setPage(Math.max(1, Math.min(totalPages, p)));
 
-  if (roleLoading) {
+  if (roleLoading || initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -656,8 +663,8 @@ export default function AdminAlumniPage() {
                 <Link2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Auto-Link</span>
               </button>
-              <button onClick={() => fetchAlumni()} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors">
-                <RefreshCw className="w-3.5 h-3.5" />
+              <button onClick={handleRefresh} disabled={refreshing} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50">
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
             </div>
@@ -801,7 +808,6 @@ export default function AdminAlumniPage() {
           <div className="px-4 py-2.5 border-b border-border bg-gray-50/80 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">
               Daftar Alumni ({formatNum(totalFiltered)})
-              {loadingData && <Loader2 className="w-3.5 h-3.5 animate-spin inline ml-2 text-[#0B27BC]" />}
             </h3>
           </div>
 
@@ -826,7 +832,7 @@ export default function AdminAlumniPage() {
                 </tr>
               </thead>
               <tbody>
-                {alumni.length === 0 && !loadingData ? (
+                {alumni.length === 0 && !initialLoading ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
@@ -929,7 +935,7 @@ export default function AdminAlumniPage() {
 
           {/* Mobile Cards */}
           <div className="md:hidden divide-y divide-border">
-            {alumni.length === 0 && !loadingData ? (
+            {alumni.length === 0 && !initialLoading ? (
               <div className="px-4 py-12 text-center">
                 <GraduationCap className="w-8 h-8 text-gray-200 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">
