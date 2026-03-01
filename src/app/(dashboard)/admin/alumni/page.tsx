@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
 import { formatNum } from "@/lib/format";
@@ -60,6 +60,17 @@ interface AlumniRow {
   program_studi: string | null;
   keterangan: string | null;
   members: MemberInfo[] | null;
+}
+
+interface AlumniStats {
+  total: number;
+  linked: number;
+  kontak: number;
+  dukung: number;
+  ragu: number;
+  sebelah: number;
+  grup: number;
+  multiLinked: number;
 }
 
 interface MatchCandidate {
@@ -223,11 +234,18 @@ export default function AdminAlumniPage() {
   const { canManageUsers, isSuperAdmin: isSA, loading: roleLoading } = useRole();
   const { showToast } = useToast();
 
+  // Data from API
   const [alumni, setAlumni] = useState<AlumniRow[]>([]);
+  const [stats, setStats] = useState<AlumniStats>({ total: 0, linked: 0, kontak: 0, dukung: 0, ragu: 0, sebelah: 0, grup: 0, multiLinked: 0 });
+  const [availableAngkatan, setAvailableAngkatan] = useState<number[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [totalFiltered, setTotalFiltered] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterAngkatan, setFilterAngkatan] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [fKontak, setFKontak] = useState("all");
@@ -246,6 +264,62 @@ export default function AdminAlumniPage() {
     setFDpt("all"); setFVote("all"); setFPhone("all");
   };
 
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+
+  // Fetch paginated data from API
+  const fetchAlumni = useCallback(async (p?: number) => {
+    setLoadingData(true);
+    const currentPage = p ?? page;
+    try {
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage));
+      params.set("limit", String(PAGE_SIZE));
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      if (filterAngkatan !== "all") params.set("angkatan", filterAngkatan);
+      if (fLinked !== "all") params.set("linked", fLinked);
+      if (fMultiLink) params.set("multiLink", "true");
+      if (fKontak !== "all") params.set("kontak", fKontak);
+      if (fDukungan !== "all") params.set("dukungan", fDukungan);
+      if (fGrup !== "all") params.set("grup", fGrup);
+      if (fDpt !== "all") params.set("dpt", fDpt);
+      if (fVote !== "all") params.set("vote", fVote);
+      if (fPhone !== "all") params.set("phone", fPhone);
+
+      const res = await fetch(`/api/alumni?${params.toString()}`);
+      if (res.ok) {
+        const json = await res.json();
+        setAlumni(json.data || []);
+        setStats(json.stats);
+        setAvailableAngkatan(json.availableAngkatan || []);
+        setTotalFiltered(json.total);
+        setTotalPages(json.totalPages);
+        setPage(json.page);
+      } else {
+        showToast("Gagal memuat data alumni", "error");
+      }
+    } catch {
+      showToast("Gagal memuat data alumni", "error");
+    }
+    setLoadingData(false);
+  }, [page, debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone, showToast]);
+
+  // Fetch on mount + when filters/page change
+  useEffect(() => {
+    if (roleLoading) return;
+    if (canManageUsers) fetchAlumni();
+    else setLoadingData(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roleLoading, canManageUsers, page, debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+
   // Auto-link modal state
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkLoading, setLinkLoading] = useState(false);
@@ -254,124 +328,14 @@ export default function AdminAlumniPage() {
   const [linkTab, setLinkTab] = useState<LinkTab>("certain");
   const [selectedPairs, setSelectedPairs] = useState<Set<string>>(new Set());
 
-  // Fetch all data at once (like Target page)
-  const fetchAlumni = useCallback(async () => {
-    setLoadingData(true);
-    try {
-      const res = await fetch("/api/alumni?all=true");
-      if (res.ok) {
-        const data = await res.json();
-        setAlumni(data.data || []);
-      } else {
-        showToast("Gagal memuat data alumni", "error");
-      }
-    } catch {
-      showToast("Gagal memuat data alumni", "error");
-    }
-    setLoadingData(false);
-  }, [showToast]);
+  // Lock to prevent concurrent member-creation calls for the same alumni
+  const creatingLockRef = useRef(new Set<string>());
 
-  useEffect(() => {
-    if (roleLoading) return;
-    if (canManageUsers) fetchAlumni();
-    else setLoadingData(false);
-  }, [fetchAlumni, roleLoading, canManageUsers]);
-
-  // Available angkatan from data
-  const availableAngkatan = useMemo(() => {
-    const set = new Set<number>();
-    alumni.forEach((a) => set.add(a.angkatan));
-    return Array.from(set).sort((a, b) => a - b);
-  }, [alumni]);
-
-  // Stats from all data (terkonvert counts as pendukung)
-  const stats = useMemo(() => {
-    const total = alumni.length;
-    const linked = alumni.filter((a) => a.members && a.members.length > 0);
-    const kontak = linked.filter((a) => a.members![0].sudah_dikontak === "Sudah").length;
-    const dukung = linked.filter((a) => {
-      const d = a.members![0].dukungan;
-      return d === "dukung" || d === "terkonvert";
-    }).length;
-    const ragu = linked.filter((a) => a.members![0].dukungan === "ragu_ragu").length;
-    const sebelah = linked.filter((a) => a.members![0].dukungan === "milih_sebelah").length;
-    const grup = linked.filter((a) => a.members![0].masuk_grup === "Sudah").length;
-    const multiLinked = alumni.filter((a) => a.members && a.members.length > 1).length;
-    return { total, linked: linked.length, kontak, dukung, ragu, sebelah, grup, multiLinked };
-  }, [alumni]);
-
-  // Filter all alumni client-side
-  const filteredAlumni = useMemo(() => {
-    return alumni.filter((item) => {
-      const q = searchQuery.toLowerCase();
-      const member = item.members && item.members.length > 0 ? item.members[0] : null;
-
-      // Search
-      if (q && !item.nama.toLowerCase().includes(q) && !(member?.no_hp && member.no_hp.includes(searchQuery))) return false;
-
-      // Angkatan filter
-      if (filterAngkatan !== "all" && item.angkatan !== Number(filterAngkatan)) return false;
-
-      // Linked filter
-      if (fLinked === "true" && !member) return false;
-      if (fLinked === "false" && member) return false;
-
-      // Multi-link filter
-      if (fMultiLink && (!item.members || item.members.length < 2)) return false;
-
-      // Per-column filters
-      if (fPhone !== "all") {
-        if (fPhone === "has" && !member?.no_hp) return false;
-        if (fPhone === "empty" && member?.no_hp) return false;
-      }
-      if (fKontak !== "all") {
-        const val = member?.sudah_dikontak || null;
-        if (fKontak === "empty" && val !== null) return false;
-        else if (fKontak !== "empty" && val !== fKontak) return false;
-      }
-      if (fDukungan !== "all") {
-        const val = member?.dukungan || null;
-        if (fDukungan === "pendukung" && val !== "dukung" && val !== "terkonvert") return false;
-        else if (fDukungan === "empty" && val) return false;
-        else if (fDukungan !== "pendukung" && fDukungan !== "empty" && val !== fDukungan) return false;
-      }
-      if (fGrup !== "all") {
-        const val = member?.masuk_grup || "Belum";
-        if (val !== fGrup) return false;
-      }
-      if (fDpt !== "all") {
-        const val = member?.status_dpt || null;
-        if (fDpt === "empty" && val !== null) return false;
-        else if (fDpt !== "empty" && val !== fDpt) return false;
-      }
-      if (fVote !== "all") {
-        const val = member?.vote || null;
-        if (fVote === "empty" && val !== null) return false;
-        else if (fVote !== "empty" && val !== fVote) return false;
-      }
-
-      return true;
-    });
-  }, [alumni, searchQuery, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
-
-  // Pagination
-  const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(filteredAlumni.length / PAGE_SIZE));
-
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
-
-  const paginatedAlumni = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredAlumni.slice(start, start + PAGE_SIZE);
-  }, [filteredAlumni, page]);
-
-  // Field update handler — same flow as Target: auto-create member on first edit
+  // Field update handler — optimistic update + API
   const handleFieldUpdate = useCallback(
     async (item: AlumniRow, field: string, value: string | null) => {
       const member = item.members && item.members.length > 0 ? item.members[0] : null;
+      const hasRealMember = member && member.id && member.id !== "__temp__";
 
       // Optimistic update
       setAlumni((prev) =>
@@ -380,13 +344,12 @@ export default function AdminAlumniPage() {
           if (a.members && a.members.length > 0) {
             return { ...a, members: [{ ...a.members[0], [field]: value }] };
           }
-          // Unlinked: create temporary member object for optimistic UI
           return { ...a, members: [{ id: "__temp__", no: 0, [field]: value } as MemberInfo] };
         })
       );
 
-      if (member) {
-        // Member exists — PATCH directly
+      if (hasRealMember) {
+        // Member exists with real ID → PATCH
         try {
           const res = await fetch(`/api/members/${member.id}`, {
             method: "PATCH",
@@ -402,7 +365,10 @@ export default function AdminAlumniPage() {
           showToast("Gagal mengupdate", "error");
         }
       } else {
-        // No member yet — POST to create + update (same as Target)
+        // No member or __temp__ member → POST to create/update via targets API
+        // Prevent concurrent creates for the same alumni
+        if (creatingLockRef.current.has(item.id)) return;
+        creatingLockRef.current.add(item.id);
         try {
           const res = await fetch("/api/targets", {
             method: "POST",
@@ -411,7 +377,6 @@ export default function AdminAlumniPage() {
           });
           if (res.ok) {
             const data = await res.json();
-            // Update state with real member data (like Target does)
             setAlumni((prev) =>
               prev.map((a) => {
                 if (a.id !== item.id) return a;
@@ -438,6 +403,8 @@ export default function AdminAlumniPage() {
         } catch {
           fetchAlumni();
           showToast("Gagal membuat data anggota", "error");
+        } finally {
+          creatingLockRef.current.delete(item.id);
         }
       }
     },
@@ -552,8 +519,10 @@ export default function AdminAlumniPage() {
     setMergingId(null);
   };
 
+  // Page navigation
+  const goPage = (p: number) => setPage(Math.max(1, Math.min(totalPages, p)));
 
-  if (roleLoading || loadingData) {
+  if (roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -607,7 +576,7 @@ export default function AdminAlumniPage() {
                 <Link2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Auto-Link</span>
               </button>
-              <button onClick={fetchAlumni} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors">
+              <button onClick={() => fetchAlumni()} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors">
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
@@ -751,7 +720,8 @@ export default function AdminAlumniPage() {
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
           <div className="px-4 py-2.5 border-b border-border bg-gray-50/80 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">
-              Daftar Alumni ({formatNum(filteredAlumni.length)})
+              Daftar Alumni ({formatNum(totalFiltered)})
+              {loadingData && <Loader2 className="w-3.5 h-3.5 animate-spin inline ml-2 text-[#0B27BC]" />}
             </h3>
           </div>
 
@@ -776,13 +746,13 @@ export default function AdminAlumniPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAlumni.length === 0 ? (
+                {alumni.length === 0 && !loadingData ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <GraduationCap className="w-8 h-8 text-gray-200" />
                         <p className="text-sm text-muted-foreground">
-                          {searchQuery || filterAngkatan !== "all" || fLinked !== "all" || activeFilterCount > 0
+                          {debouncedSearch || filterAngkatan !== "all" || fLinked !== "all" || activeFilterCount > 0
                             ? "Tidak ada data yang cocok"
                             : "Belum ada data alumni."}
                         </p>
@@ -790,7 +760,7 @@ export default function AdminAlumniPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedAlumni.map((item, idx) => {
+                  alumni.map((item, idx) => {
                     const member = item.members && item.members.length > 0 ? item.members[0] : null;
                     const isGrupSudah = member?.masuk_grup === "Sudah";
                     const multiCount = item.members?.length || 0;
@@ -879,17 +849,17 @@ export default function AdminAlumniPage() {
 
           {/* Mobile Cards */}
           <div className="md:hidden divide-y divide-border">
-            {filteredAlumni.length === 0 ? (
+            {alumni.length === 0 && !loadingData ? (
               <div className="px-4 py-12 text-center">
                 <GraduationCap className="w-8 h-8 text-gray-200 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  {searchQuery || filterAngkatan !== "all" || fLinked !== "all" || activeFilterCount > 0
+                  {debouncedSearch || filterAngkatan !== "all" || fLinked !== "all" || activeFilterCount > 0
                     ? "Tidak ada data yang cocok"
                     : "Belum ada data alumni."}
                 </p>
               </div>
             ) : (
-              paginatedAlumni.map((item) => {
+              alumni.map((item) => {
                 const member = item.members && item.members.length > 0 ? item.members[0] : null;
                 const isGrupSudah = member?.masuk_grup === "Sudah";
                 const multiCount = item.members?.length || 0;
@@ -990,42 +960,22 @@ export default function AdminAlumniPage() {
           {totalPages > 1 && (
             <div className="px-4 py-3 border-t border-border bg-gray-50/50 flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                {formatNum((page - 1) * PAGE_SIZE + 1)}–{formatNum(Math.min(page * PAGE_SIZE, filteredAlumni.length))} dari {formatNum(filteredAlumni.length)}
+                {formatNum((page - 1) * PAGE_SIZE + 1)}–{formatNum(Math.min(page * PAGE_SIZE, totalFiltered))} dari {formatNum(totalFiltered)}
               </p>
               <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setPage(1)}
-                  disabled={page === 1}
-                  className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Halaman pertama"
-                >
+                <button onClick={() => goPage(1)} disabled={page === 1} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Halaman pertama">
                   <ChevronsLeft className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Sebelumnya"
-                >
+                <button onClick={() => goPage(page - 1)} disabled={page === 1} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Sebelumnya">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <span className="px-3 py-1 text-xs font-medium text-foreground">
                   {page} / {totalPages}
                 </span>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Berikutnya"
-                >
+                <button onClick={() => goPage(page + 1)} disabled={page === totalPages} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Berikutnya">
                   <ChevronRight className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => setPage(totalPages)}
-                  disabled={page === totalPages}
-                  className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Halaman terakhir"
-                >
+                <button onClick={() => goPage(totalPages)} disabled={page === totalPages} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Halaman terakhir">
                   <ChevronsRight className="w-4 h-4" />
                 </button>
               </div>

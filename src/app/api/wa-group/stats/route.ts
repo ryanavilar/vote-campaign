@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
-import { getAllMemberPhones } from "@/lib/phone";
+import { normalizePhone, getAllMemberPhones } from "@/lib/phone";
 
 // GET — returns WA group membership stats and member phone set
 export async function GET() {
@@ -21,7 +21,9 @@ export async function GET() {
   const unlinked = totalInGroup - linked;
 
   // Build a set of all phones in the WA group for client-side matching
+  // Raw phones for the client, normalized phones for matching
   const phones = waData.map((w) => w.phone);
+  const normalizedWaPhones = waData.map((w) => normalizePhone(w.phone) || w.phone);
 
   // Also fetch all members to build a member_id → inGroup map
   // Check both no_hp AND alt_phones so alternate numbers are recognized
@@ -31,7 +33,7 @@ export async function GET() {
 
   const memberInGroup: Record<string, boolean> = {};
   if (members) {
-    const phoneSet = new Set(phones);
+    const phoneSet = new Set(normalizedWaPhones);
     for (const m of members) {
       const allPhones = getAllMemberPhones(m);
       if (allPhones.some((p) => phoneSet.has(p))) {

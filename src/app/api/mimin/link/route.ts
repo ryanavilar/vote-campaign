@@ -68,10 +68,8 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Normalize phone: ensure starts with 62
-      let phone = (pair.customer_phone || "").replace(/[^0-9]/g, "");
-      if (phone.startsWith("0")) phone = "62" + phone.substring(1);
-      if (!phone.startsWith("62") && phone.length > 0) phone = "62" + phone;
+      // Normalize phone using canonical normalizer
+      const phone = normalizePhone(pair.customer_phone || "") || "";
 
       // Check if alumni already has linked member(s) — use limit(1) to handle multiple
       const { data: existingMembers } = await adminClient

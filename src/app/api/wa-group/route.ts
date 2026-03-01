@@ -297,5 +297,16 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Also update members.masuk_grup to keep it in sync
+  if (memberId) {
+    // Linking: set masuk_grup = "Sudah"
+    await supabase
+      .from("members")
+      .update({ masuk_grup: "Sudah" })
+      .eq("id", memberId);
+  }
+  // Note: unlinking doesn't automatically set masuk_grup = "Belum"
+  // because the member might still be in the group via another phone
+
   return NextResponse.json({ success: true });
 }
