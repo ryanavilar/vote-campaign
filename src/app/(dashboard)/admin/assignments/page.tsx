@@ -560,6 +560,7 @@ function TimSuksesCard({
   stats,
   rank,
   angkatan,
+  totalAlumni,
   expanded,
   onToggle,
 }: {
@@ -568,6 +569,7 @@ function TimSuksesCard({
   stats: CampaignerStats;
   rank: number;
   angkatan: number[];
+  totalAlumni: number;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -592,6 +594,11 @@ function TimSuksesCard({
             <div className="text-right">
               <p className="text-lg font-bold text-[#0B27BC]">{formatNum(stats.total)}</p>
               <p className="text-[9px] text-muted-foreground">target</p>
+              {totalAlumni > 0 && (
+                <p className="text-[9px] text-muted-foreground">
+                  <span className="font-semibold text-[#84303F]">{formatNum(totalAlumni)}</span> alumni
+                </p>
+              )}
             </div>
             <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
           </div>
@@ -653,6 +660,7 @@ export default function AdminAssignmentsPage() {
 
   const [rows, setRows] = useState<MonitorRow[]>([]);
   const [campaigners, setCampaigners] = useState<CampaignerInfo[]>([]);
+  const [alumniCountByAngkatan, setAlumniCountByAngkatan] = useState<Record<number, number>>({});
   const [loadingData, setLoadingData] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -664,6 +672,7 @@ export default function AdminAssignmentsPage() {
         const data = await res.json();
         setRows(data.members || []);
         setCampaigners(data.campaigners || []);
+        setAlumniCountByAngkatan(data.alumniCountByAngkatan || {});
       } else {
         showToast("Gagal memuat data monitoring", "error");
       }
@@ -682,17 +691,25 @@ export default function AdminAssignmentsPage() {
   const globalStats = useMemo(() => computeStats(rows), [rows]);
 
   const campaignerCards = useMemo(() => {
-    const cards: { id: string; title: string; email: string; stats: CampaignerStats; angkatan: number[] }[] = [];
+    const cards: { id: string; title: string; email: string; stats: CampaignerStats; angkatan: number[]; totalAlumni: number }[] = [];
 
     for (const c of campaigners) {
       const members = rows.filter((r) => r.campaigner_ids.includes(c.user_id));
       if (members.length === 0) continue;
+
+      // Sum alumni count from all assigned angkatan
+      const totalAlumni = (c.angkatan || []).reduce(
+        (sum, a) => sum + (alumniCountByAngkatan[a] || 0),
+        0
+      );
+
       cards.push({
         id: c.user_id,
         title: c.email.split("@")[0],
         email: c.email,
         stats: computeStats(members),
         angkatan: c.angkatan || [],
+        totalAlumni,
       });
     }
 
@@ -703,7 +720,7 @@ export default function AdminAssignmentsPage() {
     });
 
     return cards;
-  }, [rows, campaigners]);
+  }, [rows, campaigners, alumniCountByAngkatan]);
 
   const unassignedCount = useMemo(() => {
     return rows.filter((r) => r.campaigner_ids.length === 0).length;
@@ -810,6 +827,7 @@ export default function AdminAssignmentsPage() {
                     stats={card.stats}
                     rank={idx + 1}
                     angkatan={card.angkatan}
+                    totalAlumni={card.totalAlumni}
                     expanded={expandedId === card.id}
                     onToggle={() => setExpandedId(expandedId === card.id ? null : card.id)}
                   />

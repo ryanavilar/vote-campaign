@@ -183,9 +183,22 @@ export async function GET() {
       angkatan: (userAngkatanMap[id] || []).sort((a, b) => a - b),
     }));
 
+    // 7. Get alumni count per angkatan (total alumni assigned, not just members)
+    const allAngkatan = [...new Set(angkatanRows.map((r) => r.angkatan))];
+    const alumniCountByAngkatan: Record<number, number> = {};
+    if (allAngkatan.length > 0) {
+      const alumniRows = await fetchAll(adminClient, "alumni", "angkatan", (q) =>
+        q.in("angkatan", allAngkatan)
+      );
+      for (const a of alumniRows) {
+        alumniCountByAngkatan[a.angkatan] = (alumniCountByAngkatan[a.angkatan] || 0) + 1;
+      }
+    }
+
     return NextResponse.json({
       members: enrichedMembers,
       campaigners: campaignerList,
+      alumniCountByAngkatan,
     });
   } catch (err) {
     return NextResponse.json(

@@ -19,7 +19,13 @@ import {
   RefreshCw,
   Filter,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+
+/* ── Constants ────────────────────────────────────────── */
+
+const PAGE_SIZE = 50;
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -44,11 +50,11 @@ interface TargetRow {
 
 /* ── Dukungan config ───────────────────────────────────── */
 
-const DUKUNGAN_LABELS: Record<string, string> = {
-  dukung: "Dukung",
-  ragu_ragu: "Ragu",
-  milih_sebelah: "Sebelah",
-  terkonvert: "Convert",
+const DUKUNGAN_SELECT_STYLES: Record<string, string> = {
+  dukung: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  ragu_ragu: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  milih_sebelah: "bg-red-100 text-red-700 border-red-200",
+  terkonvert: "bg-blue-100 text-blue-700 border-blue-200",
 };
 
 /* ── Inline Phone Edit ─────────────────────────────────── */
@@ -174,13 +180,6 @@ function StatusChip({
 
 /* ── Dukungan Select ──────────────────────────────────── */
 
-const DUKUNGAN_SELECT_STYLES: Record<string, string> = {
-  dukung: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  ragu_ragu: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  milih_sebelah: "bg-red-100 text-red-700 border-red-200",
-  terkonvert: "bg-blue-100 text-blue-700 border-blue-200",
-};
-
 function DukunganSelect({
   value,
   onChange,
@@ -218,13 +217,21 @@ function DukunganSelect({
 export default function TargetPage() {
   const { canEdit: userCanEdit, loading: roleLoading } = useRole();
   const { showToast } = useToast();
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
 
-  const [targets, setTargets] = useState<TargetRow[]>([]);
-  const [loadingTargets, setLoadingTargets] = useState(true);
-  const [updatingField, setUpdatingField] = useState<string | null>(null);
+  const [allTargets, setAllTargets] = useState<TargetRow[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+
+  // Search (debounced)
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Filters
-  const [searchQuery, setSearchQuery] = useState("");
   const [filterAngkatan, setFilterAngkatan] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [fKontak, setFKontak] = useState("all");
@@ -245,51 +252,76 @@ export default function TargetPage() {
     setFPhone("all");
   };
 
-  // Fetch targets
-  const fetchTargets = useCallback(async () => {
-    setLoadingTargets(true);
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Reset page on any filter change
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+
+  // ── Data loading (NO loading state inside) ──
+  const loadData = useCallback(async () => {
     try {
       const res = await fetch("/api/targets");
       if (res.ok) {
         const data = await res.json();
-        setTargets(data);
+        setAllTargets(data);
       } else {
-        showToast("Gagal memuat data target", "error");
+        showToastRef.current("Gagal memuat data target", "error");
       }
     } catch {
-      showToast("Gagal memuat data target", "error");
+      showToastRef.current("Gagal memuat data target", "error");
     }
-    setLoadingTargets(false);
-  }, [showToast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
+
+  // Fetch once on mount
   useEffect(() => {
     if (roleLoading) return;
-    fetchTargets();
-  }, [fetchTargets, roleLoading]);
+    let cancelled = false;
+    (async () => {
+      await loadData();
+      if (!cancelled) setInitialLoading(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Available angkatan from data
   const availableAngkatan = useMemo(() => {
     const set = new Set<number>();
-    targets.forEach((t) => set.add(t.angkatan));
+    allTargets.forEach((t) => set.add(t.angkatan));
     return Array.from(set).sort((a, b) => a - b);
-  }, [targets]);
+  }, [allTargets]);
 
   // Stats — terkonvert counts as pendukung
   const stats = useMemo(() => {
-    const total = targets.length;
-    const kontak = targets.filter((t) => t.sudah_dikontak === "Sudah").length;
-    const dukung = targets.filter((t) => t.dukungan === "dukung" || t.dukungan === "terkonvert").length;
-    const ragu = targets.filter((t) => t.dukungan === "ragu_ragu").length;
-    const sebelah = targets.filter((t) => t.dukungan === "milih_sebelah").length;
-    const grup = targets.filter((t) => t.masuk_grup === "Sudah").length;
+    const total = allTargets.length;
+    const kontak = allTargets.filter((t) => t.sudah_dikontak === "Sudah").length;
+    const dukung = allTargets.filter((t) => t.dukungan === "dukung" || t.dukungan === "terkonvert").length;
+    const ragu = allTargets.filter((t) => t.dukungan === "ragu_ragu").length;
+    const sebelah = allTargets.filter((t) => t.dukungan === "milih_sebelah").length;
+    const grup = allTargets.filter((t) => t.masuk_grup === "Sudah").length;
     return { total, kontak, dukung, ragu, sebelah, grup };
-  }, [targets]);
+  }, [allTargets]);
 
   // Filter targets — per-column
-  const filteredTargets = useMemo(() => {
-    return targets.filter((t) => {
-      const q = searchQuery.toLowerCase();
-      if (q && !t.nama.toLowerCase().includes(q) && !(t.no_hp && t.no_hp.includes(searchQuery))) return false;
+  const filtered = useMemo(() => {
+    return allTargets.filter((t) => {
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase();
+        if (!t.nama.toLowerCase().includes(q) && !(t.no_hp && t.no_hp.includes(debouncedSearch))) return false;
+      }
       if (filterAngkatan !== "all" && t.angkatan !== Number(filterAngkatan)) return false;
 
       // Per-column filters
@@ -320,16 +352,24 @@ export default function TargetPage() {
 
       return true;
     });
-  }, [targets, searchQuery, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+  }, [allTargets, debouncedSearch, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+
+  // Client-side pagination
+  const totalFiltered = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const targets = useMemo(() => {
+    const offset = (safePage - 1) * PAGE_SIZE;
+    return filtered.slice(offset, offset + PAGE_SIZE);
+  }, [filtered, safePage]);
+
+  const goPage = (p: number) => setPage(Math.max(1, Math.min(totalPages, p)));
 
   // Update handler
   const handleFieldUpdate = useCallback(
     async (row: TargetRow, field: string, value: string | null) => {
-      const key = `${row.alumni_id}:${field}`;
-      setUpdatingField(key);
-
       // Optimistic update
-      setTargets((prev) =>
+      setAllTargets((prev) =>
         prev.map((t) =>
           t.alumni_id === row.alumni_id ? { ...t, [field]: value } : t
         )
@@ -344,12 +384,12 @@ export default function TargetPage() {
             body: JSON.stringify({ [field]: value }),
           });
           if (!res.ok) {
-            fetchTargets();
-            showToast("Gagal mengupdate", "error");
+            loadData();
+            showToastRef.current("Gagal mengupdate", "error");
           }
         } catch {
-          fetchTargets();
-          showToast("Gagal mengupdate", "error");
+          loadData();
+          showToastRef.current("Gagal mengupdate", "error");
         }
       } else {
         // No member yet — POST to create + update
@@ -361,7 +401,7 @@ export default function TargetPage() {
           });
           if (res.ok) {
             const data = await res.json();
-            setTargets((prev) =>
+            setAllTargets((prev) =>
               prev.map((t) =>
                 t.alumni_id === row.alumni_id
                   ? {
@@ -379,18 +419,16 @@ export default function TargetPage() {
               )
             );
           } else {
-            fetchTargets();
-            showToast("Gagal membuat data anggota", "error");
+            loadData();
+            showToastRef.current("Gagal membuat data anggota", "error");
           }
         } catch {
-          fetchTargets();
-          showToast("Gagal membuat data anggota", "error");
+          loadData();
+          showToastRef.current("Gagal membuat data anggota", "error");
         }
       }
-
-      setUpdatingField(null);
     },
-    [fetchTargets, showToast]
+    [loadData]
   );
 
   // Toggle binary field
@@ -400,7 +438,7 @@ export default function TargetPage() {
     handleFieldUpdate(row, field, next);
   };
 
-  if (roleLoading || loadingTargets) {
+  if (roleLoading || initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
@@ -432,10 +470,11 @@ export default function TargetPage() {
               </div>
             </div>
             <button
-              onClick={fetchTargets}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-60"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
@@ -478,8 +517,8 @@ export default function TargetPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                   type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Cari nama / HP..."
                   className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
                 />
@@ -627,8 +666,13 @@ export default function TargetPage() {
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
           <div className="px-4 py-2.5 border-b border-border bg-gray-50/80 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">
-              Daftar Target ({formatNum(filteredTargets.length)})
+              Daftar Target ({formatNum(totalFiltered)})
             </h3>
+            {totalPages > 1 && (
+              <span className="text-[10px] text-muted-foreground">
+                Hal {safePage}/{totalPages}
+              </span>
+            )}
           </div>
 
           {/* Desktop Table */}
@@ -668,13 +712,13 @@ export default function TargetPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredTargets.length === 0 ? (
+                {targets.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Crosshair className="w-8 h-8 text-gray-200" />
                         <p className="text-sm text-muted-foreground">
-                          {searchQuery || activeFilterCount > 0
+                          {debouncedSearch || activeFilterCount > 0
                             ? "Tidak ada data yang cocok"
                             : "Belum ada target. Minta admin mengatur angkatan Anda."}
                         </p>
@@ -682,13 +726,13 @@ export default function TargetPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredTargets.map((row, idx) => (
+                  targets.map((row, idx) => (
                     <tr
                       key={row.alumni_id}
                       className="border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors"
                     >
                       <td className="px-3 py-2 text-gray-400 text-xs">
-                        {idx + 1}
+                        {(safePage - 1) * PAGE_SIZE + idx + 1}
                       </td>
                       <td className="px-3 py-2">
                         <div>
@@ -754,17 +798,17 @@ export default function TargetPage() {
 
           {/* Mobile Cards */}
           <div className="md:hidden divide-y divide-border">
-            {filteredTargets.length === 0 ? (
+            {targets.length === 0 ? (
               <div className="px-4 py-12 text-center">
                 <Crosshair className="w-8 h-8 text-gray-200 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  {searchQuery || activeFilterCount > 0
+                  {debouncedSearch || activeFilterCount > 0
                     ? "Tidak ada data yang cocok"
                     : "Belum ada target. Minta admin mengatur angkatan Anda."}
                 </p>
               </div>
             ) : (
-              filteredTargets.map((row) => (
+              targets.map((row) => (
                 <div key={row.alumni_id} className="px-4 py-3 space-y-2">
                   {/* Name + angkatan */}
                   <div className="flex items-start justify-between gap-2">
@@ -842,6 +886,33 @@ export default function TargetPage() {
               ))
             )}
           </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-4 py-2.5 border-t border-border bg-gray-50/50 flex items-center justify-between">
+              <button
+                onClick={() => goPage(safePage - 1)}
+                disabled={safePage <= 1}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-border rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Prev
+              </button>
+              <span className="text-xs text-muted-foreground">
+                Hal <span className="font-semibold text-foreground">{safePage}</span> dari{" "}
+                <span className="font-semibold text-foreground">{totalPages}</span>
+                <span className="text-gray-400 ml-1">({formatNum(totalFiltered)} target)</span>
+              </span>
+              <button
+                onClick={() => goPage(safePage + 1)}
+                disabled={safePage >= totalPages}
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-border rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
