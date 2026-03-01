@@ -24,6 +24,8 @@ import {
   Phone,
   CalendarCheck,
   Search,
+  Filter,
+  X,
 } from "lucide-react";
 
 /* ── Types ─────────────────────────────────────────────── */
@@ -216,94 +218,147 @@ function DukunganSelect({ value, onChange, disabled }: {
   );
 }
 
-/* ── Paginated Drill-Down Table ──────────────────────── */
+/* ── Drill-Down Table (fetch all once, client-side filter/paginate) ── */
 
-const DRILL_LIMIT = 50;
+const DRILL_PAGE_SIZE = 50;
 
 function DrillDownTable({ campaignerId, showToast }: {
   campaignerId: string;
   showToast: (msg: string, type?: "success" | "error") => void;
 }) {
-  const [targets, setTargets] = useState<TargetRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
+
+  const [allTargets, setAllTargets] = useState<TargetRow[]>([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Pagination
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [availableAngkatan, setAvailableAngkatan] = useState<number[]>([]);
 
-  // Search: debounced
+  // Search (debounced)
   const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  const [filterAngkatan, setFilterAngkatan] = useState("");
+  // Filters
+  const [filterAngkatan, setFilterAngkatan] = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [fKontak, setFKontak] = useState("all");
+  const [fDukungan, setFDukungan] = useState("all");
+  const [fGrup, setFGrup] = useState("all");
+  const [fDpt, setFDpt] = useState("all");
+  const [fVote, setFVote] = useState("all");
+  const [fPhone, setFPhone] = useState("all");
 
-  // Fetch targets for the current page
-  const fetchPage = useCallback(async (p: number, search: string, angkatan: string) => {
-    setLoading(true);
-    const params = new URLSearchParams({
-      user_id: campaignerId,
-      page: String(p),
-      limit: String(DRILL_LIMIT),
-    });
-    if (search) params.set("search", search);
-    if (angkatan) params.set("angkatan", angkatan);
+  const activeFilterCount = [fKontak, fDukungan, fGrup, fDpt, fVote, fPhone].filter((f) => f !== "all").length;
 
-    try {
-      const res = await fetch(`/api/targets?${params}`);
-      if (res.ok) {
-        const json = await res.json();
-        setTargets(json.data || []);
-        setTotal(json.total || 0);
-        setTotalPages(json.totalPages || 1);
-        setPage(json.page || 1);
-        setAvailableAngkatan(json.availableAngkatan || []);
-      } else {
-        showToast("Gagal memuat data target", "error");
-      }
-    } catch {
-      showToast("Gagal memuat data target", "error");
-    }
-    setLoading(false);
-  }, [campaignerId, showToast]);
-
-  // Initial load
-  useEffect(() => {
-    fetchPage(1, "", "");
-  }, [fetchPage]);
+  const resetFilters = () => {
+    setFKontak("all"); setFDukungan("all"); setFGrup("all");
+    setFDpt("all"); setFVote("all"); setFPhone("all");
+  };
 
   // Debounce search
-  const handleSearchInput = (val: string) => {
-    setSearchInput(val);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setSearchQuery(val);
-      setPage(1);
-      fetchPage(1, val, filterAngkatan);
-    }, 400);
-  };
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-  // Angkatan filter change
-  const handleAngkatanChange = (val: string) => {
-    setFilterAngkatan(val);
+  // Reset page on filter change
+  useEffect(() => {
     setPage(1);
-    fetchPage(1, searchQuery, val);
-  };
+  }, [debouncedSearch, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
 
-  // Page navigation
-  const goToPage = (p: number) => {
-    setPage(p);
-    fetchPage(p, searchQuery, filterAngkatan);
-  };
+  // ── Fetch all data once (NO loading state inside) ──
+  const loadData = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/targets?user_id=${campaignerId}`);
+      if (res.ok) {
+        const json = await res.json();
+        // API returns flat array when no page param
+        setAllTargets(Array.isArray(json) ? json : json.data || []);
+      } else {
+        showToastRef.current("Gagal memuat data target", "error");
+      }
+    } catch {
+      showToastRef.current("Gagal memuat data target", "error");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignerId]);
 
-  // Refresh current page
-  const refreshCurrent = () => fetchPage(page, searchQuery, filterAngkatan);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
+
+  // Fetch once on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await loadData();
+      if (!cancelled) setInitialLoading(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Available angkatan from data
+  const availableAngkatan = useMemo(() => {
+    const set = new Set<number>();
+    allTargets.forEach((t) => set.add(t.angkatan));
+    return Array.from(set).sort((a, b) => a - b);
+  }, [allTargets]);
+
+  // Client-side filtering
+  const filtered = useMemo(() => {
+    return allTargets.filter((t) => {
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase();
+        if (!t.nama.toLowerCase().includes(q) && !(t.no_hp && t.no_hp.includes(debouncedSearch))) return false;
+      }
+      if (filterAngkatan !== "all" && t.angkatan !== Number(filterAngkatan)) return false;
+      if (fKontak !== "all") {
+        if (fKontak === "empty") { if (t.sudah_dikontak !== null) return false; }
+        else if (t.sudah_dikontak !== fKontak) return false;
+      }
+      if (fDukungan !== "all") {
+        if (fDukungan === "pendukung") { if (t.dukungan !== "dukung" && t.dukungan !== "terkonvert") return false; }
+        else if (fDukungan === "empty") { if (t.dukungan) return false; }
+        else if (t.dukungan !== fDukungan) return false;
+      }
+      if (fGrup !== "all" && t.masuk_grup !== fGrup) return false;
+      if (fDpt !== "all") {
+        if (fDpt === "empty") { if (t.status_dpt !== null) return false; }
+        else if (t.status_dpt !== fDpt) return false;
+      }
+      if (fVote !== "all") {
+        if (fVote === "empty") { if (t.vote !== null) return false; }
+        else if (t.vote !== fVote) return false;
+      }
+      if (fPhone !== "all") {
+        if (fPhone === "has" && !t.no_hp) return false;
+        if (fPhone === "empty" && t.no_hp) return false;
+      }
+      return true;
+    });
+  }, [allTargets, debouncedSearch, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+
+  // Client-side pagination
+  const totalFiltered = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / DRILL_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const targets = useMemo(() => {
+    const offset = (safePage - 1) * DRILL_PAGE_SIZE;
+    return filtered.slice(offset, offset + DRILL_PAGE_SIZE);
+  }, [filtered, safePage]);
+
+  const goPage = (p: number) => setPage(Math.max(1, Math.min(totalPages, p)));
 
   // ── Edit handlers ──
   const handleFieldUpdate = useCallback(
     async (row: TargetRow, field: string, value: string | null) => {
       // Optimistic update
-      setTargets((prev) =>
+      setAllTargets((prev) =>
         prev.map((t) => t.alumni_id === row.alumni_id ? { ...t, [field]: value } : t)
       );
 
@@ -314,8 +369,8 @@ function DrillDownTable({ campaignerId, showToast }: {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ [field]: value }),
           });
-          if (!res.ok) { refreshCurrent(); showToast("Gagal mengupdate", "error"); }
-        } catch { refreshCurrent(); showToast("Gagal mengupdate", "error"); }
+          if (!res.ok) { loadData(); showToastRef.current("Gagal mengupdate", "error"); }
+        } catch { loadData(); showToastRef.current("Gagal mengupdate", "error"); }
       } else {
         try {
           const res = await fetch("/api/targets", {
@@ -325,19 +380,18 @@ function DrillDownTable({ campaignerId, showToast }: {
           });
           if (res.ok) {
             const data = await res.json();
-            setTargets((prev) =>
+            setAllTargets((prev) =>
               prev.map((t) =>
                 t.alumni_id === row.alumni_id
                   ? { ...t, member_id: data.member_id, no: data.member?.no || t.no, no_hp: data.member?.no_hp || t.no_hp, status_dpt: data.member?.status_dpt ?? t.status_dpt, sudah_dikontak: data.member?.sudah_dikontak ?? t.sudah_dikontak, vote: data.member?.vote ?? t.vote, dukungan: data.member?.dukungan ?? t.dukungan }
                   : t
               )
             );
-          } else { refreshCurrent(); showToast("Gagal membuat data anggota", "error"); }
-        } catch { refreshCurrent(); showToast("Gagal membuat data anggota", "error"); }
+          } else { loadData(); showToastRef.current("Gagal membuat data anggota", "error"); }
+        } catch { loadData(); showToastRef.current("Gagal membuat data anggota", "error"); }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [showToast, page, searchQuery, filterAngkatan, campaignerId]
+    [loadData]
   );
 
   const toggleBinary = (row: TargetRow, field: string) => {
@@ -346,16 +400,25 @@ function DrillDownTable({ campaignerId, showToast }: {
   };
 
   // ── Render ──
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <Loader2 className="w-5 h-5 animate-spin text-[#0B27BC] mr-2" />
+        <span className="text-sm text-muted-foreground">Memuat data target...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      {/* Search + Angkatan + Refresh */}
+      {/* Search + Angkatan + Filter + Refresh */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[130px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             type="text"
             value={searchInput}
-            onChange={(e) => handleSearchInput(e.target.value)}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Cari nama / HP..."
             className="w-full pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
           />
@@ -363,189 +426,268 @@ function DrillDownTable({ campaignerId, showToast }: {
         {availableAngkatan.length > 1 && (
           <select
             value={filterAngkatan}
-            onChange={(e) => handleAngkatanChange(e.target.value)}
+            onChange={(e) => setFilterAngkatan(e.target.value)}
             className="px-2 py-1.5 text-xs border border-border rounded-lg bg-white"
           >
-            <option value="">Semua TN</option>
+            <option value="all">Semua TN</option>
             {availableAngkatan.map((a) => (
               <option key={a} value={a}>TN {a}</option>
             ))}
           </select>
         )}
         <button
-          onClick={refreshCurrent}
-          className="text-xs text-[#0B27BC] hover:text-[#0B27BC]/80 inline-flex items-center gap-1 px-2.5 py-1.5 border border-border rounded-lg bg-white hover:bg-gray-50"
+          onClick={() => setShowFilters(!showFilters)}
+          className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs border rounded-lg transition-colors ${
+            activeFilterCount > 0
+              ? "bg-[#0B27BC] text-white border-[#0B27BC]"
+              : "bg-white text-gray-600 border-border hover:bg-gray-50"
+          }`}
         >
-          <RefreshCw className="w-3 h-3" />
+          <Filter className="w-3 h-3" />
+          Filter
+          {activeFilterCount > 0 && (
+            <span className="bg-white text-[#0B27BC] text-[9px] font-bold rounded-full w-3.5 h-3.5 inline-flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="text-xs text-[#0B27BC] hover:text-[#0B27BC]/80 inline-flex items-center gap-1 px-2.5 py-1.5 border border-border rounded-lg bg-white hover:bg-gray-50 disabled:opacity-60"
+        >
+          <RefreshCw className={`w-3 h-3 ${refreshing ? "animate-spin" : ""}`} />
           Refresh
         </button>
       </div>
+
+      {/* Advanced filters */}
+      {showFilters && (
+        <div className="bg-white rounded-lg border border-border p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-medium text-gray-500">Filter per kolom</p>
+            {activeFilterCount > 0 && (
+              <button onClick={resetFilters} className="text-[10px] text-red-500 hover:text-red-700 inline-flex items-center gap-0.5">
+                <X className="w-2.5 h-2.5" />Reset
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+            <div>
+              <label className="text-[9px] text-gray-400 mb-0.5 block">No HP</label>
+              <select value={fPhone} onChange={(e) => setFPhone(e.target.value)} className="w-full px-1.5 py-1 text-[10px] border border-border rounded-lg bg-white">
+                <option value="all">Semua</option>
+                <option value="has">Ada</option>
+                <option value="empty">Kosong</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[9px] text-gray-400 mb-0.5 block">Kontak</label>
+              <select value={fKontak} onChange={(e) => setFKontak(e.target.value)} className="w-full px-1.5 py-1 text-[10px] border border-border rounded-lg bg-white">
+                <option value="all">Semua</option>
+                <option value="Sudah">Sudah</option>
+                <option value="Belum">Belum</option>
+                <option value="empty">Kosong</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[9px] text-gray-400 mb-0.5 block">Dukungan</label>
+              <select value={fDukungan} onChange={(e) => setFDukungan(e.target.value)} className="w-full px-1.5 py-1 text-[10px] border border-border rounded-lg bg-white">
+                <option value="all">Semua</option>
+                <option value="pendukung">Pendukung</option>
+                <option value="dukung">Dukung</option>
+                <option value="ragu_ragu">Ragu</option>
+                <option value="milih_sebelah">Sebelah</option>
+                <option value="terkonvert">Convert</option>
+                <option value="empty">Belum diisi</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[9px] text-gray-400 mb-0.5 block">Grup WA</label>
+              <select value={fGrup} onChange={(e) => setFGrup(e.target.value)} className="w-full px-1.5 py-1 text-[10px] border border-border rounded-lg bg-white">
+                <option value="all">Semua</option>
+                <option value="Sudah">Sudah</option>
+                <option value="Belum">Belum</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[9px] text-gray-400 mb-0.5 block">DPT</label>
+              <select value={fDpt} onChange={(e) => setFDpt(e.target.value)} className="w-full px-1.5 py-1 text-[10px] border border-border rounded-lg bg-white">
+                <option value="all">Semua</option>
+                <option value="Sudah">Sudah</option>
+                <option value="Belum">Belum</option>
+                <option value="empty">Kosong</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[9px] text-gray-400 mb-0.5 block">Vote</label>
+              <select value={fVote} onChange={(e) => setFVote(e.target.value)} className="w-full px-1.5 py-1 text-[10px] border border-border rounded-lg bg-white">
+                <option value="all">Semua</option>
+                <option value="Sudah">Sudah</option>
+                <option value="Belum">Belum</option>
+                <option value="empty">Kosong</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-lg border border-border overflow-hidden">
         <div className="px-3 py-2 border-b border-border bg-gray-50/80 flex items-center justify-between">
           <h4 className="text-xs font-semibold text-foreground">
-            Daftar Target ({formatNum(total)})
+            Daftar Target ({formatNum(totalFiltered)})
           </h4>
           {totalPages > 1 && (
             <span className="text-[10px] text-muted-foreground">
-              Hal {page}/{totalPages}
+              Hal {safePage}/{totalPages}
             </span>
           )}
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="w-5 h-5 animate-spin text-[#0B27BC] mr-2" />
-            <span className="text-sm text-muted-foreground">Memuat...</span>
-          </div>
-        ) : (
-          <>
-            {/* Desktop Table */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-gray-50/50">
-                    <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs w-10">#</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs">Nama</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs w-[120px]">
-                      <Phone className="w-3 h-3 inline mr-1" />No HP
-                    </th>
-                    <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
-                      <CalendarCheck className="w-3 h-3 inline mr-0.5" />Event
-                    </th>
-                    <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Kontak</th>
-                    <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Dukungan</th>
-                    <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Grup</th>
-                    <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">DPT</th>
-                    <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Vote</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {targets.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center">
-                        <Crosshair className="w-6 h-6 text-gray-200 mx-auto mb-1" />
-                        <p className="text-xs text-muted-foreground">
-                          {searchInput || filterAngkatan ? "Tidak ada data yang cocok" : "Belum ada target."}
-                        </p>
-                      </td>
-                    </tr>
-                  ) : (
-                    targets.map((row, idx) => (
-                      <tr key={row.alumni_id} className="border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-3 py-2 text-gray-400 text-xs">{(page - 1) * DRILL_LIMIT + idx + 1}</td>
-                        <td className="px-3 py-2">
-                          <div>
-                            <p className="text-sm font-medium text-foreground truncate max-w-[200px]">{row.nama}</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              TN {row.angkatan}{row.alumni_kelanjutan_studi ? ` · ${row.alumni_kelanjutan_studi}` : ""}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2"><InlinePhoneEdit value={row.no_hp} onSave={(v) => handleFieldUpdate(row, "no_hp", v)} /></td>
-                        <td className="px-2 py-2 text-center">
-                          <span className={`text-xs font-semibold ${row.attendance_count > 0 ? "text-[#0B27BC]" : "text-gray-300"}`}>{row.attendance_count}</span>
-                        </td>
-                        <td className="px-2 py-2 text-center">
-                          <StatusChip value={row.sudah_dikontak} onClick={row.masuk_grup !== "Sudah" ? () => toggleBinary(row, "sudah_dikontak") : undefined} readOnly={row.masuk_grup === "Sudah"} />
-                        </td>
-                        <td className="px-2 py-2 text-center">
-                          <DukunganSelect value={row.dukungan} onChange={(v) => handleFieldUpdate(row, "dukungan", v)} />
-                        </td>
-                        <td className="px-2 py-2 text-center"><StatusChip value={row.masuk_grup} readOnly /></td>
-                        <td className="px-2 py-2 text-center"><StatusChip value={row.status_dpt} onClick={() => toggleBinary(row, "status_dpt")} /></td>
-                        <td className="px-2 py-2 text-center"><StatusChip value={row.vote} onClick={() => toggleBinary(row, "vote")} /></td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Cards */}
-            <div className="md:hidden divide-y divide-border">
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-gray-50/50">
+                <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs w-10">#</th>
+                <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs">Nama</th>
+                <th className="text-left px-3 py-2 font-semibold text-gray-500 text-xs w-[120px]">
+                  <Phone className="w-3 h-3 inline mr-1" />No HP
+                </th>
+                <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
+                  <CalendarCheck className="w-3 h-3 inline mr-0.5" />Event
+                </th>
+                <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Kontak</th>
+                <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Dukungan</th>
+                <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Grup</th>
+                <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">DPT</th>
+                <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Vote</th>
+              </tr>
+            </thead>
+            <tbody>
               {targets.length === 0 ? (
-                <div className="px-4 py-8 text-center">
-                  <Crosshair className="w-6 h-6 text-gray-200 mx-auto mb-1" />
-                  <p className="text-xs text-muted-foreground">
-                    {searchInput || filterAngkatan ? "Tidak ada data yang cocok" : "Belum ada target."}
-                  </p>
-                </div>
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center">
+                    <Crosshair className="w-6 h-6 text-gray-200 mx-auto mb-1" />
+                    <p className="text-xs text-muted-foreground">
+                      {debouncedSearch || activeFilterCount > 0 || filterAngkatan !== "all" ? "Tidak ada data yang cocok" : "Belum ada target."}
+                    </p>
+                  </td>
+                </tr>
               ) : (
-                targets.map((row) => (
-                  <div key={row.alumni_id} className="px-3 py-2.5 space-y-1.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{row.nama}</p>
+                targets.map((row, idx) => (
+                  <tr key={row.alumni_id} className="border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors">
+                    <td className="px-3 py-2 text-gray-400 text-xs">{(safePage - 1) * DRILL_PAGE_SIZE + idx + 1}</td>
+                    <td className="px-3 py-2">
+                      <div>
+                        <p className="text-sm font-medium text-foreground truncate max-w-[200px]">{row.nama}</p>
                         <p className="text-[10px] text-muted-foreground">
                           TN {row.angkatan}{row.alumni_kelanjutan_studi ? ` · ${row.alumni_kelanjutan_studi}` : ""}
                         </p>
                       </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B27BC]/10 text-[#0B27BC] font-medium shrink-0">TN{row.angkatan}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-3 h-3 text-gray-400 shrink-0" />
-                      <InlinePhoneEdit value={row.no_hp} onSave={(v) => handleFieldUpdate(row, "no_hp", v)} />
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] text-gray-400 w-8">Event</span>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${row.attendance_count > 0 ? "bg-[#0B27BC]/10 text-[#0B27BC]" : "bg-gray-50 text-gray-300"}`}>{row.attendance_count}x</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] text-gray-400 w-10">Kontak</span>
-                        <StatusChip value={row.sudah_dikontak} onClick={row.masuk_grup !== "Sudah" ? () => toggleBinary(row, "sudah_dikontak") : undefined} readOnly={row.masuk_grup === "Sudah"} />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] text-gray-400 w-12">Dukung</span>
-                        <DukunganSelect value={row.dukungan} onChange={(v) => handleFieldUpdate(row, "dukungan", v)} />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] text-gray-400 w-7">Grup</span>
-                        <StatusChip value={row.masuk_grup} readOnly />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] text-gray-400 w-6">DPT</span>
-                        <StatusChip value={row.status_dpt} onClick={() => toggleBinary(row, "status_dpt")} />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[9px] text-gray-400 w-7">Vote</span>
-                        <StatusChip value={row.vote} onClick={() => toggleBinary(row, "vote")} />
-                      </div>
-                    </div>
-                  </div>
+                    </td>
+                    <td className="px-3 py-2"><InlinePhoneEdit value={row.no_hp} onSave={(v) => handleFieldUpdate(row, "no_hp", v)} /></td>
+                    <td className="px-2 py-2 text-center">
+                      <span className={`text-xs font-semibold ${row.attendance_count > 0 ? "text-[#0B27BC]" : "text-gray-300"}`}>{row.attendance_count}</span>
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      <StatusChip value={row.sudah_dikontak} onClick={row.masuk_grup !== "Sudah" ? () => toggleBinary(row, "sudah_dikontak") : undefined} readOnly={row.masuk_grup === "Sudah"} />
+                    </td>
+                    <td className="px-2 py-2 text-center">
+                      <DukunganSelect value={row.dukungan} onChange={(v) => handleFieldUpdate(row, "dukungan", v)} />
+                    </td>
+                    <td className="px-2 py-2 text-center"><StatusChip value={row.masuk_grup} readOnly /></td>
+                    <td className="px-2 py-2 text-center"><StatusChip value={row.status_dpt} onClick={() => toggleBinary(row, "status_dpt")} /></td>
+                    <td className="px-2 py-2 text-center"><StatusChip value={row.vote} onClick={() => toggleBinary(row, "vote")} /></td>
+                  </tr>
                 ))
               )}
-            </div>
+            </tbody>
+          </table>
+        </div>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-3 py-2.5 border-t border-border bg-gray-50/50 flex items-center justify-between">
-                <button
-                  onClick={() => goToPage(page - 1)}
-                  disabled={page <= 1}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-border rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  Prev
-                </button>
-                <span className="text-xs text-muted-foreground">
-                  Hal <span className="font-semibold text-foreground">{page}</span> dari{" "}
-                  <span className="font-semibold text-foreground">{totalPages}</span>
-                  <span className="text-gray-400 ml-1">({formatNum(total)} target)</span>
-                </span>
-                <button
-                  onClick={() => goToPage(page + 1)}
-                  disabled={page >= totalPages}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-border rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  Next
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
+        {/* Mobile Cards */}
+        <div className="md:hidden divide-y divide-border">
+          {targets.length === 0 ? (
+            <div className="px-4 py-8 text-center">
+              <Crosshair className="w-6 h-6 text-gray-200 mx-auto mb-1" />
+              <p className="text-xs text-muted-foreground">
+                {debouncedSearch || activeFilterCount > 0 || filterAngkatan !== "all" ? "Tidak ada data yang cocok" : "Belum ada target."}
+              </p>
+            </div>
+          ) : (
+            targets.map((row) => (
+              <div key={row.alumni_id} className="px-3 py-2.5 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{row.nama}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      TN {row.angkatan}{row.alumni_kelanjutan_studi ? ` · ${row.alumni_kelanjutan_studi}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B27BC]/10 text-[#0B27BC] font-medium shrink-0">TN{row.angkatan}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                  <InlinePhoneEdit value={row.no_hp} onSave={(v) => handleFieldUpdate(row, "no_hp", v)} />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-400 w-8">Event</span>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${row.attendance_count > 0 ? "bg-[#0B27BC]/10 text-[#0B27BC]" : "bg-gray-50 text-gray-300"}`}>{row.attendance_count}x</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-400 w-10">Kontak</span>
+                    <StatusChip value={row.sudah_dikontak} onClick={row.masuk_grup !== "Sudah" ? () => toggleBinary(row, "sudah_dikontak") : undefined} readOnly={row.masuk_grup === "Sudah"} />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-400 w-12">Dukung</span>
+                    <DukunganSelect value={row.dukungan} onChange={(v) => handleFieldUpdate(row, "dukungan", v)} />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-400 w-7">Grup</span>
+                    <StatusChip value={row.masuk_grup} readOnly />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-400 w-6">DPT</span>
+                    <StatusChip value={row.status_dpt} onClick={() => toggleBinary(row, "status_dpt")} />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-gray-400 w-7">Vote</span>
+                    <StatusChip value={row.vote} onClick={() => toggleBinary(row, "vote")} />
+                  </div>
+                </div>
               </div>
-            )}
-          </>
+            ))
+          )}
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-3 py-2.5 border-t border-border bg-gray-50/50 flex items-center justify-between">
+            <button
+              onClick={() => goPage(safePage - 1)}
+              disabled={safePage <= 1}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-border rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Prev
+            </button>
+            <span className="text-xs text-muted-foreground">
+              Hal <span className="font-semibold text-foreground">{safePage}</span> dari{" "}
+              <span className="font-semibold text-foreground">{totalPages}</span>
+              <span className="text-gray-400 ml-1">({formatNum(totalFiltered)} target)</span>
+            </span>
+            <button
+              onClick={() => goPage(safePage + 1)}
+              disabled={safePage >= totalPages}
+              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-border rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         )}
       </div>
     </div>
