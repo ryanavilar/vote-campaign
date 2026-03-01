@@ -273,7 +273,12 @@ export default function AdminAlumniPage() {
     setPage(1);
   }, [debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
 
-  // Fetch ALL data once from API
+  // Stable ref for showToast so fetchAlumni never changes identity
+  const showToastRef = useRef(showToast);
+  showToastRef.current = showToast;
+  const fetchedRef = useRef(false);
+
+  // Fetch ALL data once from API — zero deps so identity is always stable
   const fetchAlumni = useCallback(async () => {
     setLoadingData(true);
     try {
@@ -284,19 +289,24 @@ export default function AdminAlumniPage() {
         setStats(json.stats);
         setAvailableAngkatan(json.availableAngkatan || []);
       } else {
-        showToast("Gagal memuat data alumni", "error");
+        showToastRef.current("Gagal memuat data alumni", "error");
       }
     } catch {
-      showToast("Gagal memuat data alumni", "error");
+      showToastRef.current("Gagal memuat data alumni", "error");
     }
     setLoadingData(false);
-  }, [showToast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Fetch once on mount
+  // Fetch once on mount — guarded by ref to prevent duplicate calls
   useEffect(() => {
-    if (roleLoading) return;
-    if (canManageUsers) fetchAlumni();
-    else setLoadingData(false);
+    if (roleLoading || fetchedRef.current) return;
+    if (canManageUsers) {
+      fetchedRef.current = true;
+      fetchAlumni();
+    } else {
+      setLoadingData(false);
+    }
   }, [roleLoading, canManageUsers, fetchAlumni]);
 
   // ── Client-side filtering ──
@@ -428,11 +438,11 @@ export default function AdminAlumniPage() {
           });
           if (!res.ok) {
             fetchAlumni();
-            showToast("Gagal mengupdate", "error");
+            showToastRef.current("Gagal mengupdate", "error");
           }
         } catch {
           fetchAlumni();
-          showToast("Gagal mengupdate", "error");
+          showToastRef.current("Gagal mengupdate", "error");
         }
       } else {
         // No member or __temp__ member → POST to create/update via targets API
@@ -468,17 +478,17 @@ export default function AdminAlumniPage() {
             );
           } else {
             fetchAlumni();
-            showToast("Gagal membuat data anggota", "error");
+            showToastRef.current("Gagal membuat data anggota", "error");
           }
         } catch {
           fetchAlumni();
-          showToast("Gagal membuat data anggota", "error");
+          showToastRef.current("Gagal membuat data anggota", "error");
         } finally {
           creatingLockRef.current.delete(item.id);
         }
       }
     },
-    [fetchAlumni, showToast]
+    [fetchAlumni]
   );
 
   const toggleBinary = (item: AlumniRow, field: string) => {
