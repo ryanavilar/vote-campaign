@@ -106,9 +106,13 @@ export async function GET() {
 
     // Angkatan -> user_id[] (which campaigners handle which angkatan)
     const angkatanCampaignerMap: Record<number, string[]> = {};
+    // Reverse: user_id -> angkatan[] (for card display)
+    const userAngkatanMap: Record<string, number[]> = {};
     for (const r of angkatanRows) {
       if (!angkatanCampaignerMap[r.angkatan]) angkatanCampaignerMap[r.angkatan] = [];
       angkatanCampaignerMap[r.angkatan].push(r.user_id);
+      if (!userAngkatanMap[r.user_id]) userAngkatanMap[r.user_id] = [];
+      userAngkatanMap[r.user_id].push(r.angkatan);
     }
 
     // 3. Get alumni data for linked members
@@ -174,10 +178,11 @@ export async function GET() {
       };
     });
 
-    // 6. Build campaigner list
+    // 6. Build campaigner list (with assigned angkatan)
     const campaignerList = Array.from(allCampaignerIds).map((id) => ({
       user_id: id,
       email: userEmailMap[id] || id,
+      angkatan: (userAngkatanMap[id] || []).sort((a, b) => a - b),
     }));
 
     return NextResponse.json({

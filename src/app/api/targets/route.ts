@@ -36,11 +36,68 @@ async function fetchAll<T = any>(
 }
 
 /**
+ * Wraps target rows with optional pagination.
+ * When `page` param is present → paginated JSON { data, total, page, limit, totalPages, availableAngkatan }
+ * When absent → flat JSON array (backward compat for Target Saya page)
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function maybePaginate(allRows: any[], sp: URLSearchParams): NextResponse {
+  const pageParam = sp.get("page");
+
+  // No pagination → flat array (backward compat)
+  if (!pageParam) return NextResponse.json(allRows);
+
+  // Server-side search
+  const search = (sp.get("search") || "").trim().toLowerCase();
+  const angkatanFilter = sp.get("angkatan") || "";
+  let filtered = allRows;
+
+  if (search) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    filtered = filtered.filter((r: any) =>
+      (r.nama && r.nama.toLowerCase().includes(search)) ||
+      (r.no_hp && r.no_hp.includes(search))
+    );
+  }
+  if (angkatanFilter) {
+    const num = Number(angkatanFilter);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    filtered = filtered.filter((r: any) => r.angkatan === num);
+  }
+
+  // Available angkatan from ALL rows (for dropdown)
+  const angSet = new Set<number>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  allRows.forEach((r: any) => angSet.add(r.angkatan));
+  const availableAngkatan = Array.from(angSet).sort((a, b) => a - b);
+
+  const page = Math.max(1, parseInt(pageParam));
+  const limit = Math.max(1, Math.min(200, parseInt(sp.get("limit") || "50")));
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * limit;
+
+  return NextResponse.json({
+    data: filtered.slice(offset, offset + limit),
+    total,
+    page: safePage,
+    limit,
+    totalPages,
+    availableAngkatan,
+  });
+}
+
+/**
  * GET /api/targets — Returns alumni list based on campaigner's assigned angkatan(s)
  * Falls back to legacy campaigner_targets if no angkatan assigned
  *
  * Query params:
- *   user_id — (admin/super_admin only) impersonate a campaigner to view their targets
+ *   user_id  — (admin/super_admin only) impersonate a campaigner to view their targets
+ *   page     — enable pagination (1-based)
+ *   limit    — rows per page (default 50, max 200)
+ *   search   — filter by nama / no_hp (server-side, requires page)
+ *   angkatan — filter by angkatan number (server-side, requires page)
  */
 export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerClient();
@@ -88,7 +145,7 @@ export async function GET(request: NextRequest) {
       .eq("user_id", targetUserId);
 
     if (!targets || targets.length === 0) {
-      return NextResponse.json([]);
+      return maybePaginate([], searchParams);
     }
 
     const memberIds = targets.map((t: { member_id: string }) => t.member_id);
@@ -153,7 +210,7 @@ export async function GET(request: NextRequest) {
           attendance_count: legacyAttCounts[m.id] || 0,
         };
       });
-      return NextResponse.json(legacyRows);
+      return maybePaginate(legacyRows, searchParams);
     } catch (err) {
       return NextResponse.json(
         { error: err instanceof Error ? err.message : "Failed to fetch members" },
@@ -275,7 +332,7 @@ export async function GET(request: NextRequest) {
     };
   });
 
-  return NextResponse.json(combined);
+  return maybePaginate(combined, searchParams);
 }
 
 /**
