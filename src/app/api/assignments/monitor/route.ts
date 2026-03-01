@@ -57,8 +57,8 @@ export async function GET() {
   const adminClient = getAdminClient();
 
   try {
-    // 1. Fetch all members
-    const members = await fetchAll(adminClient, "members", "*", (q) =>
+    // 1. Fetch all members (only columns needed for monitoring)
+    const members = await fetchAll(adminClient, "members", "id, alumni_id, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) =>
       q.order("angkatan").order("nama")
     );
 
@@ -115,22 +115,20 @@ export async function GET() {
       userAngkatanMap[r.user_id].push(r.angkatan);
     }
 
-    // 3. Get alumni data for linked members
-    const alumniIds = members.map((m) => m.alumni_id).filter(Boolean) as string[];
+    // 3. Get alumni data for linked members (parallel chunks)
+    const alumniIds = [...new Set(members.map((m) => m.alumni_id).filter(Boolean) as string[])];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const alumniMap: Record<string, any> = {};
     if (alumniIds.length > 0) {
-      for (let i = 0; i < alumniIds.length; i += 500) {
-        const chunk = alumniIds.slice(i, i + 500);
-        const alumniRows = await fetchAll(
-          adminClient,
-          "alumni",
-          "id, nama, angkatan, nosis, kelanjutan_studi",
-          (q) => q.in("id", chunk)
-        );
-        for (const a of alumniRows) {
-          alumniMap[a.id] = a;
-        }
+      const chunks: string[][] = [];
+      for (let i = 0; i < alumniIds.length; i += 500) chunks.push(alumniIds.slice(i, i + 500));
+      const results = await Promise.all(
+        chunks.map((chunk) =>
+          fetchAll(adminClient, "alumni", "id, nosis, kelanjutan_studi", (q) => q.in("id", chunk))
+        )
+      );
+      for (const rows of results) {
+        for (const a of rows) alumniMap[a.id] = a;
       }
     }
 

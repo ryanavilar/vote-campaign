@@ -150,42 +150,25 @@ export async function GET(request: NextRequest) {
 
     const memberIds = targets.map((t: { member_id: string }) => t.member_id);
     try {
-      const members = await fetchAll(adminClient, "members", "*", (q) =>
-        q.in("id", memberIds).order("no", { ascending: true })
-      );
+      // Fetch members + WA group + attendance in parallel
+      const [members, waRows, attRows] = await Promise.all([
+        fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) =>
+          q.in("id", memberIds).order("no", { ascending: true })
+        ),
+        fetchAll(adminClient, "wa_group_members", "member_id", (q) =>
+          q.in("member_id", memberIds).not("member_id", "is", null)
+        ).catch(() => []),
+        fetchAll(adminClient, "event_attendance", "member_id", (q) =>
+          q.in("member_id", memberIds)
+        ).catch(() => []),
+      ]);
 
-      // Derive masuk_grup from wa_group_members linkage
       const legacyWaLinked = new Set<string>();
-      try {
-        const waRows = await fetchAll(
-          adminClient,
-          "wa_group_members",
-          "member_id",
-          (q) => q.in("member_id", memberIds).not("member_id", "is", null)
-        );
-        for (const w of waRows) {
-          if (w.member_id) legacyWaLinked.add(w.member_id);
-        }
-      } catch {
-        // Continue without WA group data
-      }
+      for (const w of waRows) { if (w.member_id) legacyWaLinked.add(w.member_id); }
 
-      // Get event attendance counts for legacy members
       const legacyAttCounts: Record<string, number> = {};
-      try {
-        const attRows = await fetchAll(
-          adminClient,
-          "event_attendance",
-          "member_id",
-          (q) => q.in("member_id", memberIds)
-        );
-        for (const a of attRows) {
-          if (a.member_id) {
-            legacyAttCounts[a.member_id] = (legacyAttCounts[a.member_id] || 0) + 1;
-          }
-        }
-      } catch {
-        // Continue without attendance data
+      for (const a of attRows) {
+        if (a.member_id) legacyAttCounts[a.member_id] = (legacyAttCounts[a.member_id] || 0) + 1;
       }
 
       // Return in legacy format wrapped as target rows
@@ -235,73 +218,60 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // 3. Get all alumni_ids, fetch linked members
+  // 3. Get all alumni_ids, fetch linked members (parallel chunks)
   const alumniIds = alumni.map((a: { id: string }) => a.id);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const membersMap: Record<string, any> = {};
   if (alumniIds.length > 0) {
     try {
-      // Batch fetch in chunks of 500 to avoid URL length limits
-      for (let i = 0; i < alumniIds.length; i += 500) {
-        const chunk = alumniIds.slice(i, i + 500);
-        const memberRows = await fetchAll(adminClient, "members", "*", (q) =>
-          q.in("alumni_id", chunk)
-        );
-        for (const m of memberRows) {
-          if (m.alumni_id) membersMap[m.alumni_id] = m;
-        }
+      const chunks: string[][] = [];
+      for (let i = 0; i < alumniIds.length; i += 500) chunks.push(alumniIds.slice(i, i + 500));
+      const results = await Promise.all(
+        chunks.map((chunk) => fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) => q.in("alumni_id", chunk)))
+      );
+      for (const rows of results) {
+        for (const m of rows) { if (m.alumni_id) membersMap[m.alumni_id] = m; }
       }
     } catch {
       // Continue without member data
     }
   }
 
-  // 3b. Derive masuk_grup from wa_group_members linkage
-  const memberIds = Object.values(membersMap)
-    .map((m) => m.id)
-    .filter(Boolean) as string[];
-
+  // 3b. Derive masuk_grup + attendance counts (parallel)
+  const memberIds = Object.values(membersMap).map((m) => m.id).filter(Boolean) as string[];
   const waGroupLinkedIds = new Set<string>();
-  if (memberIds.length > 0) {
-    try {
-      for (let i = 0; i < memberIds.length; i += 500) {
-        const chunk = memberIds.slice(i, i + 500);
-        const waRows = await fetchAll(
-          adminClient,
-          "wa_group_members",
-          "member_id",
-          (q) => q.in("member_id", chunk).not("member_id", "is", null)
-        );
-        for (const w of waRows) {
-          if (w.member_id) waGroupLinkedIds.add(w.member_id);
-        }
-      }
-    } catch {
-      // Continue without WA group data
-    }
-  }
-
-  // 3c. Get event attendance counts per member
   const attendanceCounts: Record<string, number> = {};
+
   if (memberIds.length > 0) {
-    try {
-      for (let i = 0; i < memberIds.length; i += 500) {
-        const chunk = memberIds.slice(i, i + 500);
-        const attRows = await fetchAll(
-          adminClient,
-          "event_attendance",
-          "member_id",
-          (q) => q.in("member_id", chunk)
-        );
-        for (const a of attRows) {
-          if (a.member_id) {
-            attendanceCounts[a.member_id] = (attendanceCounts[a.member_id] || 0) + 1;
-          }
-        }
+    const mChunks: string[][] = [];
+    for (let i = 0; i < memberIds.length; i += 500) mChunks.push(memberIds.slice(i, i + 500));
+
+    // Fetch WA group linkage + attendance in parallel
+    const [waResults, attResults] = await Promise.all([
+      Promise.all(
+        mChunks.map((chunk) =>
+          fetchAll(adminClient, "wa_group_members", "member_id", (q) =>
+            q.in("member_id", chunk).not("member_id", "is", null)
+          ).catch(() => [])
+        )
+      ),
+      Promise.all(
+        mChunks.map((chunk) =>
+          fetchAll(adminClient, "event_attendance", "member_id", (q) =>
+            q.in("member_id", chunk)
+          ).catch(() => [])
+        )
+      ),
+    ]);
+
+    for (const rows of waResults) {
+      for (const w of rows) { if (w.member_id) waGroupLinkedIds.add(w.member_id); }
+    }
+    for (const rows of attResults) {
+      for (const a of rows) {
+        if (a.member_id) attendanceCounts[a.member_id] = (attendanceCounts[a.member_id] || 0) + 1;
       }
-    } catch {
-      // Continue without attendance data
     }
   }
 
