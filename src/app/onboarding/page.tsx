@@ -202,4 +202,3 @@ export default function OnboardingPage() {
     </div>
   );
 }
-// Tue Mar 10 04:40:54 AM WIB 2026
