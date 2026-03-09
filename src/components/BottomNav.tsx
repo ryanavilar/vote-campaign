@@ -52,7 +52,7 @@ const moreItems: BottomNavItem[] = [
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { role, userEmail } = useRole();
+  const { role, userEmail, userName } = useRole();
   const [showMore, setShowMore] = useState(false);
 
   const isActive = (path: string) => {
@@ -91,6 +91,7 @@ export function BottomNav() {
           >
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
               <div>
+                {userName && <p className="text-xs font-semibold text-foreground truncate max-w-[200px]">{userName}</p>}
                 <p className="text-xs text-muted-foreground truncate max-w-[200px]">{userEmail}</p>
                 <p className="text-xs font-semibold text-[#0B27BC]">{getRoleDisplayName(role)}</p>
               </div>

@@ -53,7 +53,7 @@ const adminItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { role, userEmail, canManageUsers } = useRole();
+  const { role, userEmail, userName, canManageUsers } = useRole();
   const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (path: string) => {
@@ -149,6 +149,7 @@ export function Sidebar() {
       <div className="border-t border-border p-3 space-y-2">
         {!collapsed && (
           <div className="px-2">
+            <p className="text-xs font-medium text-foreground truncate">{userName || userEmail}</p>
             <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
             <p className="text-xs font-medium text-[#0B27BC]">{getRoleDisplayName(role)}</p>
           </div>
