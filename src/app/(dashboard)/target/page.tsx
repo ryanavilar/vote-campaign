@@ -748,10 +748,23 @@ export default function TargetPage() {
                         </div>
                       </td>
                       <td className="px-3 py-2">
-                        <InlinePhoneEdit
-                          value={row.no_hp}
-                          onSave={(v) => handleFieldUpdate(row, "no_hp", v)}
-                        />
+                        <div className="flex items-center gap-1">
+                          <InlinePhoneEdit
+                            value={row.no_hp}
+                            onSave={(v) => handleFieldUpdate(row, "no_hp", v)}
+                          />
+                          {row.no_hp && (
+                            <a
+                              href={`https://wa.me/${row.no_hp}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Buka WhatsApp"
+                              className="shrink-0 p-1 rounded-full hover:bg-emerald-50 text-emerald-500 hover:text-emerald-600 transition-colors"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td className="px-2 py-2 text-center">
                         <span className={`text-xs font-semibold ${row.attendance_count > 0 ? "text-[#0B27BC]" : "text-gray-300"}`}>
@@ -835,6 +848,17 @@ export default function TargetPage() {
                       value={row.no_hp}
                       onSave={(v) => handleFieldUpdate(row, "no_hp", v)}
                     />
+                    {row.no_hp && (
+                      <a
+                        href={`https://wa.me/${row.no_hp}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Buka WhatsApp"
+                        className="shrink-0 p-1 rounded-full hover:bg-emerald-50 text-emerald-500 hover:text-emerald-600 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                      </a>
+                    )}
                   </div>
 
                   {/* Status chips grid */}
