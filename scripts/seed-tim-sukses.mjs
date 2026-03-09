@@ -61,12 +61,17 @@ async function createOrUpdateUser(entry) {
   if (existing) {
     console.log(`   ℹ️  User sudah ada (${existing.id}), skip buat — update role & angkatan`);
     userId = existing.id;
-    // Update name di metadata kalau belum ada
-    if (!existing.user_metadata?.name) {
+    // Update name & flag kalau belum ada
+    const needsUpdate = !existing.user_metadata?.name || existing.user_metadata?.must_change_password === undefined;
+    if (needsUpdate) {
       await adminClient.auth.admin.updateUserById(userId, {
-        user_metadata: { name },
+        user_metadata: {
+          ...existing.user_metadata,
+          name: existing.user_metadata?.name || name,
+          must_change_password: existing.user_metadata?.must_change_password ?? true,
+        },
       });
-      console.log(`   ✏️  Nama diupdate: ${name}`);
+      console.log(`   ✏️  Metadata diupdate: name=${name}, must_change_password=true`);
     }
   } else {
     // Buat akun baru
@@ -74,7 +79,7 @@ async function createOrUpdateUser(entry) {
       email,
       password: DEFAULT_PASSWORD,
       email_confirm: true,
-      user_metadata: { name },
+      user_metadata: { name, must_change_password: true },
     });
 
     if (error) {

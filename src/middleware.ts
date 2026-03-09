@@ -52,6 +52,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Redirect to onboarding if user must change password (first login)
+  if (user.user_metadata?.must_change_password === true) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/onboarding";
+    return NextResponse.redirect(url);
+  }
+
   return supabaseResponse;
 }
 

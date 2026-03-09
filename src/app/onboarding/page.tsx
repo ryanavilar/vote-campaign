@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
@@ -12,6 +12,14 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [userName, setUserName] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.user_metadata?.name) setUserName(user.user_metadata.name);
+      else if (user?.user_metadata?.full_name) setUserName(user.user_metadata.full_name);
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,8 +37,10 @@ export default function OnboardingPage() {
 
     setLoading(true);
     try {
+      // Update password + hapus flag must_change_password
       const { error: updateError } = await supabase.auth.updateUser({
         password,
+        data: { must_change_password: false },
       });
 
       if (updateError) {
@@ -39,9 +49,19 @@ export default function OnboardingPage() {
       }
 
       setSuccess(true);
-      // Redirect to dashboard after short delay
-      setTimeout(() => {
-        window.location.href = "/";
+
+      // Redirect sesuai role
+      setTimeout(async () => {
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .single();
+        const role = roleData?.role;
+        if (role === "campaigner") {
+          window.location.href = "/target";
+        } else {
+          window.location.href = "/";
+        }
       }, 2000);
     } catch {
       setError("Terjadi kesalahan. Silakan coba lagi.");
@@ -90,10 +110,10 @@ export default function OnboardingPage() {
               className="mb-4"
             />
             <h1 className="text-2xl font-bold text-[#0B27BC]">
-              Selamat Datang!
+              Selamat Datang{userName ? `, ${userName}!` : "!"}
             </h1>
             <p className="text-sm text-[#84303F] mt-1 text-center">
-              Buat password untuk akun Anda di Dashboard Pemenangan
+              Buat password baru untuk akun Anda sebelum mulai menggunakan dashboard
             </p>
           </div>
 
