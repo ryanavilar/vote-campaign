@@ -12,6 +12,7 @@ interface RoleContextType {
   isSuperAdmin: boolean;
   loading: boolean;
   userEmail: string;
+  userName: string;
   userId: string;
 }
 
@@ -23,6 +24,7 @@ const RoleContext = createContext<RoleContextType>({
   isSuperAdmin: false,
   loading: true,
   userEmail: "",
+  userName: "",
   userId: "",
 });
 
@@ -30,6 +32,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole>("viewer");
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
+  const [userName, setUserName] = useState("");
   const [userId, setUserId] = useState("");
 
   useEffect(() => {
@@ -41,6 +44,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       }
 
       setUserEmail(user.email || "");
+      setUserName(user.user_metadata?.name || user.user_metadata?.full_name || "");
       setUserId(user.id);
 
       const { data } = await supabase
@@ -66,6 +70,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
         isSuperAdmin: isSuperAdmin(role),
         loading,
         userEmail,
+        userName,
         userId,
       }}
     >

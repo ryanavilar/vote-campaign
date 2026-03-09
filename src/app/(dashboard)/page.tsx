@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
   BarChart,
@@ -208,11 +209,20 @@ export default function Dashboard() {
     memberInGroup: {},
   });
   const [waGroupLoaded, setWaGroupLoaded] = useState(false);
-  const { loading: roleLoading } = useRole();
+  const { loading: roleLoading, role } = useRole();
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Redirect campaigner to their target page
+  useEffect(() => {
+    if (!roleLoading && role === "campaigner") {
+      router.replace("/target");
+    }
+  }, [roleLoading, role, router]);
 
   useEffect(() => {
     if (roleLoading) return;
+    if (role === "campaigner") return; // will redirect
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleLoading]);

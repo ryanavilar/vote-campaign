@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { email, role, password, autoConfirm } = body;
+  const { email, role, password, autoConfirm, name } = body;
 
   if (!email || !role) {
     return NextResponse.json(
@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
         email,
         password,
         email_confirm: true,
+        user_metadata: name ? { name } : undefined,
       });
 
     if (createError) {
@@ -136,6 +137,7 @@ export async function POST(request: NextRequest) {
   const { data: inviteData, error: inviteError } =
     await adminClient.auth.admin.inviteUserByEmail(email, {
       redirectTo: `${siteUrl}/auth/callback`,
+      data: name ? { name } : undefined,
     });
 
   if (inviteError) {

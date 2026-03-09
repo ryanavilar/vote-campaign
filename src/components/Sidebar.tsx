@@ -34,7 +34,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/", minRole: "viewer" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/", minRole: "viewer", hideForRole: "campaigner" },
   { icon: GraduationCap, label: "Alumni", path: "/admin/alumni", minRole: "admin" },
   { icon: Crosshair, label: "Target Saya", path: "/target", minRole: "campaigner", hideForRole: "admin" },
   { icon: UserPlus, label: "Penugasan", path: "/admin/assignments", minRole: "admin" },

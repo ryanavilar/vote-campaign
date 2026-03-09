@@ -26,6 +26,7 @@ import {
 interface UserWithRole {
   user_id: string;
   email: string;
+  name: string | null;
   role: string;
   created_at: string;
   last_sign_in_at: string | null;
@@ -43,6 +44,7 @@ export default function AdminUsersPage() {
 
   // Invite form state
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("viewer");
   const [invitePassword, setInvitePassword] = useState("");
@@ -82,7 +84,8 @@ export default function AdminUsersPage() {
     return users.filter(
       (u) =>
         u.email.toLowerCase().includes(q) ||
-        u.role.toLowerCase().includes(q)
+        u.role.toLowerCase().includes(q) ||
+        (u.name && u.name.toLowerCase().includes(q))
     );
   }, [users, searchQuery]);
 
@@ -149,6 +152,9 @@ export default function AdminUsersPage() {
         email: inviteEmail.trim(),
         role: inviteRole,
       };
+      if (inviteName.trim()) {
+        payload.name = inviteName.trim();
+      }
       if (autoConfirm) {
         payload.autoConfirm = true;
         payload.password = invitePassword;
@@ -168,6 +174,7 @@ export default function AdminUsersPage() {
 
       showToast(data.message || "Undangan berhasil dikirim", "success");
       setShowInviteForm(false);
+      setInviteName("");
       setInviteEmail("");
       setInviteRole("viewer");
       setInvitePassword("");
@@ -440,6 +447,13 @@ export default function AdminUsersPage() {
             <form onSubmit={handleInvite} className="space-y-3">
               <div className="flex flex-col sm:flex-row gap-3">
                 <input
+                  type="text"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  placeholder="Nama lengkap"
+                  className="flex-1 px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC]"
+                />
+                <input
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
@@ -607,10 +621,17 @@ export default function AdminUsersPage() {
                     >
                       <td className="px-4 py-3 text-gray-500">{index + 1}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-medium ${isUserBanned(user) ? "text-gray-400 line-through" : "text-foreground"}`}>
-                            {user.email}
-                          </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div>
+                            {user.name && (
+                              <p className={`text-sm font-semibold leading-tight ${isUserBanned(user) ? "text-gray-400 line-through" : "text-foreground"}`}>
+                                {user.name}
+                              </p>
+                            )}
+                            <p className={`text-xs ${user.name ? "text-gray-500" : `font-medium ${isUserBanned(user) ? "text-gray-400 line-through" : "text-foreground"}`}`}>
+                              {user.email}
+                            </p>
+                          </div>
                           {isUserBanned(user) && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">
                               Nonaktif

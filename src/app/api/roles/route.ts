@@ -60,12 +60,13 @@ export async function GET() {
     angkatanMap[row.user_id].push(row.angkatan);
   }
 
-  // Combine users with their roles, ban status, and angkatan
+  // Combine users with their roles, ban status, angkatan, and name
   const combined = (users || []).map((user) => {
     const userRole = (roles || []).find((r) => r.user_id === user.id);
     return {
       user_id: user.id,
       email: user.email || "",
+      name: (user.user_metadata?.name || user.user_metadata?.full_name || "") as string,
       role: userRole?.role || "viewer",
       created_at: user.created_at,
       last_sign_in_at: user.last_sign_in_at,
@@ -141,6 +142,22 @@ export async function PATCH(request: NextRequest) {
       }
       return NextResponse.json({ success: true, banned_until: null });
     }
+  }
+
+  // Handle set_name action
+  if (action === "set_name") {
+    const { name } = body;
+    if (typeof name !== "string") {
+      return NextResponse.json({ error: "name harus berupa string" }, { status: 400 });
+    }
+    const adminClient = getAdminClient();
+    const { error } = await adminClient.auth.admin.updateUserById(user_id, {
+      user_metadata: { name },
+    });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true, name });
   }
 
   // Handle set_angkatan action

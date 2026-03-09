@@ -33,7 +33,7 @@ interface BottomNavItem {
 }
 
 const navItems: BottomNavItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/", hideForRole: "campaigner" },
   { icon: GraduationCap, label: "Alumni", path: "/admin/alumni", minRole: "admin" },
   { icon: Crosshair, label: "Target", path: "/target", minRole: "campaigner", hideForRole: "admin" },
   { icon: UserPlus, label: "Penugasan", path: "/admin/assignments", minRole: "admin" },
