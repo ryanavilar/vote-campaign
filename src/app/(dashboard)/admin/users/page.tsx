@@ -79,9 +79,26 @@ export default function AdminUsersPage() {
   }, [roleLoading, canManageUsers]);
 
   const filteredUsers = useMemo(() => {
-    if (!searchQuery.trim()) return users;
+    const roleOrder: Record<string, number> = {
+      super_admin: 0,
+      admin: 1,
+      campaigner: 2,
+      viewer: 3,
+    };
+
+    const sorted = [...users].sort((a, b) => {
+      const roleA = roleOrder[a.role] ?? 99;
+      const roleB = roleOrder[b.role] ?? 99;
+      if (roleA !== roleB) return roleA - roleB;
+
+      const angkatanA = a.angkatan.length > 0 ? Math.min(...a.angkatan) : Infinity;
+      const angkatanB = b.angkatan.length > 0 ? Math.min(...b.angkatan) : Infinity;
+      return angkatanA - angkatanB;
+    });
+
+    if (!searchQuery.trim()) return sorted;
     const q = searchQuery.toLowerCase();
-    return users.filter(
+    return sorted.filter(
       (u) =>
         u.email.toLowerCase().includes(q) ||
         u.role.toLowerCase().includes(q) ||

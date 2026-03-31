@@ -4,12 +4,25 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 const TIM_SUKSES = [
+  { name: "Fiskha Dewi Cahyaning Wulan", email: "fiskha.dewi@gmail.com", angkatan: 13 },
+  { name: "Fahmi Rangga Gumilang", email: "fahmirangga88@gmail.com", angkatan: 14 },
   { name: "Sri Gusni Febriasari", email: "insosui2015@gmail.com", angkatan: 15 },
+  { name: "Riko Apriadi", email: "rikooapriadii@gmail.com", angkatan: 16 },
   { name: "Hendra", email: "hkusuma.wardana@gmail.com", angkatan: 17 },
+  { name: "Diah Ayu S", email: "sartikadiahayu@gmail.com", angkatan: 18 },
   { name: "Krisna Yuda", email: "krisnayuda50@gmail.com", angkatan: 19 },
   { name: "Rifqi Ryan", email: "ryanavilar@gmail.com", angkatan: 20 },
   { name: "Ahmad Jawwad Furqon", email: "ahmadjfurqon@gmail.com", angkatan: 21 },
+  { name: "Boas Suhat", email: "boassuhat@gmail.com", angkatan: 22 },
+  { name: "Mochamad Fahmi T. H.", email: "mochfahmi08@gmail.com", angkatan: 23 },
+  { name: "Linggis Galih Wiseso", email: "galihwiseso@gmail.com", angkatan: 24 },
+  { name: "Moh. Mahrus Ali", email: "mohmahrusali02@gmail.com", angkatan: 26 },
+  { name: "Gabriella Dinida Ael", email: "ggdinida@gmail.com", angkatan: 27 },
   { name: "Yohanes Adelino Apur", email: "yohanesaapur@gmail.com", angkatan: 29 },
+  { name: "Beltzasar Kalebz", email: "kalebsalamuk@gmail.com", angkatan: 30 },
+  { name: "Muhammad Naufal Abiy Pratama", email: "naufal.abiy0505@gmail.com", angkatan: 31 },
+  { name: "Bisma Nafis Attala Daniswara", email: "nafisbisma@gmail.com", angkatan: 32 },
+  { name: "Gery Valentino Fernandez", email: "geryfernandez087@gmail.com", angkatan: 33 },
 ];
 
 export async function POST() {
