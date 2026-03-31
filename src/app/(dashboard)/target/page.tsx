@@ -287,7 +287,7 @@ export default function TargetPage() {
     setRefreshing(false);
   }, [loadData]);
 
-  // Fetch once on mount
+  // Fetch once on mount (re-run when roleLoading flips to false)
   useEffect(() => {
     if (roleLoading) return;
     let cancelled = false;
@@ -296,8 +296,7 @@ export default function TargetPage() {
       if (!cancelled) setInitialLoading(false);
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [roleLoading, loadData]);
 
   // Available angkatan from data
   const availableAngkatan = useMemo(() => {
