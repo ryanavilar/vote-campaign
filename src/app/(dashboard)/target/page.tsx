@@ -21,7 +21,9 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Download,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 
 /* ── Constants ────────────────────────────────────────── */
 
@@ -438,6 +440,31 @@ export default function TargetPage() {
     handleFieldUpdate(row, field, next);
   };
 
+  /* ── Excel Export ── */
+  const exportExcel = () => {
+    const dukunganLabel: Record<string, string> = {
+      dukung: "Dukung",
+      ragu_ragu: "Ragu",
+      milih_sebelah: "Sebelah",
+      terkonvert: "Convert",
+    };
+    const rows = allTargets.map((t) => ({
+      No: t.no || "",
+      Nama: t.nama,
+      Angkatan: t.angkatan,
+      "No HP": t.no_hp || "",
+      "Sudah Dikontak": t.sudah_dikontak || "",
+      Dukungan: t.dukungan ? (dukunganLabel[t.dukungan] || t.dukungan) : "",
+      "Masuk Grup WA": t.masuk_grup || "",
+      "Status DPT": t.status_dpt || "",
+      Vote: t.vote || "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Target Alumni");
+    XLSX.writeFile(wb, "target_alumni.xlsx");
+  };
+
   if (roleLoading || initialLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -469,14 +496,23 @@ export default function TargetPage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-60"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white/80 hover:text-white transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              </button>
+              <button
+                onClick={exportExcel}
+                disabled={allTargets.length === 0}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+            </div>
           </div>
         </div>
         <div className="h-1 bg-gradient-to-r from-[#fcb7c3] via-[#FE8DA1] to-[#fcb7c3]" />
