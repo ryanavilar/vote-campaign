@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { getUserRole, canManageUsers } from "@/lib/roles";
 
 const adminClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -51,7 +52,8 @@ export async function GET() {
       ),
       // All members linked to alumni
       fetchAllRows(adminClient, "members",
-        "id, alumni_id, no, nama, no_hp, pic, status_dpt, sudah_dikontak, vote, dukungan"
+        "id, alumni_id, no, nama, no_hp, pic, status_dpt, sudah_dikontak, vote, dukungan",
+        (q) => q.not("is_non_alumni", "is", true)
       ),
       // WA group linkage
       fetchAllRows(adminClient, "wa_group_members", "member_id", (q) =>
@@ -118,6 +120,53 @@ export async function GET() {
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Failed to fetch alumni" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/alumni — Create a new alumni record
+ * Requires admin or super_admin role.
+ */
+export async function POST(req: NextRequest) {
+  const supabase = await createSupabaseServerClient();
+  const role = await getUserRole(supabase);
+
+  if (!canManageUsers(role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  try {
+    const body = await req.json();
+    const { nama, angkatan, nosis, kelanjutan_studi, program_studi, keterangan } = body;
+
+    if (!nama || typeof nama !== "string" || nama.trim().length === 0) {
+      return NextResponse.json({ error: "Nama wajib diisi" }, { status: 400 });
+    }
+    if (!angkatan || typeof angkatan !== "number" || angkatan < 1 || angkatan > 35) {
+      return NextResponse.json({ error: "Angkatan harus antara 1-35" }, { status: 400 });
+    }
+
+    const { data, error } = await adminClient
+      .from("alumni")
+      .insert({
+        nama: nama.trim(),
+        angkatan,
+        nosis: nosis?.trim() || null,
+        kelanjutan_studi: kelanjutan_studi?.trim() || null,
+        program_studi: program_studi?.trim() || null,
+        keterangan: keterangan?.trim() || null,
+      })
+      .select("id, nama, angkatan, nosis, kelanjutan_studi, program_studi, keterangan")
+      .single();
+
+    if (error) throw error;
+
+    return NextResponse.json({ alumni: data }, { status: 201 });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Gagal menambahkan alumni" },
       { status: 500 }
     );
   }

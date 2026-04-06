@@ -18,7 +18,8 @@ export async function GET() {
     adminClient
       .from("members")
       .select("alumni_id")
-      .not("alumni_id", "is", null),
+      .not("alumni_id", "is", null)
+      .not("is_non_alumni", "is", true),
 
     // 3. Alumni per angkatan — use Supabase RPC or paginated fetch
     //    We'll do a single paginated fetch of just the angkatan column

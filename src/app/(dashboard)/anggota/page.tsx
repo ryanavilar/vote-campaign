@@ -46,6 +46,7 @@ export default function AnggotaPage() {
       const { data, error } = await supabase
         .from("members")
         .select("*")
+        .not("is_non_alumni", "is", true)
         .order("no", { ascending: true });
       return !error && data ? data : [];
     })();

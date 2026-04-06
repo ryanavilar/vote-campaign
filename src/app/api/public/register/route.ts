@@ -150,6 +150,51 @@ export async function POST(request: Request) {
         .eq("id", memberId);
     }
 
+    // ── Alumni auto-link via fuzzy matching ──
+    // Skip if member already linked to alumni or marked as non-alumni
+    const { data: memberCheck } = await supabaseAdmin
+      .from("members")
+      .select("alumni_id, is_non_alumni")
+      .eq("id", memberId)
+      .single();
+
+    if (!memberCheck?.alumni_id && !memberCheck?.is_non_alumni) {
+      try {
+        const { data: alumniMatches } = await supabaseAdmin.rpc("match_alumni_fuzzy", {
+          p_nama: nama.trim(),
+          p_angkatan: Number(angkatan),
+          p_threshold: 0.6,
+        });
+
+        if (alumniMatches && alumniMatches.length > 0) {
+          const bestMatch = alumniMatches[0];
+
+          if (bestMatch.sim >= 0.9) {
+            // High confidence — auto-link
+            await supabaseAdmin
+              .from("members")
+              .update({ alumni_id: bestMatch.id })
+              .eq("id", memberId);
+          } else {
+            // Medium confidence — queue for review
+            await supabaseAdmin
+              .from("pending_alumni_matches")
+              .upsert(
+                {
+                  member_id: memberId,
+                  alumni_id: bestMatch.id,
+                  similarity: bestMatch.sim,
+                  status: "pending",
+                },
+                { onConflict: "member_id", ignoreDuplicates: true }
+              );
+          }
+        }
+      } catch {
+        // Non-fatal — member was still created, matching can happen later
+      }
+    }
+
     // For event registration, store RSVP (not actual attendance/check-in)
     if (type === "event" && eventData) {
       const { error: regError } = await supabaseAdmin

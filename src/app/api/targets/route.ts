@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
       // Fetch members + WA group + attendance in parallel
       const [members, waRows, attRows] = await Promise.all([
         fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) =>
-          q.in("id", memberIds).order("no", { ascending: true })
+          q.in("id", memberIds).not("is_non_alumni", "is", true).order("no", { ascending: true })
         ),
         fetchAll(adminClient, "wa_group_members", "member_id", (q) =>
           q.in("member_id", memberIds).not("member_id", "is", null)
@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
         const chunks: string[][] = [];
         for (let i = 0; i < alumniIds.length; i += 500) chunks.push(alumniIds.slice(i, i + 500));
         const results = await Promise.all(
-          chunks.map((chunk) => fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) => q.in("alumni_id", chunk)))
+          chunks.map((chunk) => fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) => q.in("alumni_id", chunk).not("is_non_alumni", "is", true)))
         );
         for (const rows of results) {
           for (const m of rows) { if (m.alumni_id) membersMap[m.alumni_id] = m; }
@@ -308,7 +308,7 @@ export async function GET(request: NextRequest) {
       .select("id, nama, angkatan, nosis, kelanjutan_studi")
       .in("id", pageAlumniIds),
     fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) =>
-      q.in("alumni_id", pageAlumniIds)
+      q.in("alumni_id", pageAlumniIds).not("is_non_alumni", "is", true)
     ).catch(() => []),
   ]);
 

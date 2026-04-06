@@ -59,7 +59,7 @@ export async function GET() {
   try {
     // 1. Fetch all members (only columns needed for monitoring)
     const members = await fetchAll(adminClient, "members", "id, alumni_id, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) =>
-      q.order("angkatan").order("nama")
+      q.not("is_non_alumni", "is", true).order("angkatan").order("nama")
     );
 
     if (members.length === 0) {

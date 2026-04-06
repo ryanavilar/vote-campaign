@@ -75,6 +75,7 @@ export default function LeaderboardPage() {
             .from("members")
             .select("*")
             .in("id", memberIds)
+            .not("is_non_alumni", "is", true)
             .order("nama", { ascending: true });
           membersData = data;
           membersError = error;
@@ -83,6 +84,7 @@ export default function LeaderboardPage() {
         const { data, error } = await supabase
           .from("members")
           .select("*")
+          .not("is_non_alumni", "is", true)
           .order("nama", { ascending: true });
         membersData = data;
         membersError = error;
