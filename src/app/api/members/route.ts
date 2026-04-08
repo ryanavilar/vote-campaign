@@ -51,6 +51,38 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const adminClient = getAdminClient();
+
+  // Duplicate check: if alumni_id provided, check if a member already exists for this alumni
+  if (alumni_id) {
+    const { data: existingByAlumni } = await adminClient
+      .from("members")
+      .select("id, nama")
+      .eq("alumni_id", alumni_id)
+      .limit(1);
+    if (existingByAlumni && existingByAlumni.length > 0) {
+      return NextResponse.json(
+        { error: `Alumni ini sudah terhubung dengan anggota "${existingByAlumni[0].nama}"`, existing_id: existingByAlumni[0].id },
+        { status: 409 }
+      );
+    }
+  }
+
+  // Duplicate check: same nama + angkatan (case-insensitive)
+  const { data: existingByName } = await adminClient
+    .from("members")
+    .select("id, nama, angkatan")
+    .ilike("nama", nama.trim())
+    .eq("angkatan", Number(angkatan))
+    .not("is_non_alumni", "is", true)
+    .limit(1);
+  if (existingByName && existingByName.length > 0) {
+    return NextResponse.json(
+      { error: `Anggota "${existingByName[0].nama}" (TN${existingByName[0].angkatan}) sudah terdaftar`, existing_id: existingByName[0].id },
+      { status: 409 }
+    );
+  }
+
   // Auto-match referred_by from referral_name
   let referredBy: string | null = null;
   if (referral_name?.trim()) {
@@ -98,7 +130,6 @@ export async function POST(request: NextRequest) {
   }
 
   // Audit log: member created
-  const adminClient = getAdminClient();
   await logMemberAudit(adminClient, {
     memberId: data.id,
     userId: user?.id || null,
