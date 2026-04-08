@@ -185,7 +185,7 @@ function AngkatanTooltip({ active, payload, label }: any) {
   return (
     <div className="bg-white px-3 py-2 rounded-lg border border-border shadow-md text-xs">
       <p className="font-semibold text-foreground mb-1">
-        {label} &middot; {formatNum(total)} terdata
+        {label} &middot; {formatNum(total)} alumni
       </p>
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       {payload.map((p: any) =>
@@ -350,6 +350,8 @@ export default function Dashboard() {
   const angkatanBattle = useMemo(() => {
     return perBatchStats.map((b) => ({
       angkatan: `TN${b.angkatan}`,
+      punyaHP: b.hasPhone,
+      kontak: b.contacted,
       pendukung: b.dukung,
       ragu: b.ragu,
       lawan: b.sebelah,
@@ -682,33 +684,31 @@ export default function Dashboard() {
             <h3 className="font-semibold text-foreground mb-4">
               Peta Dukungan per Angkatan
             </h3>
-            <div style={{ height: Math.max(300, angkatanBattle.length * 28 + 60) }}>
+            <div style={{ height: Math.max(280, angkatanBattle.length * 22 + 50) }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={angkatanBattle}
                   layout="vertical"
                   margin={{ top: 5, right: 40, left: 5, bottom: 5 }}
+                  barSize={6}
+                  barGap={1}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
                   <YAxis
                     type="category"
                     dataKey="angkatan"
-                    tick={{ fontSize: 11, fontWeight: 600, fill: "#0B27BC" }}
-                    width={45}
+                    tick={{ fontSize: 10, fontWeight: 600, fill: "#0B27BC" }}
+                    width={40}
                   />
                   <Tooltip content={<AngkatanTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="pendukung" name="Pendukung" fill="#10b981" stackId="a" />
-                  <Bar dataKey="ragu" name="Ragu" fill="#eab308" stackId="a" />
-                  <Bar dataKey="lawan" name="Pihak Lain" fill="#ef4444" stackId="a" />
-                  <Bar
-                    dataKey="belumTahu"
-                    name="Belum Tahu"
-                    fill="#cbd5e1"
-                    stackId="a"
-                    radius={[0, 2, 2, 0]}
-                  />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                  <Bar dataKey="punyaHP" name="Punya HP" fill="#0B27BC" />
+                  <Bar dataKey="kontak" name="Kontak" fill="#3b82f6" />
+                  <Bar dataKey="pendukung" name="Pendukung" fill="#10b981" />
+                  <Bar dataKey="ragu" name="Ragu" fill="#eab308" />
+                  <Bar dataKey="lawan" name="Pihak Lain" fill="#ef4444" />
+                  <Bar dataKey="belumTahu" name="Belum Tahu" fill="#cbd5e1" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
