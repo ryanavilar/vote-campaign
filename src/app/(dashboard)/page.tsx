@@ -49,6 +49,20 @@ interface AlumniStats {
   alumniByAngkatan: Record<string, number>;
 }
 
+interface PerBatchStats {
+  angkatan: number;
+  totalAlumni: number;
+  hasPhone: number;
+  contacted: number;
+  dukung: number;
+  ragu: number;
+  sebelah: number;
+  grupWa: number;
+  dpt: number;
+  vote: number;
+  campaigners: { user_id: string; email: string }[];
+}
+
 interface WaGroupStats {
   totalInGroup: number;
   linked: number;
@@ -210,6 +224,8 @@ export default function Dashboard() {
     memberInGroup: {},
   });
   const [waGroupLoaded, setWaGroupLoaded] = useState(false);
+  const [perBatchStats, setPerBatchStats] = useState<PerBatchStats[]>([]);
+  const [perBatchLoaded, setPerBatchLoaded] = useState(false);
   const { loading: roleLoading, role } = useRole();
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "batch">("overview");
@@ -255,6 +271,11 @@ export default function Dashboard() {
         memberInGroup: {},
       }));
 
+    // Fetch per-batch stats (server-side, bypasses RLS)
+    const perBatchPromise = fetch("/api/alumni/stats/per-batch")
+      .then((res) => res.json())
+      .catch(() => []);
+
     // Progressive loading
     membersPromise.then((members) => {
       setData(members);
@@ -267,6 +288,10 @@ export default function Dashboard() {
     waGroupPromise.then((wStats: WaGroupStats) => {
       setWaGroupStats(wStats);
       setWaGroupLoaded(true);
+    });
+    perBatchPromise.then((bStats: PerBatchStats[]) => {
+      setPerBatchStats(Array.isArray(bStats) ? bStats : []);
+      setPerBatchLoaded(true);
     });
   };
 
@@ -321,41 +346,17 @@ export default function Dashboard() {
     };
   }, [data, alumniStats, waGroupStats]);
 
-  /* ── Per-Angkatan Battle Data ── */
+  /* ── Per-Angkatan Battle Data (from server-side API, consistent with target page) ── */
   const angkatanBattle = useMemo(() => {
-    const map = new Map<
-      number,
-      { pendukung: number; ragu: number; lawan: number; belumTahu: number; alumni: number }
-    >();
-
-    // Start from alumni counts as the baseline (full alumni database)
-    for (const [angkatan, count] of Object.entries(alumniStats.alumniByAngkatan)) {
-      const num = Number(angkatan);
-      map.set(num, {
-        pendukung: 0, ragu: 0, lawan: 0, belumTahu: 0, alumni: count,
-      });
-    }
-
-    // Overlay member dukungan data
-    data.forEach((m) => {
-      const ex = map.get(m.angkatan) || {
-        pendukung: 0, ragu: 0, lawan: 0, belumTahu: 0, alumni: 0,
-      };
-      if (m.dukungan === "dukung" || m.dukungan === "terkonvert") ex.pendukung++;
-      else if (m.dukungan === "ragu_ragu") ex.ragu++;
-      else if (m.dukungan === "milih_sebelah") ex.lawan++;
-      map.set(m.angkatan, ex);
-    });
-
-    // Compute "Belum Tahu" as: total alumni minus known dukungan
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([angkatan, s]) => ({
-        angkatan: `TN${angkatan}`,
-        ...s,
-        belumTahu: Math.max(0, s.alumni - s.pendukung - s.ragu - s.lawan),
-      }));
-  }, [data, alumniStats.alumniByAngkatan]);
+    return perBatchStats.map((b) => ({
+      angkatan: `TN${b.angkatan}`,
+      pendukung: b.dukung,
+      ragu: b.ragu,
+      lawan: b.sebelah,
+      belumTahu: Math.max(0, b.totalAlumni - b.dukung - b.ragu - b.sebelah),
+      alumni: b.totalAlumni,
+    }));
+  }, [perBatchStats]);
 
   /* ── Excel Export ── */
   const exportExcel = () => {
@@ -396,7 +397,7 @@ export default function Dashboard() {
     );
   }
 
-  const bothLoaded = membersLoaded && alumniLoaded && waGroupLoaded;
+  const bothLoaded = membersLoaded && alumniLoaded && waGroupLoaded && perBatchLoaded;
 
   /* ── Battle cards config ── */
   const battleCards = [
@@ -508,6 +509,7 @@ export default function Dashboard() {
                   setMembersLoaded(false);
                   setAlumniLoaded(false);
                   setWaGroupLoaded(false);
+                  setPerBatchLoaded(false);
                   fetchData();
                 }}
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white/80 hover:text-white transition-colors"
