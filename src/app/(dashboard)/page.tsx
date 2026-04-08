@@ -736,20 +736,30 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Column header */}
-            <div className="flex items-center gap-2 px-2 pb-1 border-b border-border/50 mb-1">
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-[36px]">Batch</span>
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-[28px] text-right">Jml</span>
-              <span className="flex-1 text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Dukungan</span>
-              <span className="hidden sm:block text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-[120px]">Metrik</span>
-              <span className="text-[9px] uppercase tracking-wider text-emerald-600 font-medium w-[32px] text-right">Dkng</span>
-            </div>
-
-            {/* Rows */}
-            <div className="divide-y divide-border/30">
-              {angkatanBattle.map((d) => (
-                <AngkatanRow key={d.angkatan} d={d} />
-              ))}
+            {/* 2-column grid on desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
+              {(() => {
+                const mid = Math.ceil(angkatanBattle.length / 2);
+                const left = angkatanBattle.slice(0, mid);
+                const right = angkatanBattle.slice(mid);
+                return [left, right].map((col, ci) => (
+                  <div key={ci}>
+                    {/* Column header */}
+                    <div className="flex items-center gap-2 px-2 pb-1 border-b border-border/50 mb-1">
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-[36px]">Batch</span>
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-[28px] text-right">Jml</span>
+                      <span className="flex-1 text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Dukungan</span>
+                      <span className="hidden sm:block text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-[120px]">Metrik</span>
+                      <span className="text-[9px] uppercase tracking-wider text-emerald-600 font-medium w-[32px] text-right">Dkng</span>
+                    </div>
+                    <div className="divide-y divide-border/30">
+                      {col.map((d) => (
+                        <AngkatanRow key={d.angkatan} d={d} />
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
             </div>
           </div>
         ) : (
