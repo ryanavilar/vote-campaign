@@ -532,8 +532,8 @@ export default function Dashboard() {
 
   return (
     <div className="bg-background min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-[#0B27BC] text-white shadow-lg">
+      {/* Header — scrolls with page */}
+      <div className="bg-[#0B27BC] text-white">
         <div className="px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between">
             <div>
@@ -568,11 +568,14 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        {/* Tab bar */}
+      </div>
+
+      {/* Tab bar — sticky, thin */}
+      <div className="sticky top-0 z-40 bg-[#0B27BC] shadow-sm">
         <div className="px-4 sm:px-6 flex gap-0">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`px-5 py-2.5 text-[13px] font-semibold transition-colors ${
+            className={`px-5 py-2 text-[13px] font-semibold transition-colors ${
               activeTab === "overview"
                 ? "text-white border-b-[3px] border-[#FE8DA1]"
                 : "text-white/60 hover:text-white/80"
@@ -582,7 +585,7 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => setActiveTab("batch")}
-            className={`px-5 py-2.5 text-[13px] font-semibold transition-colors ${
+            className={`px-5 py-2 text-[13px] font-semibold transition-colors ${
               activeTab === "batch"
                 ? "text-white border-b-[3px] border-[#FE8DA1]"
                 : "text-white/60 hover:text-white/80"
@@ -591,8 +594,8 @@ export default function Dashboard() {
             Progress per Batch
           </button>
         </div>
-        <div className="h-1 bg-gradient-to-r from-[#fcb7c3] via-[#FE8DA1] to-[#fcb7c3]" />
-      </header>
+        <div className="h-[2px] bg-gradient-to-r from-[#fcb7c3] via-[#FE8DA1] to-[#fcb7c3]" />
+      </div>
 
       {activeTab === "overview" ? (
       <div className="px-4 sm:px-6 py-6 space-y-4">
