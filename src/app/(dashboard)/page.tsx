@@ -180,7 +180,7 @@ function AngkatanRow({ d }: { d: { angkatan: string; punyaHP: number; kontak: nu
   const hpPct = Math.round((d.punyaHP / total) * 100);
 
   return (
-    <div className="group flex items-center gap-2 py-[6px] px-2 -mx-2 rounded-lg hover:bg-[#0B27BC]/[0.03] transition-colors">
+    <div className="group relative flex items-center gap-2 py-[6px] px-2 -mx-2 rounded-lg hover:bg-[#0B27BC]/[0.03] transition-colors">
       {/* Label */}
       <span className="text-[11px] font-bold text-[#0B27BC] w-[36px] shrink-0 tabular-nums">
         {d.angkatan}
@@ -197,46 +197,50 @@ function AngkatanRow({ d }: { d: { angkatan: string; punyaHP: number; kontak: nu
           <div
             className="h-full transition-all duration-700"
             style={{ width: `${pctPendukung}%`, backgroundColor: "#10b981" }}
-            title={`Pendukung: ${d.pendukung} (${Math.round(pctPendukung)}%)`}
           />
         )}
         {pctRagu > 0 && (
           <div
             className="h-full transition-all duration-700"
             style={{ width: `${pctRagu}%`, backgroundColor: "#eab308" }}
-            title={`Ragu: ${d.ragu} (${Math.round(pctRagu)}%)`}
           />
         )}
         {pctLawan > 0 && (
           <div
             className="h-full transition-all duration-700"
             style={{ width: `${pctLawan}%`, backgroundColor: "#ef4444" }}
-            title={`Pihak Lain: ${d.lawan} (${Math.round(pctLawan)}%)`}
           />
         )}
         {pctUnknown > 0 && (
           <div
             className="h-full transition-all duration-700"
             style={{ width: `${pctUnknown}%`, backgroundColor: "#e2e8f0" }}
-            title={`Belum Tahu: ${d.belumTahu}`}
           />
         )}
       </div>
 
       {/* Key metrics as compact pills */}
       <div className="hidden sm:flex items-center gap-1 shrink-0">
-        <span className="text-[9px] tabular-nums font-medium px-1.5 py-0.5 rounded bg-[#0B27BC]/8 text-[#0B27BC]" title="Punya HP">
-          {d.punyaHP} HP
+        <span className="text-[9px] tabular-nums font-medium px-1.5 py-0.5 rounded bg-[#0B27BC]/8 text-[#0B27BC]">
+          {d.punyaHP} HP ({hpPct}%)
         </span>
-        <span className="text-[9px] tabular-nums font-medium px-1.5 py-0.5 rounded bg-[#3b82f6]/10 text-[#3b82f6]" title="Sudah Dikontak">
-          {d.kontak} Kontak
+        <span className="text-[9px] tabular-nums font-medium px-1.5 py-0.5 rounded bg-[#3b82f6]/10 text-[#3b82f6]">
+          {d.kontak} Kontak ({kontakPct}%)
         </span>
       </div>
 
       {/* Pendukung count — the number that matters most */}
-      <span className="text-[11px] font-bold text-emerald-600 w-[32px] shrink-0 text-right tabular-nums" title="Pendukung">
+      <span className="text-[11px] font-bold text-emerald-600 w-[32px] shrink-0 text-right tabular-nums">
         {d.pendukung}
       </span>
+
+      {/* Hover tooltip with dukungan breakdown */}
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 hidden group-hover:flex items-center gap-2.5 bg-white border border-border rounded-lg shadow-lg px-3 py-1.5 z-10 whitespace-nowrap">
+        <span className="text-[10px] font-semibold text-emerald-600">{d.pendukung} Dukung</span>
+        <span className="text-[10px] font-semibold text-yellow-600">{d.ragu} Ragu</span>
+        <span className="text-[10px] font-semibold text-red-500">{d.lawan} Lawan</span>
+        <span className="text-[10px] font-medium text-gray-400">{d.belumTahu} Belum</span>
+      </div>
     </div>
   );
 }
