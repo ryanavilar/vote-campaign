@@ -27,6 +27,9 @@ import {
   GraduationCap,
   Users,
   RefreshCw,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { useRole } from "@/lib/RoleContext";
 import type { Member } from "@/lib/types";
@@ -269,6 +272,7 @@ export default function Dashboard() {
   const { loading: roleLoading, role } = useRole();
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "batch">("overview");
+  const [chartSort, setChartSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "angkatan", dir: "asc" });
   const router = useRouter();
 
   // Redirect campaigner to their target page
@@ -396,6 +400,24 @@ export default function Dashboard() {
       alumni: b.totalAlumni,
     }));
   }, [perBatchStats]);
+
+  /* ── Sorted Battle Data ── */
+  const sortedBattle = useMemo(() => {
+    const sorted = [...angkatanBattle];
+    const { key, dir } = chartSort;
+    sorted.sort((a, b) => {
+      let av: number, bv: number;
+      if (key === "angkatan") {
+        av = parseInt(a.angkatan.replace("TN", ""));
+        bv = parseInt(b.angkatan.replace("TN", ""));
+      } else {
+        av = a[key as keyof typeof a] as number || 0;
+        bv = b[key as keyof typeof b] as number || 0;
+      }
+      return dir === "asc" ? av - bv : bv - av;
+    });
+    return sorted;
+  }, [angkatanBattle, chartSort]);
 
   /* ── Excel Export ── */
   const exportExcel = () => {
@@ -721,32 +743,69 @@ export default function Dashboard() {
         {/* ═══════ PETA DUKUNGAN — CUSTOM VIS ═══════ */}
         {bothLoaded ? (
           <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h3 className="font-semibold text-foreground">
                 Peta Dukungan per Angkatan
               </h3>
-              {/* Legend */}
-              <div className="flex items-center gap-3">
-                {[
-                  { color: "bg-emerald-500", label: "Dukung" },
-                  { color: "bg-yellow-400", label: "Ragu" },
-                  { color: "bg-red-500", label: "Lawan" },
-                  { color: "bg-gray-200", label: "Belum" },
-                ].map((l) => (
-                  <div key={l.label} className="flex items-center gap-1">
-                    <div className={`w-2 h-2 rounded-full ${l.color}`} />
-                    <span className="text-[9px] text-muted-foreground">{l.label}</span>
-                  </div>
-                ))}
+              <div className="flex items-center gap-2">
+                {/* Sort controls */}
+                <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
+                  {[
+                    { key: "angkatan", label: "Batch" },
+                    { key: "pendukung", label: "Dukung" },
+                    { key: "punyaHP", label: "HP" },
+                    { key: "kontak", label: "Kontak" },
+                  ].map((opt) => {
+                    const isActive = chartSort.key === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => {
+                          if (isActive) {
+                            setChartSort({ key: opt.key, dir: chartSort.dir === "asc" ? "desc" : "asc" });
+                          } else {
+                            setChartSort({ key: opt.key, dir: opt.key === "angkatan" ? "asc" : "desc" });
+                          }
+                        }}
+                        className={`inline-flex items-center gap-0.5 px-2 py-1 text-[10px] font-medium rounded-md transition-colors ${
+                          isActive
+                            ? "bg-[#0B27BC] text-white shadow-sm"
+                            : "text-gray-500 hover:text-gray-700"
+                        }`}
+                      >
+                        {opt.label}
+                        {isActive && (
+                          chartSort.dir === "asc"
+                            ? <ArrowUp className="w-2.5 h-2.5" />
+                            : <ArrowDown className="w-2.5 h-2.5" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Legend */}
+                <div className="hidden sm:flex items-center gap-3">
+                  {[
+                    { color: "bg-emerald-500", label: "Dukung" },
+                    { color: "bg-yellow-400", label: "Ragu" },
+                    { color: "bg-red-500", label: "Lawan" },
+                    { color: "bg-gray-200", label: "Belum" },
+                  ].map((l) => (
+                    <div key={l.label} className="flex items-center gap-1">
+                      <div className={`w-2 h-2 rounded-full ${l.color}`} />
+                      <span className="text-[9px] text-muted-foreground">{l.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* 2-column grid on desktop */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
               {(() => {
-                const mid = Math.ceil(angkatanBattle.length / 2);
-                const left = angkatanBattle.slice(0, mid);
-                const right = angkatanBattle.slice(mid);
+                const mid = Math.ceil(sortedBattle.length / 2);
+                const left = sortedBattle.slice(0, mid);
+                const right = sortedBattle.slice(mid);
                 return [left, right].map((col, ci) => (
                   <div key={ci}>
                     {/* Column header */}
