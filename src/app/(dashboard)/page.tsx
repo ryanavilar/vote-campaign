@@ -4,14 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
-  Legend,
   PieChart,
   Pie,
   Cell,
@@ -175,33 +168,75 @@ function ChartSkeleton({ title }: { title: string }) {
   );
 }
 
-/* ── Angkatan Chart Tooltip ────────────────────── */
+/* ── Angkatan Row ────────────────────────────── */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function AngkatanTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const total = payload.reduce((s: number, p: any) => s + (p.value || 0), 0);
+function AngkatanRow({ d }: { d: { angkatan: string; punyaHP: number; kontak: number; pendukung: number; ragu: number; lawan: number; belumTahu: number; alumni: number } }) {
+  const total = d.alumni || 1;
+  const pctPendukung = (d.pendukung / total) * 100;
+  const pctRagu = (d.ragu / total) * 100;
+  const pctLawan = (d.lawan / total) * 100;
+  const pctUnknown = Math.max(0, 100 - pctPendukung - pctRagu - pctLawan);
+  const kontakPct = Math.round((d.kontak / total) * 100);
+  const hpPct = Math.round((d.punyaHP / total) * 100);
+
   return (
-    <div className="bg-white px-3 py-2 rounded-lg border border-border shadow-md text-xs">
-      <p className="font-semibold text-foreground mb-1">
-        {label} &middot; {formatNum(total)} alumni
-      </p>
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      {payload.map((p: any) =>
-        p.value > 0 ? (
-          <div key={p.name} className="flex items-center gap-2">
-            <div
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ background: p.color }}
-            />
-            <span className="text-muted-foreground">{p.name}:</span>
-            <span className="font-medium text-foreground">
-              {formatNum(p.value)}
-            </span>
-          </div>
-        ) : null
-      )}
+    <div className="group flex items-center gap-2 py-[6px] px-2 -mx-2 rounded-lg hover:bg-[#0B27BC]/[0.03] transition-colors">
+      {/* Label */}
+      <span className="text-[11px] font-bold text-[#0B27BC] w-[36px] shrink-0 tabular-nums">
+        {d.angkatan}
+      </span>
+
+      {/* Alumni count */}
+      <span className="text-[10px] text-muted-foreground w-[28px] shrink-0 text-right tabular-nums font-medium">
+        {d.alumni}
+      </span>
+
+      {/* Stacked dukungan bar */}
+      <div className="flex-1 h-[16px] rounded-full overflow-hidden flex bg-[#f0f2f8]">
+        {pctPendukung > 0 && (
+          <div
+            className="h-full transition-all duration-700"
+            style={{ width: `${pctPendukung}%`, backgroundColor: "#10b981" }}
+            title={`Pendukung: ${d.pendukung} (${Math.round(pctPendukung)}%)`}
+          />
+        )}
+        {pctRagu > 0 && (
+          <div
+            className="h-full transition-all duration-700"
+            style={{ width: `${pctRagu}%`, backgroundColor: "#eab308" }}
+            title={`Ragu: ${d.ragu} (${Math.round(pctRagu)}%)`}
+          />
+        )}
+        {pctLawan > 0 && (
+          <div
+            className="h-full transition-all duration-700"
+            style={{ width: `${pctLawan}%`, backgroundColor: "#ef4444" }}
+            title={`Pihak Lain: ${d.lawan} (${Math.round(pctLawan)}%)`}
+          />
+        )}
+        {pctUnknown > 0 && (
+          <div
+            className="h-full transition-all duration-700"
+            style={{ width: `${pctUnknown}%`, backgroundColor: "#e2e8f0" }}
+            title={`Belum Tahu: ${d.belumTahu}`}
+          />
+        )}
+      </div>
+
+      {/* Key metrics as compact pills */}
+      <div className="hidden sm:flex items-center gap-1 shrink-0">
+        <span className="text-[9px] tabular-nums font-medium px-1.5 py-0.5 rounded bg-[#0B27BC]/8 text-[#0B27BC]" title="Punya HP">
+          {hpPct}% HP
+        </span>
+        <span className="text-[9px] tabular-nums font-medium px-1.5 py-0.5 rounded bg-[#3b82f6]/10 text-[#3b82f6]" title="Sudah Dikontak">
+          {kontakPct}% Kontak
+        </span>
+      </div>
+
+      {/* Pendukung count — the number that matters most */}
+      <span className="text-[11px] font-bold text-emerald-600 w-[32px] shrink-0 text-right tabular-nums" title="Pendukung">
+        {d.pendukung}
+      </span>
     </div>
   );
 }
@@ -678,39 +713,43 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* ═══════ CHART — FULL WIDTH ═══════ */}
+        {/* ═══════ PETA DUKUNGAN — CUSTOM VIS ═══════ */}
         {bothLoaded ? (
           <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
-            <h3 className="font-semibold text-foreground mb-4">
-              Peta Dukungan per Angkatan
-            </h3>
-            <div style={{ height: Math.max(280, angkatanBattle.length * 22 + 50) }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={angkatanBattle}
-                  layout="vertical"
-                  margin={{ top: 5, right: 40, left: 5, bottom: 5 }}
-                  barSize={6}
-                  barGap={1}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="angkatan"
-                    tick={{ fontSize: 10, fontWeight: 600, fill: "#0B27BC" }}
-                    width={40}
-                  />
-                  <Tooltip content={<AngkatanTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 10 }} />
-                  <Bar dataKey="punyaHP" name="Punya HP" fill="#0B27BC" />
-                  <Bar dataKey="kontak" name="Kontak" fill="#3b82f6" />
-                  <Bar dataKey="pendukung" name="Pendukung" fill="#10b981" />
-                  <Bar dataKey="ragu" name="Ragu" fill="#eab308" />
-                  <Bar dataKey="lawan" name="Pihak Lain" fill="#ef4444" />
-                  <Bar dataKey="belumTahu" name="Belum Tahu" fill="#cbd5e1" />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-foreground">
+                Peta Dukungan per Angkatan
+              </h3>
+              {/* Legend */}
+              <div className="flex items-center gap-3">
+                {[
+                  { color: "bg-emerald-500", label: "Dukung" },
+                  { color: "bg-yellow-400", label: "Ragu" },
+                  { color: "bg-red-500", label: "Lawan" },
+                  { color: "bg-gray-200", label: "Belum" },
+                ].map((l) => (
+                  <div key={l.label} className="flex items-center gap-1">
+                    <div className={`w-2 h-2 rounded-full ${l.color}`} />
+                    <span className="text-[9px] text-muted-foreground">{l.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Column header */}
+            <div className="flex items-center gap-2 px-2 pb-1 border-b border-border/50 mb-1">
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-[36px]">Batch</span>
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-[28px] text-right">Jml</span>
+              <span className="flex-1 text-[9px] uppercase tracking-wider text-muted-foreground font-medium">Dukungan</span>
+              <span className="hidden sm:block text-[9px] uppercase tracking-wider text-muted-foreground font-medium w-[120px]">Metrik</span>
+              <span className="text-[9px] uppercase tracking-wider text-emerald-600 font-medium w-[32px] text-right">Dkng</span>
+            </div>
+
+            {/* Rows */}
+            <div className="divide-y divide-border/30">
+              {angkatanBattle.map((d) => (
+                <AngkatanRow key={d.angkatan} d={d} />
+              ))}
             </div>
           </div>
         ) : (
