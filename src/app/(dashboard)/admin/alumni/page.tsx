@@ -313,7 +313,7 @@ export default function AdminAlumniPage() {
     setRefreshing(false);
   }, [loadData]);
 
-  // Fetch once on mount — NO re-fetch on any state change
+  // Fetch once when role is ready
   useEffect(() => {
     if (roleLoading) return;
     if (!canManageUsers) { setInitialLoading(false); return; }
@@ -324,7 +324,7 @@ export default function AdminAlumniPage() {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [roleLoading]);
 
   // ── Client-side filtering ──
   const filtered = useMemo(() => {
