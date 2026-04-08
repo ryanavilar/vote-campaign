@@ -226,10 +226,10 @@ function AngkatanRow({ d }: { d: { angkatan: string; punyaHP: number; kontak: nu
       {/* Key metrics as compact pills */}
       <div className="hidden sm:flex items-center gap-1 shrink-0">
         <span className="text-[9px] tabular-nums font-medium px-1.5 py-0.5 rounded bg-[#0B27BC]/8 text-[#0B27BC]" title="Punya HP">
-          {hpPct}% HP
+          {d.punyaHP} HP
         </span>
         <span className="text-[9px] tabular-nums font-medium px-1.5 py-0.5 rounded bg-[#3b82f6]/10 text-[#3b82f6]" title="Sudah Dikontak">
-          {kontakPct}% Kontak
+          {d.kontak} Kontak
         </span>
       </div>
 
