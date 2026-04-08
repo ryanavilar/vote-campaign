@@ -28,14 +28,12 @@ export async function GET() {
 
   const totalAlumni = totalRes.count || 0;
 
-  // Count distinct alumni_id values (not raw member count)
-  const distinctLinked = new Set(
-    (linkedRes.data || []).map((r: { alumni_id: string }) => r.alumni_id)
-  ).size;
+  // Count members linked to alumni (same as member count with unique constraint)
+  const linkedCount = (linkedRes.data || []).length;
 
   return NextResponse.json({
     totalAlumni,
-    linkedAlumni: distinctLinked,
+    linkedAlumni: linkedCount,
     alumniByAngkatan: angkatanRes,
   });
 }

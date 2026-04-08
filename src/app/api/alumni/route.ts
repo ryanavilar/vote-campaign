@@ -97,9 +97,12 @@ export async function GET() {
     const linkedAlumni = data.filter((a) => a.members && a.members.length > 0);
     const getPrimary = (a: typeof data[0]) => a.members?.[0];
 
+    // Count total members directly (same number dashboard and assignments use)
+    const totalMembers = (allMembersRaw || []).filter((m) => m.alumni_id).length;
+
     const stats = {
       total: data.length,
-      linked: linkedAlumni.length,
+      linked: totalMembers,
       kontak: linkedAlumni.filter((a) => getPrimary(a)?.sudah_dikontak === "Sudah").length,
       dukung: linkedAlumni.filter((a) => {
         const d = getPrimary(a)?.dukungan;
