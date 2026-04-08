@@ -80,7 +80,8 @@ export async function GET() {
       }
       const s = memberStats[m.angkatan];
       if (m.no_hp && m.no_hp.trim() !== "") s.hasPhone++;
-      if (m.sudah_dikontak === "Sudah") s.contacted++;
+      // Match target page logic: WA group members count as contacted
+      if (m.sudah_dikontak === "Sudah" || waLinked.has(m.id)) s.contacted++;
       if (m.dukungan === "dukung" || m.dukungan === "terkonvert") s.dukung++;
       if (m.dukungan === "ragu_ragu") s.ragu++;
       if (m.dukungan === "milih_sebelah") s.sebelah++;
