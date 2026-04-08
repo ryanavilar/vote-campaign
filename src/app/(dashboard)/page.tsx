@@ -39,6 +39,7 @@ import { useRole } from "@/lib/RoleContext";
 import type { Member } from "@/lib/types";
 import { formatNum } from "@/lib/format";
 import * as XLSX from "xlsx";
+import { BatchProgressTab } from "@/components/BatchProgressTab";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -211,6 +212,7 @@ export default function Dashboard() {
   const [waGroupLoaded, setWaGroupLoaded] = useState(false);
   const { loading: roleLoading, role } = useRole();
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "batch">("overview");
   const router = useRouter();
 
   // Redirect campaigner to their target page
@@ -326,6 +328,15 @@ export default function Dashboard() {
       { pendukung: number; ragu: number; lawan: number; belumTahu: number; alumni: number }
     >();
 
+    // Start from alumni counts as the baseline (full alumni database)
+    for (const [angkatan, count] of Object.entries(alumniStats.alumniByAngkatan)) {
+      const num = Number(angkatan);
+      map.set(num, {
+        pendukung: 0, ragu: 0, lawan: 0, belumTahu: 0, alumni: count,
+      });
+    }
+
+    // Overlay member dukungan data
     data.forEach((m) => {
       const ex = map.get(m.angkatan) || {
         pendukung: 0, ragu: 0, lawan: 0, belumTahu: 0, alumni: 0,
@@ -333,22 +344,17 @@ export default function Dashboard() {
       if (m.dukungan === "dukung" || m.dukungan === "terkonvert") ex.pendukung++;
       else if (m.dukungan === "ragu_ragu") ex.ragu++;
       else if (m.dukungan === "milih_sebelah") ex.lawan++;
-      else ex.belumTahu++;
       map.set(m.angkatan, ex);
     });
 
-    for (const [angkatan, count] of Object.entries(alumniStats.alumniByAngkatan)) {
-      const num = Number(angkatan);
-      const ex = map.get(num) || {
-        pendukung: 0, ragu: 0, lawan: 0, belumTahu: 0, alumni: 0,
-      };
-      ex.alumni = count;
-      map.set(num, ex);
-    }
-
+    // Compute "Belum Tahu" as: total alumni minus known dukungan
     return Array.from(map.entries())
       .sort(([a], [b]) => a - b)
-      .map(([angkatan, s]) => ({ angkatan: `TN${angkatan}`, ...s }));
+      .map(([angkatan, s]) => ({
+        angkatan: `TN${angkatan}`,
+        ...s,
+        belumTahu: Math.max(0, s.alumni - s.pendukung - s.ragu - s.lawan),
+      }));
   }, [data, alumniStats.alumniByAngkatan]);
 
   /* ── Excel Export ── */
@@ -519,9 +525,33 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        {/* Tab bar */}
+        <div className="px-4 sm:px-6 flex gap-0">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`px-5 py-2.5 text-[13px] font-semibold transition-colors ${
+              activeTab === "overview"
+                ? "text-white border-b-[3px] border-[#FE8DA1]"
+                : "text-white/60 hover:text-white/80"
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab("batch")}
+            className={`px-5 py-2.5 text-[13px] font-semibold transition-colors ${
+              activeTab === "batch"
+                ? "text-white border-b-[3px] border-[#FE8DA1]"
+                : "text-white/60 hover:text-white/80"
+            }`}
+          >
+            Progress per Batch
+          </button>
+        </div>
         <div className="h-1 bg-gradient-to-r from-[#fcb7c3] via-[#FE8DA1] to-[#fcb7c3]" />
       </header>
 
+      {activeTab === "overview" ? (
       <div className="px-4 sm:px-6 py-6 space-y-4">
         {/* ═══════ PETA PERTARUNGAN ═══════ */}
         {membersLoaded ? (
@@ -644,102 +674,98 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* ═══════ CHARTS ═══════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Dukungan per Angkatan — stacked bar */}
-          {bothLoaded ? (
-            <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
-              <h3 className="font-semibold text-foreground mb-4">
-                Peta Dukungan per Angkatan
-              </h3>
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={angkatanBattle}
-                    margin={{ top: 5, right: 5, left: -10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis
-                      dataKey="angkatan"
-                      tick={{ fontSize: 10 }}
-                      interval={0}
-                      angle={-45}
-                      textAnchor="end"
-                      height={50}
-                    />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip content={<AngkatanTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="pendukung" name="Pendukung" fill="#10b981" stackId="a" />
-                    <Bar dataKey="ragu" name="Ragu" fill="#eab308" stackId="a" />
-                    <Bar dataKey="lawan" name="Pihak Lain" fill="#ef4444" stackId="a" />
-                    <Bar
-                      dataKey="belumTahu"
-                      name="Belum Tahu"
-                      fill="#cbd5e1"
-                      stackId="a"
-                      radius={[2, 2, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+        {/* ═══════ CHART — FULL WIDTH ═══════ */}
+        {bothLoaded ? (
+          <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
+            <h3 className="font-semibold text-foreground mb-4">
+              Peta Dukungan per Angkatan
+            </h3>
+            <div style={{ height: Math.max(300, angkatanBattle.length * 28 + 60) }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={angkatanBattle}
+                  layout="vertical"
+                  margin={{ top: 5, right: 40, left: 5, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis
+                    type="category"
+                    dataKey="angkatan"
+                    tick={{ fontSize: 11, fontWeight: 600, fill: "#0B27BC" }}
+                    width={45}
+                  />
+                  <Tooltip content={<AngkatanTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="pendukung" name="Pendukung" fill="#10b981" stackId="a" />
+                  <Bar dataKey="ragu" name="Ragu" fill="#eab308" stackId="a" />
+                  <Bar dataKey="lawan" name="Pihak Lain" fill="#ef4444" stackId="a" />
+                  <Bar
+                    dataKey="belumTahu"
+                    name="Belum Tahu"
+                    fill="#cbd5e1"
+                    stackId="a"
+                    radius={[0, 2, 2, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          ) : (
-            <ChartSkeleton title="Peta Dukungan per Angkatan" />
-          )}
+          </div>
+        ) : (
+          <ChartSkeleton title="Peta Dukungan per Angkatan" />
+        )}
 
-          {/* Progress Operasional — 4 mini donuts */}
-          {bothLoaded ? (
-            <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
-              <h3 className="font-semibold text-foreground mb-4">
-                Progress Operasional
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {progressData.map((p) => {
-                  const pct =
-                    p.total > 0 ? Math.round((p.value / p.total) * 100) : 0;
-                  const chartData = [
-                    { name: "Done", value: p.value },
-                    { name: "Rest", value: Math.max(0, p.total - p.value) },
-                  ];
-                  return (
-                    <div key={p.label} className="flex flex-col items-center">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">
-                        {p.label}
-                      </p>
-                      <div className="w-full h-[100px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={chartData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={28}
-                              outerRadius={42}
-                              dataKey="value"
-                              startAngle={90}
-                              endAngle={-270}
-                              strokeWidth={0}
-                            >
-                              <Cell fill={p.color} />
-                              <Cell fill="#f1f5f9" />
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <p className="text-lg font-bold text-foreground">{pct}%</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatNum(p.value)}/{formatNum(p.total)}
-                      </p>
+        {/* ═══════ PROGRESS DONUTS — OWN ROW ═══════ */}
+        {bothLoaded ? (
+          <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
+            <h3 className="font-semibold text-foreground mb-4">
+              Progress Operasional
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {progressData.map((p) => {
+                const pct =
+                  p.total > 0 ? Math.round((p.value / p.total) * 100) : 0;
+                const chartData = [
+                  { name: "Done", value: p.value },
+                  { name: "Rest", value: Math.max(0, p.total - p.value) },
+                ];
+                return (
+                  <div key={p.label} className="flex flex-col items-center">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">
+                      {p.label}
+                    </p>
+                    <div className="w-full h-[100px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={chartData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={28}
+                            outerRadius={42}
+                            dataKey="value"
+                            startAngle={90}
+                            endAngle={-270}
+                            strokeWidth={0}
+                          >
+                            <Cell fill={p.color} />
+                            <Cell fill="#f1f5f9" />
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
-                  );
-                })}
-              </div>
+                    <p className="text-lg font-bold text-foreground">{pct}%</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatNum(p.value)}/{formatNum(p.total)}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
-          ) : (
-            <ChartSkeleton title="Progress Operasional" />
-          )}
-        </div>
+          </div>
+        ) : (
+          <ChartSkeleton title="Progress Operasional" />
+        )}
 
         {/* ═══════ FORM LINKS ═══════ */}
         <div className="bg-white rounded-xl border border-border shadow-sm p-4">
@@ -758,6 +784,11 @@ export default function Dashboard() {
           />
         </div>
       </div>
+      ) : (
+        <div className="px-4 sm:px-6 py-6">
+          <BatchProgressTab />
+        </div>
+      )}
     </div>
   );
 }
