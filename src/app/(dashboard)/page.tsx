@@ -45,6 +45,7 @@ interface AlumniStats {
 interface PerBatchStats {
   angkatan: number;
   totalAlumni: number;
+  memberCount: number;
   hasPhone: number;
   contacted: number;
   dukung: number;
@@ -361,21 +362,18 @@ export default function Dashboard() {
     };
   }, [data]);
 
-  /* ── Operational Stats ── */
+  /* ── Operational Stats (server-side per-batch data for accuracy) ── */
   const opStats = useMemo(() => {
-    const grupSudah = data.filter(
-      (m) => waGroupStats.memberInGroup[m.id]
-    ).length;
-    const dptSudah = data.filter((m) => m.status_dpt === "Sudah").length;
-    const voteSudah = data.filter((m) => m.vote === "Sudah").length;
-    const contacted = data.filter(
-      (m) => m.sudah_dikontak === "Sudah"
-    ).length;
+    const totalMembers = perBatchStats.reduce((s, b) => s + b.memberCount, 0);
+    const contacted = perBatchStats.reduce((s, b) => s + b.contacted, 0);
+    const grupSudah = perBatchStats.reduce((s, b) => s + b.grupWa, 0);
+    const dptSudah = perBatchStats.reduce((s, b) => s + b.dpt, 0);
+    const voteSudah = perBatchStats.reduce((s, b) => s + b.vote, 0);
 
     return {
       totalAlumni: alumniStats.totalAlumni,
       linkedAlumni: alumniStats.linkedAlumni,
-      totalMembers: data.length,
+      totalMembers,
       contacted,
       grupSudah,
       grupLinked: waGroupStats.linked,
@@ -383,7 +381,7 @@ export default function Dashboard() {
       dptSudah,
       voteSudah,
     };
-  }, [data, alumniStats, waGroupStats]);
+  }, [perBatchStats, alumniStats, waGroupStats]);
 
   /* ── Per-Angkatan Battle Data (from server-side API, consistent with target page) ── */
   const angkatanBattle = useMemo(() => {

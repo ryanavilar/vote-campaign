@@ -67,17 +67,18 @@ export async function GET() {
     );
 
     const memberStats: Record<number, {
-      hasPhone: number; contacted: number; dukung: number;
+      memberCount: number; hasPhone: number; contacted: number; dukung: number;
       ragu: number; sebelah: number; grupWa: number; dpt: number; vote: number;
     }> = {};
 
     for (const m of memberRows) {
       if (!memberStats[m.angkatan]) {
         memberStats[m.angkatan] = {
-          hasPhone: 0, contacted: 0, dukung: 0,
+          memberCount: 0, hasPhone: 0, contacted: 0, dukung: 0,
           ragu: 0, sebelah: 0, grupWa: 0, dpt: 0, vote: 0,
         };
       }
+      memberStats[m.angkatan].memberCount++;
       const s = memberStats[m.angkatan];
       if (m.no_hp && m.no_hp.trim() !== "") s.hasPhone++;
       // Match target page logic: WA group members count as contacted
@@ -103,7 +104,7 @@ export async function GET() {
       .map(([angkatanStr, totalAlumni]) => {
         const angkatan = Number(angkatanStr);
         const ms = memberStats[angkatan] || {
-          hasPhone: 0, contacted: 0, dukung: 0,
+          memberCount: 0, hasPhone: 0, contacted: 0, dukung: 0,
           ragu: 0, sebelah: 0, grupWa: 0, dpt: 0, vote: 0,
         };
         return {

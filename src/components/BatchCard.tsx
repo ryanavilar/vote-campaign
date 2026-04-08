@@ -5,6 +5,7 @@ import { formatNum } from "@/lib/format";
 export interface BatchStats {
   angkatan: number;
   totalAlumni: number;
+  memberCount: number;
   hasPhone: number;
   contacted: number;
   dukung: number;
