@@ -351,7 +351,7 @@ export default function Dashboard() {
     ).length;
     const known = pendukung + ragu + lawan;
     const belumTahu = Math.max(0, contacted - known);
-    const base = contacted || 1;
+    const base = data.length || 1;
 
     return {
       pendukung,
@@ -628,7 +628,7 @@ export default function Dashboard() {
                 Peta Pertarungan
               </h2>
               <span className="text-[10px] sm:text-xs text-muted-foreground ml-auto">
-                dari {formatNum(battlefield.contacted)} yang sudah dikontak
+                dari {formatNum(battlefield.total)} anggota terdata
               </span>
             </div>
 
@@ -676,7 +676,7 @@ export default function Dashboard() {
                       {card.label}
                     </p>
                     <p className={`text-[10px] font-semibold ${card.color} mt-1`}>
-                      {card.pct}% dari kontak
+                      {card.pct}% dari anggota
                     </p>
                   </div>
                 );
