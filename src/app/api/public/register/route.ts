@@ -214,6 +214,27 @@ export async function POST(request: Request) {
       }
     }
 
+    // Log the form submission
+    const isNewMember = !(existingMembers && existingMembers.length > 0);
+    const headers = request.headers;
+    await supabaseAdmin.from("form_submissions").insert({
+      type,
+      member_id: memberId,
+      is_new_member: isNewMember,
+      nama: nama.trim(),
+      angkatan: Number(angkatan),
+      no_hp: no_hp || null,
+      email: email || null,
+      domisili: domisili || null,
+      harapan: harapan || null,
+      referral_name: referral_name?.trim() || null,
+      event_id: eventData?.id || null,
+      event_name: eventData?.nama || null,
+      will_attend: type === "event" ? !!will_attend : null,
+      ip_address: headers.get("x-forwarded-for") || headers.get("x-real-ip") || null,
+      user_agent: headers.get("user-agent") || null,
+    });
+
     return NextResponse.json({
       success: true,
       message:

@@ -18,6 +18,7 @@ import {
   Settings2,
   Users,
   X,
+  ClipboardList,
 } from "lucide-react";
 import { useState } from "react";
 import { useRole } from "@/lib/RoleContext";
@@ -43,6 +44,7 @@ const navItems: BottomNavItem[] = [
 ];
 
 const moreItems: BottomNavItem[] = [
+  { icon: ClipboardList, label: "Log Form", path: "/form-log", minRole: "admin" },
   { icon: Smartphone, label: "WA Group", path: "/wa-group", minRole: "admin" },
   { icon: Settings, label: "Pengguna", path: "/admin/users", minRole: "admin" },
   { icon: Users, label: "Anggota", path: "/anggota", minRole: "super_admin" },

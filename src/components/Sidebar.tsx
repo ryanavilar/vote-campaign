@@ -19,6 +19,7 @@ import {
   Crosshair,
   Smartphone,
   Bot,
+  ClipboardList,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRole } from "@/lib/RoleContext";
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
   { icon: Smartphone, label: "WA Group", path: "/wa-group", minRole: "admin" },
   { icon: Trophy, label: "Leaderboard", path: "/leaderboard", minRole: "viewer", hideForRole: "campaigner" },
   { icon: MessageSquare, label: "Harapan", path: "/harapan", minRole: "viewer", hideForRole: "campaigner" },
+  { icon: ClipboardList, label: "Log Form", path: "/form-log", minRole: "admin" },
 ];
 
 const adminItems: NavItem[] = [
