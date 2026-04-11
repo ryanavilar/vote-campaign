@@ -15,6 +15,8 @@ import {
   UserCheck,
   Calendar,
   Heart,
+  AlertTriangle,
+  Link2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -33,6 +35,7 @@ interface FormSubmission {
   event_id: string | null;
   event_name: string | null;
   will_attend: boolean | null;
+  has_alumni_link: boolean;
   created_at: string;
 }
 
@@ -44,6 +47,7 @@ export default function FormLogPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [unlinkedCount, setUnlinkedCount] = useState(0);
   const router = useRouter();
   const limit = 50;
 
@@ -64,6 +68,7 @@ export default function FormLogPage() {
     const json = await res.json();
     setSubmissions(json.data || []);
     setTotal(json.total || 0);
+    setUnlinkedCount(json.unlinked_count || 0);
     setLoading(false);
   }
 
@@ -120,6 +125,28 @@ export default function FormLogPage() {
       </header>
 
       <div className="px-4 sm:px-6 py-6 space-y-4">
+        {/* Unlinked warning */}
+        {unlinkedCount > 0 && (
+          <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-800">
+                {unlinkedCount} pendaftar belum terhubung ke data alumni
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                Pendaftar ini perlu di-review dan dihubungkan secara manual di halaman Alumni.
+              </p>
+              <button
+                onClick={() => router.push("/admin/alumni")}
+                className="mt-2 text-xs font-medium text-amber-700 hover:text-amber-900 flex items-center gap-1"
+              >
+                <Link2 className="w-3 h-3" />
+                Buka halaman Alumni
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Search + Filter */}
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
@@ -215,6 +242,12 @@ export default function FormLogPage() {
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 rounded-full">
                                 <UserCheck className="w-3 h-3" />
                                 Update
+                              </span>
+                            )}
+                            {!sub.has_alumni_link && sub.member_id && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 rounded-full">
+                                <AlertTriangle className="w-3 h-3" />
+                                Belum terhubung alumni
                               </span>
                             )}
                           </div>

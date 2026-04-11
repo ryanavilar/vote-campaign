@@ -251,6 +251,7 @@ export default function AdminAlumniPage() {
   const [initialLoading, setInitialLoading] = useState(true); // only for first load
   const [refreshing, setRefreshing] = useState(false); // only for manual Refresh button
   const [page, setPage] = useState(1);
+  const [unlinkedFormCount, setUnlinkedFormCount] = useState(0);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -291,14 +292,21 @@ export default function AdminAlumniPage() {
   // Load data from API — called ONCE on mount, silently on error recovery
   const loadData = useCallback(async () => {
     try {
-      const res = await fetch("/api/alumni");
-      if (res.ok) {
-        const json = await res.json();
+      const [alumniRes, formLogRes] = await Promise.all([
+        fetch("/api/alumni"),
+        fetch("/api/form-log?limit=1").catch(() => null),
+      ]);
+      if (alumniRes.ok) {
+        const json = await alumniRes.json();
         setAllAlumni(json.data || []);
         setStats(json.stats);
         setAvailableAngkatan(json.availableAngkatan || []);
       } else {
         showToastRef.current("Gagal memuat data alumni", "error");
+      }
+      if (formLogRes?.ok) {
+        const formJson = await formLogRes.json();
+        setUnlinkedFormCount(formJson.unlinked_count || 0);
       }
     } catch {
       showToastRef.current("Gagal memuat data alumni", "error");
@@ -850,6 +858,27 @@ export default function AdminAlumniPage() {
             </div>
           ))}
         </div>
+
+        {/* Unlinked form submissions alert */}
+        {unlinkedFormCount > 0 && (
+          <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-800">
+                {unlinkedFormCount} pendaftar dari form belum terhubung ke data alumni
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                Gunakan Auto-Link atau review manual untuk menghubungkan data pendaftar ke alumni.
+              </p>
+            </div>
+            <button
+              onClick={() => window.open("/form-log", "_blank")}
+              className="shrink-0 text-xs font-medium text-amber-700 hover:text-amber-900 px-2 py-1 rounded hover:bg-amber-100 transition-colors"
+            >
+              Lihat Log
+            </button>
+          </div>
+        )}
 
         {/* Review Panel */}
         {pendingMatches.length > 0 && reviewOpen && (
