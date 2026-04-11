@@ -70,12 +70,26 @@ export async function POST(request: Request) {
       eventData = event;
     }
 
-    // Check for existing member (same nama + angkatan)
-    const { data: existingMembers } = await supabaseAdmin
+    // Check for existing member (exact name match first, then fuzzy)
+    const { data: exactMembers } = await supabaseAdmin
       .from("members")
       .select("id, nama, angkatan")
       .ilike("nama", nama.trim())
       .eq("angkatan", Number(angkatan));
+
+    let existingMembers = exactMembers;
+
+    // Fallback: fuzzy match if no exact match found (catches "Heldy Herawan" vs "Heldy Wahyu Dwi Herawan")
+    if (!existingMembers || existingMembers.length === 0) {
+      const { data: fuzzyMatch } = await supabaseAdmin.rpc("match_member_fuzzy", {
+        p_nama: nama.trim(),
+        p_angkatan: Number(angkatan),
+        p_threshold: 0.5,
+      });
+      if (fuzzyMatch && fuzzyMatch.length > 0) {
+        existingMembers = fuzzyMatch;
+      }
+    }
 
     let memberId: string;
 
