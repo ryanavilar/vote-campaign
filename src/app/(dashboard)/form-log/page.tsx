@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   ClipboardList,
@@ -18,7 +18,7 @@ import {
   AlertTriangle,
   Link2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 interface FormSubmission {
   id: string;
@@ -49,11 +49,13 @@ export default function FormLogPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [unlinkedCount, setUnlinkedCount] = useState(0);
   const router = useRouter();
+  const pathname = usePathname();
   const limit = 50;
 
+  // Re-fetch when navigating back to this page or when page/filter changes
   useEffect(() => {
     fetchSubmissions();
-  }, [page, filterType]);
+  }, [page, filterType, pathname]);
 
   async function fetchSubmissions() {
     setLoading(true);
