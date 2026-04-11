@@ -14,10 +14,10 @@ export async function GET() {
       .from("alumni")
       .select("id", { count: "exact", head: true }),
 
-    // 2. Distinct alumni IDs linked to members (fetch alumni_id column, deduplicate client-side)
+    // 2. Count members linked to alumni (head-only for speed)
     adminClient
       .from("members")
-      .select("alumni_id")
+      .select("id", { count: "exact", head: true })
       .not("alumni_id", "is", null)
       .not("is_non_alumni", "is", true),
 
@@ -28,8 +28,7 @@ export async function GET() {
 
   const totalAlumni = totalRes.count || 0;
 
-  // Count members linked to alumni (same as member count with unique constraint)
-  const linkedCount = (linkedRes.data || []).length;
+  const linkedCount = linkedRes.count || 0;
 
   return NextResponse.json({
     totalAlumni,
