@@ -339,33 +339,6 @@ export default function Dashboard() {
     });
   };
 
-  /* ── Battlefield Stats ── */
-  const battlefield = useMemo(() => {
-    const pendukung = data.filter(
-      (m) => m.dukungan === "dukung" || m.dukungan === "terkonvert"
-    ).length;
-    const ragu = data.filter((m) => m.dukungan === "ragu_ragu").length;
-    const lawan = data.filter((m) => m.dukungan === "milih_sebelah").length;
-    const contacted = data.filter(
-      (m) => m.sudah_dikontak === "Sudah"
-    ).length;
-    const known = pendukung + ragu + lawan;
-    const belumTahu = Math.max(0, contacted - known);
-    const base = data.length || 1;
-
-    return {
-      pendukung,
-      ragu,
-      lawan,
-      belumTahu,
-      contacted,
-      total: data.length,
-      pendukungPct: Math.round((pendukung / base) * 100),
-      raguPct: Math.round((ragu / base) * 100),
-      lawanPct: Math.round((lawan / base) * 100),
-    };
-  }, [data]);
-
   /* ── Operational Stats (server-side per-batch data for accuracy) ── */
   const opStats = useMemo(() => {
     const totalMembers = perBatchStats.reduce((s, b) => s + b.memberCount, 0);
@@ -373,6 +346,9 @@ export default function Dashboard() {
     const grupSudah = perBatchStats.reduce((s, b) => s + b.grupWa, 0);
     const dptSudah = perBatchStats.reduce((s, b) => s + b.dpt, 0);
     const voteSudah = perBatchStats.reduce((s, b) => s + b.vote, 0);
+    const dukung = perBatchStats.reduce((s, b) => s + b.dukung, 0);
+    const ragu = perBatchStats.reduce((s, b) => s + b.ragu, 0);
+    const sebelah = perBatchStats.reduce((s, b) => s + b.sebelah, 0);
 
     return {
       totalAlumni: alumniStats.totalAlumni,
@@ -384,8 +360,34 @@ export default function Dashboard() {
       grupUnlinked: waGroupStats.unlinked,
       dptSudah,
       voteSudah,
+      dukung,
+      ragu,
+      sebelah,
     };
   }, [perBatchStats, alumniStats, waGroupStats]);
+
+  /* ── Battlefield Stats (from server-side per-batch data for accuracy) ── */
+  const battlefield = useMemo(() => {
+    const pendukung = opStats.dukung;
+    const ragu = opStats.ragu;
+    const lawan = opStats.sebelah;
+    const contacted = opStats.contacted;
+    const known = pendukung + ragu + lawan;
+    const belumTahu = Math.max(0, contacted - known);
+    const base = opStats.totalMembers || 1;
+
+    return {
+      pendukung,
+      ragu,
+      lawan,
+      belumTahu,
+      contacted,
+      total: opStats.totalMembers,
+      pendukungPct: Math.round((pendukung / base) * 100),
+      raguPct: Math.round((ragu / base) * 100),
+      lawanPct: Math.round((lawan / base) * 100),
+    };
+  }, [opStats]);
 
   /* ── Per-Angkatan Battle Data (from server-side API, consistent with target page) ── */
   const angkatanBattle = useMemo(() => {
