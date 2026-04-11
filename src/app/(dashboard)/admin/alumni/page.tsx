@@ -432,6 +432,10 @@ export default function AdminAlumniPage() {
   const [linkPreview, setLinkPreview] = useState<PreviewResult | null>(null);
   const [linkTab, setLinkTab] = useState<LinkTab>("certain");
   const [selectedPairs, setSelectedPairs] = useState<Set<string>>(new Set());
+  const [relinkCandidateId, setRelinkCandidateId] = useState<string | null>(null);
+  const [relinkQuery, setRelinkQuery] = useState("");
+  const [relinkSearchResults, setRelinkSearchResults] = useState<{ id: string; nama: string; angkatan: number }[]>([]);
+  const [relinkSearching, setRelinkSearching] = useState(false);
 
   // Lock to prevent concurrent member-creation calls for the same alumni
   const creatingLockRef = useRef(new Set<string>());
@@ -597,6 +601,45 @@ export default function AdminAlumniPage() {
       }
       return next;
     });
+  };
+
+  // Manual relink in auto-link modal
+  const handleAutoLinkRelinkSearch = useCallback(async (query: string, angkatan: number) => {
+    setRelinkQuery(query);
+    if (query.length < 2) { setRelinkSearchResults([]); return; }
+    setRelinkSearching(true);
+    try {
+      const res = await fetch(`/api/alumni/search?q=${encodeURIComponent(query)}&limit=8&angkatan=${angkatan}`);
+      if (res.ok) {
+        const json = await res.json();
+        setRelinkSearchResults((json.data || []).map((a: { id: string; nama: string; angkatan: number }) => ({
+          id: a.id, nama: a.nama, angkatan: a.angkatan,
+        })));
+      }
+    } catch {
+      // silent
+    }
+    setRelinkSearching(false);
+  }, []);
+
+  const handleRelinkSelect = (memberId: string, alumni: { id: string; nama: string; angkatan: number }) => {
+    if (!linkPreview) return;
+    // Update the candidate's alumni to the manually selected one
+    const updated = linkPreview.candidates.map((c) =>
+      c.member_id === memberId
+        ? { ...c, alumni_id: alumni.id, alumni_nama: alumni.nama, alumni_angkatan: alumni.angkatan, similarity: 100, confidence: "certain" as const }
+        : c
+    );
+    // If this member wasn't in candidates yet (no_match), add them
+    const exists = updated.some((c) => c.member_id === memberId);
+    if (!exists) {
+      // This shouldn't happen in current flow but safe guard
+    }
+    setLinkPreview({ ...linkPreview, candidates: updated });
+    setSelectedPairs((prev) => new Set(prev).add(memberId));
+    setRelinkCandidateId(null);
+    setRelinkQuery("");
+    setRelinkSearchResults([]);
   };
 
   // Add alumni modal state
@@ -1538,28 +1581,86 @@ export default function AdminAlumniPage() {
                       <div className="divide-y divide-border">
                         {currentTabCandidates.map((candidate) => {
                           const isSelected = selectedPairs.has(candidate.member_id);
+                          const isRelinking = relinkCandidateId === candidate.member_id;
                           return (
-                            <label key={candidate.member_id} className={`flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors ${isSelected ? "bg-blue-50/40" : "hover:bg-gray-50"}`}>
-                              <input type="checkbox" checked={isSelected} onChange={() => togglePair(candidate.member_id)} className="rounded border-gray-300 text-[#0B27BC] focus:ring-[#0B27BC]/20 shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
-                                  <div className="min-w-0">
-                                    <span className="text-sm font-medium text-foreground block truncate">{candidate.member_nama}</span>
-                                    <span className="text-xs text-muted-foreground">TN{candidate.member_angkatan}</span>
+                            <div key={candidate.member_id} className={`transition-colors ${isSelected ? "bg-blue-50/40" : "hover:bg-gray-50"}`}>
+                              <div className="flex items-center gap-3 px-5 py-3">
+                                <input type="checkbox" checked={isSelected} onChange={() => togglePair(candidate.member_id)} className="rounded border-gray-300 text-[#0B27BC] focus:ring-[#0B27BC]/20 shrink-0 cursor-pointer" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center">
+                                    <div className="min-w-0">
+                                      <span className="text-sm font-medium text-foreground block truncate">{candidate.member_nama}</span>
+                                      <span className="text-xs text-muted-foreground">TN{candidate.member_angkatan}</span>
+                                    </div>
+                                    <span className="text-xs text-gray-400">&rarr;</span>
+                                    <div className="min-w-0">
+                                      <span className="text-sm text-[#0B27BC] font-medium block truncate">{candidate.alumni_nama}</span>
+                                      <span className="text-xs text-muted-foreground">TN{candidate.alumni_angkatan}</span>
+                                    </div>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isRelinking) {
+                                          setRelinkCandidateId(null);
+                                          setRelinkQuery("");
+                                          setRelinkSearchResults([]);
+                                        } else {
+                                          setRelinkCandidateId(candidate.member_id);
+                                          setRelinkQuery("");
+                                          setRelinkSearchResults([]);
+                                        }
+                                      }}
+                                      className="text-[10px] px-2 py-1 rounded-md border border-gray-200 text-gray-500 hover:text-[#0B27BC] hover:border-[#0B27BC]/30 hover:bg-[#0B27BC]/5 transition-colors shrink-0"
+                                      title="Ganti alumni secara manual"
+                                    >
+                                      {isRelinking ? "Batal" : "Ganti"}
+                                    </button>
                                   </div>
-                                  <span className="text-xs text-gray-400">&rarr;</span>
-                                  <div className="min-w-0">
-                                    <span className="text-sm text-[#0B27BC] font-medium block truncate">{candidate.alumni_nama}</span>
-                                    <span className="text-xs text-muted-foreground">TN{candidate.alumni_angkatan}</span>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${candidate.similarity >= 85 ? "bg-emerald-100 text-emerald-700" : candidate.similarity >= 70 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}>
+                                      {candidate.similarity}% cocok
+                                    </span>
                                   </div>
-                                </div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${candidate.similarity >= 85 ? "bg-emerald-100 text-emerald-700" : candidate.similarity >= 70 ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}>
-                                    {candidate.similarity}% cocok
-                                  </span>
                                 </div>
                               </div>
-                            </label>
+                              {/* Manual relink search */}
+                              {isRelinking && (
+                                <div className="px-5 pb-3 ml-7">
+                                  <div className="bg-gray-50 rounded-lg p-3 border border-border">
+                                    <div className="relative">
+                                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                                      <input
+                                        type="text"
+                                        value={relinkQuery}
+                                        onChange={(e) => handleAutoLinkRelinkSearch(e.target.value, candidate.member_angkatan)}
+                                        placeholder={`Cari alumni TN${candidate.member_angkatan}...`}
+                                        className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-[#0B27BC]/20 focus:border-[#0B27BC] bg-white"
+                                        autoFocus
+                                      />
+                                      {relinkSearching && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                                    </div>
+                                    {relinkSearchResults.length > 0 && (
+                                      <div className="mt-2 divide-y divide-border rounded-md border border-border bg-white overflow-hidden max-h-[200px] overflow-y-auto">
+                                        {relinkSearchResults.map((alumni) => (
+                                          <button
+                                            key={alumni.id}
+                                            onClick={() => handleRelinkSelect(candidate.member_id, alumni)}
+                                            className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-[#0B27BC]/5 transition-colors"
+                                          >
+                                            <GraduationCap className="w-3.5 h-3.5 text-[#0B27BC] shrink-0" />
+                                            <span className="text-sm font-medium text-foreground truncate">{alumni.nama}</span>
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">TN{alumni.angkatan}</span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {relinkQuery.length >= 2 && !relinkSearching && relinkSearchResults.length === 0 && (
+                                      <p className="text-xs text-muted-foreground mt-2 text-center">Tidak ditemukan alumni yang cocok</p>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           );
                         })}
                       </div>
