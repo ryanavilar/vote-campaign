@@ -913,9 +913,9 @@ export default function AdminAlumniPage() {
                 <Link2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Auto-Link</span>
               </button>
-              <button onClick={handleExport} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-sm hover:shadow-md transition-all ring-2 ring-emerald-200">
-                <Download className="w-4 h-4" />
-                Export Excel
+              <button onClick={handleExport} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors">
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Export Excel</span>
               </button>
               <button onClick={handleRefresh} disabled={refreshing} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50">
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
