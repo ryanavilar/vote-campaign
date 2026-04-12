@@ -329,24 +329,20 @@ export default function AdminAlumniPage() {
         "Nama Alumni": a.nama,
         Angkatan: a.angkatan,
         Nosis: a.nosis ?? "",
-        "Kelanjutan Studi": a.kelanjutan_studi ?? "",
-        "Program Studi": a.program_studi ?? "",
         Keterangan: a.keterangan ?? "",
-        "Linked Member": m?.nama ?? "",
         "No HP": m?.no_hp ?? "",
-        PIC: m?.pic ?? "",
         "Sudah Dikontak": m?.sudah_dikontak ?? "",
+        Dukungan: m?.dukungan ?? "",
         "Masuk Grup": m?.masuk_grup ?? "",
         "Status DPT": m?.status_dpt ?? "",
         Vote: m?.vote ?? "",
-        Dukungan: m?.dukungan ?? "",
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);
     ws["!cols"] = [
-      { wch: 5 }, { wch: 28 }, { wch: 9 }, { wch: 12 }, { wch: 18 },
-      { wch: 22 }, { wch: 24 }, { wch: 28 }, { wch: 16 }, { wch: 16 },
-      { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 },
+      { wch: 5 }, { wch: 28 }, { wch: 9 }, { wch: 12 }, { wch: 24 },
+      { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 },
+      { wch: 12 },
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Alumni");
