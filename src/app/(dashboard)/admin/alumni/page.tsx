@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import * as XLSX from "xlsx";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
 import { formatNum } from "@/lib/format";
@@ -318,67 +319,39 @@ export default function AdminAlumniPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Export filtered alumni to CSV
+  // Export filtered alumni to Excel
   const handleExport = useCallback(() => {
     const rows = filteredRef.current;
-    const headers = [
-      "No",
-      "Nama Alumni",
-      "Angkatan",
-      "Nosis",
-      "Kelanjutan Studi",
-      "Program Studi",
-      "Keterangan",
-      "Linked Member",
-      "No HP",
-      "PIC",
-      "Sudah Dikontak",
-      "Masuk Grup",
-      "Status DPT",
-      "Vote",
-      "Dukungan",
-    ];
-    const escape = (v: unknown) => {
-      if (v === null || v === undefined) return "";
-      const s = String(v).replace(/"/g, '""');
-      return /[",\n]/.test(s) ? `"${s}"` : s;
-    };
-    const lines = [headers.join(",")];
-    rows.forEach((a, idx) => {
+    const data = rows.map((a, idx) => {
       const m = a.members && a.members.length > 0 ? a.members[0] : null;
-      lines.push(
-        [
-          idx + 1,
-          a.nama,
-          a.angkatan,
-          a.nosis,
-          a.kelanjutan_studi,
-          a.program_studi,
-          a.keterangan,
-          m?.nama ?? "",
-          m?.no_hp ?? "",
-          m?.pic ?? "",
-          m?.sudah_dikontak ?? "",
-          m?.masuk_grup ?? "",
-          m?.status_dpt ?? "",
-          m?.vote ?? "",
-          m?.dukungan ?? "",
-        ]
-          .map(escape)
-          .join(",")
-      );
+      return {
+        No: idx + 1,
+        "Nama Alumni": a.nama,
+        Angkatan: a.angkatan,
+        Nosis: a.nosis ?? "",
+        "Kelanjutan Studi": a.kelanjutan_studi ?? "",
+        "Program Studi": a.program_studi ?? "",
+        Keterangan: a.keterangan ?? "",
+        "Linked Member": m?.nama ?? "",
+        "No HP": m?.no_hp ?? "",
+        PIC: m?.pic ?? "",
+        "Sudah Dikontak": m?.sudah_dikontak ?? "",
+        "Masuk Grup": m?.masuk_grup ?? "",
+        "Status DPT": m?.status_dpt ?? "",
+        Vote: m?.vote ?? "",
+        Dukungan: m?.dukungan ?? "",
+      };
     });
-    const csv = "\ufeff" + lines.join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 5 }, { wch: 28 }, { wch: 9 }, { wch: 12 }, { wch: 18 },
+      { wch: 22 }, { wch: 24 }, { wch: 28 }, { wch: 16 }, { wch: 16 },
+      { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 },
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Alumni");
     const ts = new Date().toISOString().slice(0, 10);
-    link.href = url;
-    link.download = `alumni-${ts}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    XLSX.writeFile(wb, `alumni-${ts}.xlsx`);
   }, []);
 
   // Manual refresh — only the Refresh button uses this
@@ -940,9 +913,9 @@ export default function AdminAlumniPage() {
                 <Link2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Auto-Link</span>
               </button>
-              <button onClick={handleExport} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#0a22a3] transition-colors">
-                <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Export CSV</span>
+              <button onClick={handleExport} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-sm hover:shadow-md transition-all ring-2 ring-emerald-200">
+                <Download className="w-4 h-4" />
+                Export Excel
               </button>
               <button onClick={handleRefresh} disabled={refreshing} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50">
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
