@@ -269,6 +269,7 @@ export default function Dashboard() {
   const [waGroupLoaded, setWaGroupLoaded] = useState(false);
   const [perBatchStats, setPerBatchStats] = useState<PerBatchStats[]>([]);
   const [perBatchLoaded, setPerBatchLoaded] = useState(false);
+  const [formDukunganCount, setFormDukunganCount] = useState(0);
   const { loading: roleLoading, role } = useRole();
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "batch">("overview");
@@ -337,6 +338,17 @@ export default function Dashboard() {
       setPerBatchStats(Array.isArray(bStats) ? bStats : []);
       setPerBatchLoaded(true);
     });
+
+    // Count distinct members who submitted via /form/dukungan
+    (async () => {
+      const { data: subs } = await supabase
+        .from("form_submissions")
+        .select("member_id")
+        .eq("type", "dukungan")
+        .not("member_id", "is", null);
+      const unique = new Set((subs || []).map((s) => s.member_id));
+      setFormDukunganCount(unique.size);
+    })();
   };
 
   /* ── Operational Stats (server-side per-batch data for accuracy) ── */
@@ -546,6 +558,7 @@ export default function Dashboard() {
 
   /* ── Progress donuts config ── */
   const progressData = [
+    { label: "Form Dukungan", value: formDukunganCount, total: opStats.totalMembers, color: "#14b8a6" },
     { label: "Kontak", value: opStats.contacted, total: opStats.totalMembers, color: "#0B27BC" },
     { label: "Grup WA", value: opStats.grupSudah, total: opStats.totalMembers, color: "#0B27BC" },
     { label: "DPT", value: opStats.dptSudah, total: opStats.totalMembers, color: "#10b981" },
@@ -838,7 +851,7 @@ export default function Dashboard() {
             <h3 className="font-semibold text-foreground mb-4">
               Progress Operasional
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               {progressData.map((p) => {
                 const pct =
                   p.total > 0 ? Math.round((p.value / p.total) * 100) : 0;
