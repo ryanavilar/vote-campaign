@@ -33,6 +33,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Download,
 } from "lucide-react";
 
 const PAGE_SIZE = 50;
@@ -289,6 +290,9 @@ export default function AdminAlumniPage() {
   const showToastRef = useRef(showToast);
   showToastRef.current = showToast;
 
+  // Stable ref for filtered alumni (used by export)
+  const filteredRef = useRef<AlumniRow[]>([]);
+
   // Load data from API — called ONCE on mount, silently on error recovery
   const loadData = useCallback(async () => {
     try {
@@ -312,6 +316,69 @@ export default function AdminAlumniPage() {
       showToastRef.current("Gagal memuat data alumni", "error");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Export filtered alumni to CSV
+  const handleExport = useCallback(() => {
+    const rows = filteredRef.current;
+    const headers = [
+      "No",
+      "Nama Alumni",
+      "Angkatan",
+      "Nosis",
+      "Kelanjutan Studi",
+      "Program Studi",
+      "Keterangan",
+      "Linked Member",
+      "No HP",
+      "PIC",
+      "Sudah Dikontak",
+      "Masuk Grup",
+      "Status DPT",
+      "Vote",
+      "Dukungan",
+    ];
+    const escape = (v: unknown) => {
+      if (v === null || v === undefined) return "";
+      const s = String(v).replace(/"/g, '""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+    const lines = [headers.join(",")];
+    rows.forEach((a, idx) => {
+      const m = a.members && a.members.length > 0 ? a.members[0] : null;
+      lines.push(
+        [
+          idx + 1,
+          a.nama,
+          a.angkatan,
+          a.nosis,
+          a.kelanjutan_studi,
+          a.program_studi,
+          a.keterangan,
+          m?.nama ?? "",
+          m?.no_hp ?? "",
+          m?.pic ?? "",
+          m?.sudah_dikontak ?? "",
+          m?.masuk_grup ?? "",
+          m?.status_dpt ?? "",
+          m?.vote ?? "",
+          m?.dukungan ?? "",
+        ]
+          .map(escape)
+          .join(",")
+      );
+    });
+    const csv = "\ufeff" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const ts = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.download = `alumni-${ts}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }, []);
 
   // Manual refresh — only the Refresh button uses this
@@ -415,6 +482,8 @@ export default function AdminAlumniPage() {
 
     return result;
   }, [allAlumni, debouncedSearch, filterAngkatan, fLinked, fMultiLink, fPhone, fKontak, fDukungan, fGrup, fDpt, fVote]);
+
+  filteredRef.current = filtered;
 
   // ── Client-side pagination ──
   const totalFiltered = filtered.length;
@@ -870,6 +939,10 @@ export default function AdminAlumniPage() {
               <button onClick={handleAutoLinkPreview} disabled={showLinkModal} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-[#84303F] rounded-lg hover:bg-[#6e2835] transition-colors disabled:opacity-50">
                 <Link2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Auto-Link</span>
+              </button>
+              <button onClick={handleExport} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#0a22a3] transition-colors">
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Export CSV</span>
               </button>
               <button onClick={handleRefresh} disabled={refreshing} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50">
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
