@@ -101,6 +101,10 @@ export async function POST(request: Request) {
       if (email) updateFields.email = email;
       if (domisili) updateFields.domisili = domisili;
       if (harapan) updateFields.harapan = harapan;
+      if (type === "dukungan") {
+        updateFields.sudah_dikontak = "Sudah";
+        updateFields.dukungan = "dukung";
+      }
 
       if (Object.keys(updateFields).length > 0) {
         await supabaseAdmin
@@ -129,6 +133,8 @@ export async function POST(request: Request) {
           email: email || null,
           domisili: domisili || null,
           harapan: harapan || null,
+          sudah_dikontak: type === "dukungan" ? "Sudah" : null,
+          dukungan: type === "dukungan" ? "dukung" : null,
         })
         .select("id")
         .single();
