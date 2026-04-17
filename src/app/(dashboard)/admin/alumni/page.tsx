@@ -339,9 +339,9 @@ export default function AdminAlumniPage() {
         "Sudah Dikontak": m?.sudah_dikontak ?? "",
         Dukungan: m?.dukungan ?? "",
         "Masuk Grup": m?.masuk_grup ?? "",
-        "Status DPT": m?.status_dpt ?? "",
         "Form DPT": m?.isi_form_dpt ?? "",
         "Web DPT": m?.registrasi_website_dpt ?? "",
+        "Status DPT": m?.status_dpt ?? "",
         Vote: m?.vote ?? "",
       };
     });
@@ -1201,12 +1201,6 @@ export default function AdminAlumniPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-gray-400 mb-0.5 block">DPT</label>
-                    <select value={fDpt} onChange={(e) => setFDpt(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
-                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
-                    </select>
-                  </div>
-                  <div>
                     <label className="text-[10px] text-gray-400 mb-0.5 block">Form DPT</label>
                     <select value={fFormDpt} onChange={(e) => setFFormDpt(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
                       <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
@@ -1215,6 +1209,12 @@ export default function AdminAlumniPage() {
                   <div>
                     <label className="text-[10px] text-gray-400 mb-0.5 block">Web DPT</label>
                     <select value={fWebDpt} onChange={(e) => setFWebDpt(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">DPT</label>
+                    <select value={fDpt} onChange={(e) => setFDpt(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
                       <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
                     </select>
                   </div>
@@ -1254,9 +1254,9 @@ export default function AdminAlumniPage() {
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Kontak</th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Dukungan</th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Grup</th>
-                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">DPT</th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Form DPT</th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Web DPT</th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">DPT</th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Vote</th>
                 </tr>
               </thead>
@@ -1349,13 +1349,13 @@ export default function AdminAlumniPage() {
                           <StatusChip value={(member?.masuk_grup as StatusValue) || null} readOnly />
                         </td>
                         <td className="px-2 py-2 text-center">
-                          <StatusChip value={(member?.status_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "status_dpt")} />
-                        </td>
-                        <td className="px-2 py-2 text-center">
                           <StatusChip value={(member?.isi_form_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "isi_form_dpt")} />
                         </td>
                         <td className="px-2 py-2 text-center">
                           <StatusChip value={(member?.registrasi_website_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "registrasi_website_dpt")} />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <StatusChip value={(member?.status_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "status_dpt")} />
                         </td>
                         <td className="px-2 py-2 text-center">
                           <StatusChip value={(member?.vote as StatusValue) || null} onClick={() => toggleBinary(item, "vote")} />
@@ -1463,16 +1463,16 @@ export default function AdminAlumniPage() {
                         <StatusChip value={(member?.masuk_grup as StatusValue) || null} readOnly />
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="text-[9px] text-gray-400 w-6">DPT</span>
-                        <StatusChip value={(member?.status_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "status_dpt")} />
-                      </div>
-                      <div className="flex items-center gap-1">
                         <span className="text-[9px] text-gray-400 w-10">Form</span>
                         <StatusChip value={(member?.isi_form_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "isi_form_dpt")} />
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-gray-400 w-7">Web</span>
                         <StatusChip value={(member?.registrasi_website_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "registrasi_website_dpt")} />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-gray-400 w-6">DPT</span>
+                        <StatusChip value={(member?.status_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "status_dpt")} />
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-gray-400 w-7">Vote</span>
