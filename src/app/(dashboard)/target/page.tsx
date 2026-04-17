@@ -43,6 +43,8 @@ interface TargetRow {
   angkatan: number;
   no_hp: string;
   status_dpt: StatusValue;
+  isi_form_dpt: StatusValue;
+  registrasi_website_dpt: StatusValue;
   sudah_dikontak: StatusValue;
   masuk_grup: StatusValue;
   vote: StatusValue;
@@ -240,16 +242,20 @@ export default function TargetPage() {
   const [fDukungan, setFDukungan] = useState("all");
   const [fGrup, setFGrup] = useState("all");
   const [fDpt, setFDpt] = useState("all");
+  const [fFormDpt, setFFormDpt] = useState("all");
+  const [fWebDpt, setFWebDpt] = useState("all");
   const [fVote, setFVote] = useState("all");
   const [fPhone, setFPhone] = useState("all");
 
-  const activeFilterCount = [fKontak, fDukungan, fGrup, fDpt, fVote, fPhone].filter((f) => f !== "all").length;
+  const activeFilterCount = [fKontak, fDukungan, fGrup, fDpt, fFormDpt, fWebDpt, fVote, fPhone].filter((f) => f !== "all").length;
 
   const resetFilters = () => {
     setFKontak("all");
     setFDukungan("all");
     setFGrup("all");
     setFDpt("all");
+    setFFormDpt("all");
+    setFWebDpt("all");
     setFVote("all");
     setFPhone("all");
   };
@@ -263,7 +269,7 @@ export default function TargetPage() {
   // Reset page on any filter change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+  }, [debouncedSearch, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fFormDpt, fWebDpt, fVote, fPhone]);
 
   // ── Data loading (NO loading state inside) ──
   const loadData = useCallback(async () => {
@@ -342,6 +348,14 @@ export default function TargetPage() {
         if (fDpt === "empty") { if (t.status_dpt !== null) return false; }
         else if (t.status_dpt !== fDpt) return false;
       }
+      if (fFormDpt !== "all") {
+        if (fFormDpt === "empty") { if (t.isi_form_dpt !== null) return false; }
+        else if (t.isi_form_dpt !== fFormDpt) return false;
+      }
+      if (fWebDpt !== "all") {
+        if (fWebDpt === "empty") { if (t.registrasi_website_dpt !== null) return false; }
+        else if (t.registrasi_website_dpt !== fWebDpt) return false;
+      }
       if (fVote !== "all") {
         if (fVote === "empty") { if (t.vote !== null) return false; }
         else if (t.vote !== fVote) return false;
@@ -353,7 +367,7 @@ export default function TargetPage() {
 
       return true;
     });
-  }, [allTargets, debouncedSearch, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+  }, [allTargets, debouncedSearch, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fFormDpt, fWebDpt, fVote, fPhone]);
 
   // Client-side pagination
   const totalFiltered = filtered.length;
@@ -411,6 +425,8 @@ export default function TargetPage() {
                       no: data.member?.no || t.no,
                       no_hp: data.member?.no_hp || t.no_hp,
                       status_dpt: data.member?.status_dpt ?? t.status_dpt,
+                      isi_form_dpt: data.member?.isi_form_dpt ?? t.isi_form_dpt,
+                      registrasi_website_dpt: data.member?.registrasi_website_dpt ?? t.registrasi_website_dpt,
                       sudah_dikontak: data.member?.sudah_dikontak ?? t.sudah_dikontak,
                       // masuk_grup is derived from WA Group — keep existing value
                       vote: data.member?.vote ?? t.vote,
@@ -456,6 +472,8 @@ export default function TargetPage() {
       Dukungan: t.dukungan ? (dukunganLabel[t.dukungan] || t.dukungan) : "",
       "Masuk Grup WA": t.masuk_grup || "",
       "Status DPT": t.status_dpt || "",
+      "Form DPT": t.isi_form_dpt || "",
+      "Web DPT": t.registrasi_website_dpt || "",
       Vote: t.vote || "",
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -677,6 +695,34 @@ export default function TargetPage() {
                       <option value="empty">Kosong</option>
                     </select>
                   </div>
+                  {/* Form DPT */}
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Form DPT</label>
+                    <select
+                      value={fFormDpt}
+                      onChange={(e) => setFFormDpt(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white"
+                    >
+                      <option value="all">Semua</option>
+                      <option value="Sudah">Sudah</option>
+                      <option value="Belum">Belum</option>
+                      <option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                  {/* Web DPT */}
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Web DPT</label>
+                    <select
+                      value={fWebDpt}
+                      onChange={(e) => setFWebDpt(e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white"
+                    >
+                      <option value="all">Semua</option>
+                      <option value="Sudah">Sudah</option>
+                      <option value="Belum">Belum</option>
+                      <option value="empty">Kosong</option>
+                    </select>
+                  </div>
                   {/* Vote */}
                   <div>
                     <label className="text-[10px] text-gray-400 mb-0.5 block">Vote</label>
@@ -742,6 +788,12 @@ export default function TargetPage() {
                     DPT
                   </th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
+                    Form DPT
+                  </th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
+                    Web DPT
+                  </th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
                     Vote
                   </th>
                 </tr>
@@ -749,7 +801,7 @@ export default function TargetPage() {
               <tbody>
                 {targets.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center">
+                    <td colSpan={11} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Crosshair className="w-8 h-8 text-gray-200" />
                         <p className="text-sm text-muted-foreground">
@@ -829,6 +881,18 @@ export default function TargetPage() {
                         <StatusChip
                           value={row.status_dpt}
                           onClick={() => toggleBinary(row, "status_dpt")}
+                        />
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <StatusChip
+                          value={row.isi_form_dpt}
+                          onClick={() => toggleBinary(row, "isi_form_dpt")}
+                        />
+                      </td>
+                      <td className="px-2 py-2 text-center">
+                        <StatusChip
+                          value={row.registrasi_website_dpt}
+                          onClick={() => toggleBinary(row, "registrasi_website_dpt")}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
@@ -931,6 +995,20 @@ export default function TargetPage() {
                       <StatusChip
                         value={row.status_dpt}
                         onClick={() => toggleBinary(row, "status_dpt")}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] text-gray-400 w-10">Form</span>
+                      <StatusChip
+                        value={row.isi_form_dpt}
+                        onClick={() => toggleBinary(row, "isi_form_dpt")}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] text-gray-400 w-7">Web</span>
+                      <StatusChip
+                        value={row.registrasi_website_dpt}
+                        onClick={() => toggleBinary(row, "registrasi_website_dpt")}
                       />
                     </div>
                     <div className="flex items-center gap-1">

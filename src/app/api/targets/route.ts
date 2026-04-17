@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
     try {
       // Fetch members + WA group + attendance in parallel
       const [members, waRows, attRows] = await Promise.all([
-        fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) =>
+        fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, isi_form_dpt, registrasi_website_dpt, sudah_dikontak, vote, dukungan", (q) =>
           q.in("id", memberIds).not("is_non_alumni", "is", true).order("no", { ascending: true })
         ),
         fetchAll(adminClient, "wa_group_members", "member_id", (q) =>
@@ -186,6 +186,8 @@ export async function GET(request: NextRequest) {
           angkatan: m.angkatan,
           no_hp: m.no_hp || "",
           status_dpt: m.status_dpt,
+          isi_form_dpt: m.isi_form_dpt,
+          registrasi_website_dpt: m.registrasi_website_dpt,
           sudah_dikontak: inGroup ? "Sudah" : m.sudah_dikontak,
           masuk_grup: inGroup ? "Sudah" : "Belum",
           vote: m.vote,
@@ -230,7 +232,7 @@ export async function GET(request: NextRequest) {
         const chunks: string[][] = [];
         for (let i = 0; i < alumniIds.length; i += 500) chunks.push(alumniIds.slice(i, i + 500));
         const results = await Promise.all(
-          chunks.map((chunk) => fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) => q.in("alumni_id", chunk).not("is_non_alumni", "is", true)))
+          chunks.map((chunk) => fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, isi_form_dpt, registrasi_website_dpt, sudah_dikontak, vote, dukungan", (q) => q.in("alumni_id", chunk).not("is_non_alumni", "is", true)))
         );
         for (const rows of results) {
           for (const m of rows) { if (m.alumni_id) membersMap[m.alumni_id] = m; }
@@ -259,6 +261,8 @@ export async function GET(request: NextRequest) {
         member_id: member?.id || null, no: member?.no || null,
         nama: member?.nama || a.nama, angkatan: member?.angkatan || a.angkatan,
         no_hp: member?.no_hp || "", status_dpt: member?.status_dpt || null,
+        isi_form_dpt: member?.isi_form_dpt || null,
+        registrasi_website_dpt: member?.registrasi_website_dpt || null,
         sudah_dikontak: inGroup ? "Sudah" : (member?.sudah_dikontak || null),
         masuk_grup: inGroup ? "Sudah" : "Belum",
         vote: member?.vote || null, dukungan: member?.dukungan || null,
@@ -307,7 +311,7 @@ export async function GET(request: NextRequest) {
       .from("alumni")
       .select("id, nama, angkatan, nosis, kelanjutan_studi")
       .in("id", pageAlumniIds),
-    fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, sudah_dikontak, vote, dukungan", (q) =>
+    fetchAll(adminClient, "members", "id, alumni_id, no, nama, angkatan, no_hp, status_dpt, isi_form_dpt, registrasi_website_dpt, sudah_dikontak, vote, dukungan", (q) =>
       q.in("alumni_id", pageAlumniIds).not("is_non_alumni", "is", true)
     ).catch(() => []),
   ]);
@@ -355,6 +359,8 @@ export async function GET(request: NextRequest) {
       angkatan: member?.angkatan || a.angkatan,
       no_hp: member?.no_hp || "",
       status_dpt: member?.status_dpt || null,
+      isi_form_dpt: member?.isi_form_dpt || null,
+      registrasi_website_dpt: member?.registrasi_website_dpt || null,
       sudah_dikontak: inWaGroup ? "Sudah" : (member?.sudah_dikontak || null),
       masuk_grup: inWaGroup ? "Sudah" : "Belum",
       vote: member?.vote || null,

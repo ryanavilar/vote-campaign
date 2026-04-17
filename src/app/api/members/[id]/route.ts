@@ -56,6 +56,8 @@ export async function PATCH(
     "alt_phones",
     "pic",
     "status_dpt",
+    "isi_form_dpt",
+    "registrasi_website_dpt",
     "sudah_dikontak",
     "masuk_grup",
     "vote",

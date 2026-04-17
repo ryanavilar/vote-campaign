@@ -48,6 +48,8 @@ interface MemberInfo {
   no_hp?: string | null;
   pic?: string | null;
   status_dpt?: string | null;
+  isi_form_dpt?: string | null;
+  registrasi_website_dpt?: string | null;
   sudah_dikontak?: string | null;
   masuk_grup?: string | null;
   vote?: string | null;
@@ -264,16 +266,19 @@ export default function AdminAlumniPage() {
   const [fDukungan, setFDukungan] = useState("all");
   const [fGrup, setFGrup] = useState("all");
   const [fDpt, setFDpt] = useState("all");
+  const [fFormDpt, setFFormDpt] = useState("all");
+  const [fWebDpt, setFWebDpt] = useState("all");
   const [fVote, setFVote] = useState("all");
   const [fPhone, setFPhone] = useState("all");
   const [fLinked, setFLinked] = useState("all");
   const [fMultiLink, setFMultiLink] = useState(false);
 
-  const activeFilterCount = [fKontak, fDukungan, fGrup, fDpt, fVote, fPhone].filter((f) => f !== "all").length;
+  const activeFilterCount = [fKontak, fDukungan, fGrup, fDpt, fFormDpt, fWebDpt, fVote, fPhone].filter((f) => f !== "all").length;
 
   const resetFilters = () => {
     setFKontak("all"); setFDukungan("all"); setFGrup("all");
-    setFDpt("all"); setFVote("all"); setFPhone("all");
+    setFDpt("all"); setFFormDpt("all"); setFWebDpt("all");
+    setFVote("all"); setFPhone("all");
   };
 
   // Debounce search
@@ -285,7 +290,7 @@ export default function AdminAlumniPage() {
   // Reset page when any filter changes
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fVote, fPhone]);
+  }, [debouncedSearch, filterAngkatan, fLinked, fMultiLink, fKontak, fDukungan, fGrup, fDpt, fFormDpt, fWebDpt, fVote, fPhone]);
 
   // Stable ref for showToast
   const showToastRef = useRef(showToast);
@@ -335,6 +340,8 @@ export default function AdminAlumniPage() {
         Dukungan: m?.dukungan ?? "",
         "Masuk Grup": m?.masuk_grup ?? "",
         "Status DPT": m?.status_dpt ?? "",
+        "Form DPT": m?.isi_form_dpt ?? "",
+        "Web DPT": m?.registrasi_website_dpt ?? "",
         Vote: m?.vote ?? "",
       };
     });
@@ -342,7 +349,7 @@ export default function AdminAlumniPage() {
     ws["!cols"] = [
       { wch: 5 }, { wch: 28 }, { wch: 9 }, { wch: 12 }, { wch: 24 },
       { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 },
-      { wch: 12 },
+      { wch: 12 }, { wch: 12 }, { wch: 12 },
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Alumni");
@@ -441,6 +448,22 @@ export default function AdminAlumniPage() {
       });
     }
 
+    if (fFormDpt !== "all") {
+      result = result.filter((item) => {
+        const val = item.members?.[0]?.isi_form_dpt || null;
+        if (fFormDpt === "empty") return val === null;
+        return val === fFormDpt;
+      });
+    }
+
+    if (fWebDpt !== "all") {
+      result = result.filter((item) => {
+        const val = item.members?.[0]?.registrasi_website_dpt || null;
+        if (fWebDpt === "empty") return val === null;
+        return val === fWebDpt;
+      });
+    }
+
     if (fVote !== "all") {
       result = result.filter((item) => {
         const val = item.members?.[0]?.vote || null;
@@ -450,7 +473,7 @@ export default function AdminAlumniPage() {
     }
 
     return result;
-  }, [allAlumni, debouncedSearch, filterAngkatan, fLinked, fMultiLink, fPhone, fKontak, fDukungan, fGrup, fDpt, fVote]);
+  }, [allAlumni, debouncedSearch, filterAngkatan, fLinked, fMultiLink, fPhone, fKontak, fDukungan, fGrup, fDpt, fFormDpt, fWebDpt, fVote]);
 
   filteredRef.current = filtered;
 
@@ -534,6 +557,8 @@ export default function AdminAlumniPage() {
                     no: data.member?.no || 0,
                     no_hp: data.member?.no_hp || "",
                     status_dpt: data.member?.status_dpt ?? null,
+                    isi_form_dpt: data.member?.isi_form_dpt ?? null,
+                    registrasi_website_dpt: data.member?.registrasi_website_dpt ?? null,
                     sudah_dikontak: data.member?.sudah_dikontak ?? null,
                     masuk_grup: data.member?.masuk_grup ?? null,
                     vote: data.member?.vote ?? null,
@@ -1182,6 +1207,18 @@ export default function AdminAlumniPage() {
                     </select>
                   </div>
                   <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Form DPT</label>
+                    <select value={fFormDpt} onChange={(e) => setFFormDpt(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-400 mb-0.5 block">Web DPT</label>
+                    <select value={fWebDpt} onChange={(e) => setFWebDpt(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="text-[10px] text-gray-400 mb-0.5 block">Vote</label>
                     <select value={fVote} onChange={(e) => setFVote(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
                       <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
@@ -1218,13 +1255,15 @@ export default function AdminAlumniPage() {
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Dukungan</th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Grup</th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">DPT</th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Form DPT</th>
+                  <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Web DPT</th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">Vote</th>
                 </tr>
               </thead>
               <tbody>
                 {alumni.length === 0 && !initialLoading ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center">
+                    <td colSpan={11} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <GraduationCap className="w-8 h-8 text-gray-200" />
                         <p className="text-sm text-muted-foreground">
@@ -1311,6 +1350,12 @@ export default function AdminAlumniPage() {
                         </td>
                         <td className="px-2 py-2 text-center">
                           <StatusChip value={(member?.status_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "status_dpt")} />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <StatusChip value={(member?.isi_form_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "isi_form_dpt")} />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <StatusChip value={(member?.registrasi_website_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "registrasi_website_dpt")} />
                         </td>
                         <td className="px-2 py-2 text-center">
                           <StatusChip value={(member?.vote as StatusValue) || null} onClick={() => toggleBinary(item, "vote")} />
@@ -1420,6 +1465,14 @@ export default function AdminAlumniPage() {
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-gray-400 w-6">DPT</span>
                         <StatusChip value={(member?.status_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "status_dpt")} />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-gray-400 w-10">Form</span>
+                        <StatusChip value={(member?.isi_form_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "isi_form_dpt")} />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-gray-400 w-7">Web</span>
+                        <StatusChip value={(member?.registrasi_website_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "registrasi_website_dpt")} />
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-gray-400 w-7">Vote</span>

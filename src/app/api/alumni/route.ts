@@ -52,7 +52,7 @@ export async function GET() {
       ),
       // All members linked to alumni
       fetchAllRows(adminClient, "members",
-        "id, alumni_id, no, nama, no_hp, pic, status_dpt, sudah_dikontak, vote, dukungan",
+        "id, alumni_id, no, nama, no_hp, pic, status_dpt, isi_form_dpt, registrasi_website_dpt, sudah_dikontak, vote, dukungan",
         (q) => q.not("is_non_alumni", "is", true)
       ),
       // WA group linkage
