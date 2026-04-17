@@ -726,7 +726,7 @@ export default function MemberDetailPage() {
             {/* Status Toggles */}
             <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
               <h3 className="font-semibold text-sm text-foreground mb-3">Status Keanggotaan</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {/* Masuk Grup WA — automatic from WAHA sync, read-only */}
                 <div
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all min-w-0 cursor-default ${
@@ -743,6 +743,18 @@ export default function MemberDetailPage() {
                   <span className="text-xs font-semibold text-center leading-tight">Grup WA</span>
                   <span className="text-[10px] font-medium">{inWaGroup ? "Sudah" : "Belum"}</span>
                 </div>
+                <StatusToggle
+                  label="Isi Form DPT"
+                  value={member.isi_form_dpt}
+                  canToggle={userCanEdit && (!isCampaigner || isAssignedToMe) && updatingField !== "isi_form_dpt"}
+                  onToggle={() => handleToggleStatus("isi_form_dpt")}
+                />
+                <StatusToggle
+                  label="Registrasi Website DPT"
+                  value={member.registrasi_website_dpt}
+                  canToggle={userCanEdit && (!isCampaigner || isAssignedToMe) && updatingField !== "registrasi_website_dpt"}
+                  onToggle={() => handleToggleStatus("registrasi_website_dpt")}
+                />
                 <StatusToggle
                   label="Status DPT"
                   value={member.status_dpt}
@@ -1002,6 +1014,8 @@ export default function MemberDetailPage() {
                       member: "Anggota",
                       target: "Target",
                       status_dpt: "Status DPT",
+                      isi_form_dpt: "Isi Form DPT",
+                      registrasi_website_dpt: "Registrasi Website DPT",
                       sudah_dikontak: "Dikontak",
                       masuk_grup: "Masuk Grup",
                       vote: "Vote",

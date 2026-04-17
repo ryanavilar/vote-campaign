@@ -39,7 +39,7 @@ export async function GET() {
     const [alumniRows, memberRows, waRows, campaignerRows] = await Promise.all([
       fetchAll(adminClient, "alumni", "angkatan"),
       fetchAll(adminClient, "members",
-        "angkatan, no_hp, sudah_dikontak, dukungan, status_dpt, vote, id",
+        "angkatan, no_hp, sudah_dikontak, dukungan, status_dpt, isi_form_dpt, registrasi_website_dpt, vote, id",
         (q) => q.not("is_non_alumni", "is", true)
       ),
       fetchAll(adminClient, "wa_group_members", "member_id", (q) =>
@@ -68,14 +68,18 @@ export async function GET() {
 
     const memberStats: Record<number, {
       memberCount: number; hasPhone: number; contacted: number; dukung: number;
-      ragu: number; sebelah: number; grupWa: number; dpt: number; vote: number;
+      ragu: number; sebelah: number; grupWa: number;
+      isiFormDpt: number; registrasiWebsiteDpt: number;
+      dpt: number; vote: number;
     }> = {};
 
     for (const m of memberRows) {
       if (!memberStats[m.angkatan]) {
         memberStats[m.angkatan] = {
           memberCount: 0, hasPhone: 0, contacted: 0, dukung: 0,
-          ragu: 0, sebelah: 0, grupWa: 0, dpt: 0, vote: 0,
+          ragu: 0, sebelah: 0, grupWa: 0,
+          isiFormDpt: 0, registrasiWebsiteDpt: 0,
+          dpt: 0, vote: 0,
         };
       }
       memberStats[m.angkatan].memberCount++;
@@ -87,6 +91,8 @@ export async function GET() {
       if (m.dukungan === "ragu_ragu") s.ragu++;
       if (m.dukungan === "milih_sebelah") s.sebelah++;
       if (waLinked.has(m.id)) s.grupWa++;
+      if (m.isi_form_dpt === "Sudah") s.isiFormDpt++;
+      if (m.registrasi_website_dpt === "Sudah") s.registrasiWebsiteDpt++;
       if (m.status_dpt === "Sudah") s.dpt++;
       if (m.vote === "Sudah") s.vote++;
     }
@@ -105,7 +111,9 @@ export async function GET() {
         const angkatan = Number(angkatanStr);
         const ms = memberStats[angkatan] || {
           memberCount: 0, hasPhone: 0, contacted: 0, dukung: 0,
-          ragu: 0, sebelah: 0, grupWa: 0, dpt: 0, vote: 0,
+          ragu: 0, sebelah: 0, grupWa: 0,
+          isiFormDpt: 0, registrasiWebsiteDpt: 0,
+          dpt: 0, vote: 0,
         };
         return {
           angkatan,

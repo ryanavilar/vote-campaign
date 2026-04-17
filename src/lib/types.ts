@@ -12,10 +12,10 @@ export interface Member {
   domisili: string | null;
   harapan: string | null;
   status_dpt: StatusValue;
-  isi_form_dpt: StatusValue;
-  registrasi_website_dpt: StatusValue;
   sudah_dikontak: StatusValue;
   masuk_grup: StatusValue;
+  isi_form_dpt: StatusValue;
+  registrasi_website_dpt: StatusValue;
   vote: StatusValue;
   dukungan: string | null;
   referred_by: string | null;

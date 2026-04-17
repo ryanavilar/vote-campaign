@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS members (
   status_dpt TEXT CHECK (status_dpt IN ('Sudah', 'Belum') OR status_dpt IS NULL),
   sudah_dikontak TEXT CHECK (sudah_dikontak IN ('Sudah', 'Belum') OR sudah_dikontak IS NULL),
   masuk_grup TEXT CHECK (masuk_grup IN ('Sudah', 'Belum') OR masuk_grup IS NULL),
+  isi_form_dpt TEXT CHECK (isi_form_dpt IN ('Sudah', 'Belum') OR isi_form_dpt IS NULL),
+  registrasi_website_dpt TEXT CHECK (registrasi_website_dpt IN ('Sudah', 'Belum') OR registrasi_website_dpt IS NULL),
   vote TEXT CHECK (vote IN ('Sudah', 'Belum') OR vote IS NULL),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

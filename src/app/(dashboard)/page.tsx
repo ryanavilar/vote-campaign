@@ -55,6 +55,8 @@ interface PerBatchStats {
   ragu: number;
   sebelah: number;
   grupWa: number;
+  isiFormDpt: number;
+  registrasiWebsiteDpt: number;
   dpt: number;
   vote: number;
   campaigners: { user_id: string; email: string }[];
@@ -356,6 +358,8 @@ export default function Dashboard() {
     const totalMembers = perBatchStats.reduce((s, b) => s + b.memberCount, 0);
     const contacted = perBatchStats.reduce((s, b) => s + b.contacted, 0);
     const grupSudah = perBatchStats.reduce((s, b) => s + b.grupWa, 0);
+    const isiFormDpt = perBatchStats.reduce((s, b) => s + b.isiFormDpt, 0);
+    const registrasiWebsiteDpt = perBatchStats.reduce((s, b) => s + b.registrasiWebsiteDpt, 0);
     const dptSudah = perBatchStats.reduce((s, b) => s + b.dpt, 0);
     const voteSudah = perBatchStats.reduce((s, b) => s + b.vote, 0);
     const dukung = perBatchStats.reduce((s, b) => s + b.dukung, 0);
@@ -370,6 +374,8 @@ export default function Dashboard() {
       grupSudah,
       grupLinked: waGroupStats.linked,
       grupUnlinked: waGroupStats.unlinked,
+      isiFormDpt,
+      registrasiWebsiteDpt,
       dptSudah,
       voteSudah,
       dukung,
@@ -561,6 +567,8 @@ export default function Dashboard() {
     { label: "Form Dukungan", value: formDukunganCount, total: opStats.totalMembers, color: "#14b8a6" },
     { label: "Kontak", value: opStats.contacted, total: opStats.totalMembers, color: "#0B27BC" },
     { label: "Grup WA", value: opStats.grupSudah, total: opStats.totalMembers, color: "#0B27BC" },
+    { label: "Form DPT", value: opStats.isiFormDpt, total: opStats.totalMembers, color: "#8b5cf6" },
+    { label: "Web DPT", value: opStats.registrasiWebsiteDpt, total: opStats.totalMembers, color: "#a855f7" },
     { label: "DPT", value: opStats.dptSudah, total: opStats.totalMembers, color: "#10b981" },
     { label: "Vote", value: opStats.voteSudah, total: opStats.totalMembers, color: "#84303F" },
   ];
@@ -851,7 +859,7 @@ export default function Dashboard() {
             <h3 className="font-semibold text-foreground mb-4">
               Progress Operasional
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
               {progressData.map((p) => {
                 const pct =
                   p.total > 0 ? Math.round((p.value / p.total) * 100) : 0;

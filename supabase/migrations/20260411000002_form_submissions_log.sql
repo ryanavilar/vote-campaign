@@ -20,17 +20,19 @@ CREATE TABLE IF NOT EXISTS form_submissions (
 );
 
 -- Index for querying recent submissions
-CREATE INDEX idx_form_submissions_created_at ON form_submissions(created_at DESC);
-CREATE INDEX idx_form_submissions_type ON form_submissions(type);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_created_at ON form_submissions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_type ON form_submissions(type);
 
 -- RLS: only service role can insert, authenticated users can read
 ALTER TABLE form_submissions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Authenticated users can read form submissions" ON form_submissions;
 CREATE POLICY "Authenticated users can read form submissions"
   ON form_submissions FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Service role can insert form submissions" ON form_submissions;
 CREATE POLICY "Service role can insert form submissions"
   ON form_submissions FOR INSERT
   TO service_role

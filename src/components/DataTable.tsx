@@ -401,6 +401,8 @@ export function DataTable({ data, allData, attendanceCounts, memberInGroup, onUp
                   <SortHeader label="Kegiatan" sortKey="kegiatan" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-16" />
                 )}
                 <SortHeader label="Grup WA" sortKey="masuk_grup_wa" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
+                <th className="px-3 py-2.5 font-semibold text-xs text-[#0B27BC]/70 uppercase tracking-wider text-center w-[110px]">Form DPT</th>
+                <th className="px-3 py-2.5 font-semibold text-xs text-[#0B27BC]/70 uppercase tracking-wider text-center w-[110px]">Web DPT</th>
                 <SortHeader label="Status DPT" sortKey="status_dpt" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
                 <SortHeader label="Vote" sortKey="vote" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} align="center" className="w-[100px]" />
                 {onDelete && (
@@ -488,6 +490,18 @@ export function DataTable({ data, allData, attendanceCounts, memberInGroup, onUp
                         -
                       </span>
                     )}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <StatusBadge
+                      value={member.isi_form_dpt}
+                      onChange={onUpdate ? (v) => onUpdate(member.id, "isi_form_dpt", v) : undefined}
+                    />
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <StatusBadge
+                      value={member.registrasi_website_dpt}
+                      onChange={onUpdate ? (v) => onUpdate(member.id, "registrasi_website_dpt", v) : undefined}
+                    />
                   </td>
                   <td className="px-3 py-2 text-center">
                     <StatusBadge

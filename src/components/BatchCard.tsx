@@ -12,6 +12,8 @@ export interface BatchStats {
   ragu: number;
   sebelah: number;
   grupWa: number;
+  isiFormDpt: number;
+  registrasiWebsiteDpt: number;
   dpt: number;
   vote: number;
   campaigners: { user_id: string; email: string }[];
@@ -31,6 +33,8 @@ function getFunnelSteps(b: BatchStats): FunnelStep[] {
     { label: "Ragu", value: b.ragu, color: "#eab308" },
     { label: "Sebelah", value: b.sebelah, color: "#ef4444" },
     { label: "Grup WA", value: b.grupWa, color: "#84303F" },
+    { label: "Form DPT", value: b.isiFormDpt, color: "#8b5cf6" },
+    { label: "Web DPT", value: b.registrasiWebsiteDpt, color: "#a855f7" },
     { label: "DPT", value: b.dpt, color: "#6366f1" },
     { label: "Vote", value: b.vote, color: "#84303F" },
   ];

@@ -120,6 +120,8 @@ export async function POST(request: NextRequest) {
       status_dpt: null,
       sudah_dikontak: null,
       masuk_grup: null,
+      isi_form_dpt: null,
+      registrasi_website_dpt: null,
       vote: null,
     })
     .select()
@@ -165,6 +167,8 @@ export async function PATCH(request: NextRequest) {
     "status_dpt",
     "sudah_dikontak",
     "masuk_grup",
+    "isi_form_dpt",
+    "registrasi_website_dpt",
     "vote",
     "pic",
     "referral_name",
