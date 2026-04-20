@@ -36,6 +36,7 @@ interface AlumniDetail {
   id: string;
   nama: string;
   angkatan: number;
+  nosis: string | null;
   kelanjutan_studi: string | null;
   program_studi: string | null;
 }

@@ -689,6 +689,7 @@ export default function TargetPage() {
     };
     const rows = allTargets.map((t) => ({
       No: t.no || "",
+      NOSIS: t.alumni_nosis || "",
       Nama: t.nama,
       Angkatan: t.angkatan,
       "No HP": t.no_hp || "",

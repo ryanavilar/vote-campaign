@@ -955,14 +955,14 @@ export default function Dashboard() {
   }, [roleLoading]);
 
   const fetchData = async () => {
-    // Fetch all members
+    // Fetch all members (+ alumni.nosis via join for export)
     const membersPromise = (async (): Promise<Member[]> => {
       const { data, error } = await supabase
         .from("members")
-        .select("*")
+        .select("*, alumni:alumni_id(nosis)")
         .not("is_non_alumni", "is", true)
         .order("no", { ascending: true });
-      return !error && data ? data : [];
+      return !error && data ? (data as unknown as Member[]) : [];
     })();
 
     // Fetch alumni stats
@@ -1114,6 +1114,7 @@ export default function Dashboard() {
   const exportExcel = () => {
     const rows = data.map((m) => ({
       No: m.no,
+      NOSIS: m.alumni?.nosis || "",
       Nama: m.nama,
       Angkatan: m.angkatan,
       "No HP": m.no_hp || "",

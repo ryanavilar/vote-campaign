@@ -22,6 +22,7 @@ export interface Member {
   referral_name: string | null;
   assigned_to: string | null;
   alumni_id: string | null;
+  alumni?: { nosis: string | null } | null;
 }
 
 export interface Alumni {
