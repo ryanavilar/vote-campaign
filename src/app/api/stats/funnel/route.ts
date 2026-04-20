@@ -4,25 +4,21 @@ import { NextResponse } from "next/server";
 /**
  * GET /api/stats/funnel
  *
- * Returns the 6-stage DPT funnel with dukungan overlay and per-angkatan data
- * for the dashboard, plus "next action" bucket counts used across pages.
+ * Returns the 6-stage DPT funnel (with dukungan overlay) plus per-angkatan data,
+ * next-action buckets, and DPT-centric metrics for the dashboard.
  *
- * Stages:
- *   1. alumni      — total alumni (denominator for the funnel)
- *   2. contacted   — members with sudah_dikontak="Sudah" OR linked in wa_group_members
- *   3. formDpt     — members with isi_form_dpt="Sudah"
- *   4. webDpt      — members with registrasi_website_dpt="Sudah"
- *   5. dpt         — members with status_dpt="Sudah"
- *   6. vote        — members with vote="Sudah"
+ * Stages (all use the members table, non-alumni excluded, as the base):
+ *   1. terdata    — alumni with a member row (i.e. ever entered into the system)
+ *   2. contacted  — sudah_dikontak="Sudah" OR linked in wa_group_members
+ *   3. formDpt    — isi_form_dpt="Sudah"
+ *   4. webDpt     — registrasi_website_dpt="Sudah"
+ *   5. dpt        — status_dpt="Sudah"
+ *   6. vote       — vote="Sudah"
  *
- * Dukungan bucketing (applied on top of each stage's population):
- *   - dukung  = dukungan in {"dukung", "terkonvert"}
- *   - ragu    = dukungan = "ragu_ragu"
- *   - sebelah = dukungan = "milih_sebelah"
- *   - belum   = NULL / unknown
- *
- * NOTE: stages 2–6 use members as the base, since non-member alumni have no
- *       operational state. For stage 1 we only know alumni count.
+ * NOTE: stage 1 used to be total-alumni which made the "leak" from alumni→contacted
+ * misleading (most of that drop is just data-entry work that never happened). Using
+ * the members table as the denominator gives a true operational funnel. Total alumni
+ * and coverage (alumni→members %) are surfaced separately as context.
  */
 
 function getAdminClient() {
@@ -80,6 +76,7 @@ function emptyStage(): StageBucket {
 interface MemberRow {
   id: string;
   angkatan: number;
+  no_hp: string | null;
   sudah_dikontak: string | null;
   isi_form_dpt: string | null;
   registrasi_website_dpt: string | null;
@@ -102,7 +99,7 @@ function addToBucket(bucket: StageBucket, d: Dukungan) {
 }
 
 const STAGE_KEYS = [
-  "alumni",
+  "terdata",
   "contacted",
   "formDpt",
   "webDpt",
@@ -121,7 +118,7 @@ export async function GET() {
       fetchAll<MemberRow>(
         adminClient,
         "members",
-        "id, angkatan, sudah_dikontak, isi_form_dpt, registrasi_website_dpt, status_dpt, vote, dukungan",
+        "id, angkatan, no_hp, sudah_dikontak, isi_form_dpt, registrasi_website_dpt, status_dpt, vote, dukungan",
         (q) => q.not("is_non_alumni", "is", true)
       ),
       fetchAll<WaRow>(adminClient, "wa_group_members", "member_id", (q) =>
@@ -132,9 +129,8 @@ export async function GET() {
     const waLinked = new Set<string>();
     for (const w of waRows) if (w.member_id) waLinked.add(w.member_id);
 
-    // Build per-angkatan and overall aggregates in a single pass
     const overall: Record<StageKey, StageBucket> = {
-      alumni: emptyStage(),
+      terdata: emptyStage(),
       contacted: emptyStage(),
       formDpt: emptyStage(),
       webDpt: emptyStage(),
@@ -142,14 +138,11 @@ export async function GET() {
       vote: emptyStage(),
     };
 
-    const perAngkatan: Record<
-      number,
-      Record<StageKey, StageBucket>
-    > = {};
+    const perAngkatan: Record<number, Record<StageKey, StageBucket>> = {};
     const ensureAngkatan = (a: number) => {
       if (!perAngkatan[a]) {
         perAngkatan[a] = {
-          alumni: emptyStage(),
+          terdata: emptyStage(),
           contacted: emptyStage(),
           formDpt: emptyStage(),
           webDpt: emptyStage(),
@@ -160,14 +153,13 @@ export async function GET() {
       return perAngkatan[a];
     };
 
-    // Stage 1: alumni base (no dukungan info at this layer — all go to "belum")
+    // Alumni coverage — per-angkatan alumni total for the heatmap "populasi" column
+    const alumniPerAngkatan: Record<number, number> = {};
     for (const a of alumniRows) {
-      const pa = ensureAngkatan(a.angkatan);
-      addToBucket(overall.alumni, "belum");
-      addToBucket(pa.alumni, "belum");
+      alumniPerAngkatan[a.angkatan] = (alumniPerAngkatan[a.angkatan] || 0) + 1;
+      ensureAngkatan(a.angkatan);
     }
 
-    // Next-action buckets (computed from member state, for deep links / priority)
     const nextActions = {
       dukungBelumKontak: 0,
       dukungBelumForm: 0,
@@ -178,15 +170,28 @@ export async function GET() {
       kontakBelumDukungan: 0,
     };
 
+    let withPhone = 0;
+    let withDukungan = 0;
+    let suaraAman = 0;       // vote=Sudah & pendukung (dukung/terkonvert)
+    let suaraPotensial = 0;  // DPT=Sudah & vote=Belum & pendukung-or-ragu
+    let suaraHilang = 0;     // dukungan=sebelah
+    let pendukungTotal = 0;  // dukung/terkonvert
+    let raguTotal = 0;       // ragu_ragu
+    let belumTahuTotal = 0;  // dukungan null
+
     for (const m of memberRows) {
       const d = classifyDukungan(m.dukungan);
       const pa = ensureAngkatan(m.angkatan);
-      const contacted =
-        m.sudah_dikontak === "Sudah" || waLinked.has(m.id);
+      const contacted = m.sudah_dikontak === "Sudah" || waLinked.has(m.id);
       const form = m.isi_form_dpt === "Sudah";
       const web = m.registrasi_website_dpt === "Sudah";
       const dpt = m.status_dpt === "Sudah";
       const vote = m.vote === "Sudah";
+      const pendukung = d === "dukung";
+
+      // Stage 1: terdata — every member counts (with dukungan overlay)
+      addToBucket(overall.terdata, d);
+      addToBucket(pa.terdata, d);
 
       if (contacted) {
         addToBucket(overall.contacted, d);
@@ -209,7 +214,6 @@ export async function GET() {
         addToBucket(pa.vote, d);
       }
 
-      // Next-action buckets: rows that got somewhere but stalled at the next step
       if (d === "dukung" && !contacted) nextActions.dukungBelumKontak++;
       if (d === "dukung" && !form) nextActions.dukungBelumForm++;
       if (form && !web) nextActions.formBelumWeb++;
@@ -217,11 +221,19 @@ export async function GET() {
       if (dpt && !vote) nextActions.dptBelumVote++;
       if (!contacted) nextActions.belumKontak++;
       if (contacted && d === "belum") nextActions.kontakBelumDukungan++;
+
+      if (m.no_hp && m.no_hp.trim().length > 0) withPhone++;
+      if (m.dukungan) withDukungan++;
+      if (pendukung) pendukungTotal++;
+      if (d === "ragu") raguTotal++;
+      if (d === "belum") belumTahuTotal++;
+      if (pendukung && vote) suaraAman++;
+      if (dpt && !vote && (pendukung || d === "ragu")) suaraPotensial++;
+      if (d === "sebelah") suaraHilang++;
     }
 
-    // Identify leakiest stage-to-stage transition (largest relative drop)
     const overallCounts: Record<StageKey, number> = {
-      alumni: overall.alumni.total,
+      terdata: overall.terdata.total,
       contacted: overall.contacted.total,
       formDpt: overall.formDpt.total,
       webDpt: overall.webDpt.total,
@@ -237,25 +249,84 @@ export async function GET() {
       const dropPct = fromCount > 0 ? (drop / fromCount) * 100 : 0;
       return { from, to, fromCount, toCount, drop, dropPct };
     });
-    // "Leakiest" = largest drop count (more actionable than pct which punishes
-    // stages that already have small bases like vote)
     const leakiest = transitions.reduce(
       (worst, t) => (t.drop > worst.drop ? t : worst),
       transitions[0]
     );
 
-    // Shape per-angkatan output as a sorted array
+    // Per-angkatan "bocor" score: which angkatan leaks the most in absolute drop
+    // from terdata→vote (total pipeline loss). Sorted descending — top entries are
+    // the angkatan the team should prioritise.
     const perAngkatanArr = Object.entries(perAngkatan)
-      .map(([angStr, stages]) => ({
-        angkatan: Number(angStr),
-        alumni: stages.alumni,
-        contacted: stages.contacted,
-        formDpt: stages.formDpt,
-        webDpt: stages.webDpt,
-        dpt: stages.dpt,
-        vote: stages.vote,
-      }))
+      .map(([angStr, stages]) => {
+        const ang = Number(angStr);
+        const alumniTotal = alumniPerAngkatan[ang] || 0;
+        const terdataCount = stages.terdata.total;
+        const voteCount = stages.vote.total;
+        return {
+          angkatan: ang,
+          alumniTotal,
+          terdata: stages.terdata,
+          contacted: stages.contacted,
+          formDpt: stages.formDpt,
+          webDpt: stages.webDpt,
+          dpt: stages.dpt,
+          vote: stages.vote,
+          bocor: terdataCount - voteCount,
+          bocorPct: terdataCount > 0 ? ((terdataCount - voteCount) / terdataCount) * 100 : 0,
+          coveragePct: alumniTotal > 0 ? (terdataCount / alumniTotal) * 100 : 0,
+        };
+      })
       .sort((a, b) => a.angkatan - b.angkatan);
+
+    // Top 3 angkatan by absolute drop — "which batch needs the most attention"
+    const topBocorAngkatan = [...perAngkatanArr]
+      .filter((x) => x.terdata.total > 0)
+      .sort((a, b) => b.bocor - a.bocor)
+      .slice(0, 3)
+      .map((x) => ({
+        angkatan: x.angkatan,
+        terdata: x.terdata.total,
+        vote: x.vote.total,
+        bocor: x.bocor,
+        bocorPct: x.bocorPct,
+      }));
+
+    const totalAlumni = alumniRows.length;
+    const totalTerdata = memberRows.length;
+
+    const coverage = {
+      totalAlumni,
+      totalTerdata,
+      pct: totalAlumni > 0 ? (totalTerdata / totalAlumni) * 100 : 0,
+      withPhone,
+      withPhonePct: totalTerdata > 0 ? (withPhone / totalTerdata) * 100 : 0,
+      withDukungan,
+      withDukunganPct: totalTerdata > 0 ? (withDukungan / totalTerdata) * 100 : 0,
+    };
+
+    const pct = (n: number, d: number) => (d > 0 ? (n / d) * 100 : 0);
+
+    const conversion = {
+      terdataToContacted: pct(overallCounts.contacted, overallCounts.terdata),
+      contactedToForm: pct(overallCounts.formDpt, overallCounts.contacted),
+      formToWeb: pct(overallCounts.webDpt, overallCounts.formDpt),
+      webToDpt: pct(overallCounts.dpt, overallCounts.webDpt),
+      dptToVote: pct(overallCounts.vote, overallCounts.dpt),
+      terdataToVote: pct(overallCounts.vote, overallCounts.terdata),
+    };
+
+    const dptMetrics = {
+      pendukungTotal,
+      raguTotal,
+      belumTahuTotal,
+      sebelahTotal: suaraHilang,
+      suaraAman,
+      suaraPotensial,
+      suaraHilang,
+      // "Harus dikejar" = pendukung yg blm vote (operational target for vote day)
+      suaraHarusDikejar: pendukungTotal - suaraAman,
+    };
 
     return NextResponse.json({
       overall,
@@ -263,6 +334,10 @@ export async function GET() {
       leakiest,
       perAngkatan: perAngkatanArr,
       nextActions,
+      coverage,
+      conversion,
+      dptMetrics,
+      topBocorAngkatan,
     });
   } catch (err) {
     return NextResponse.json(

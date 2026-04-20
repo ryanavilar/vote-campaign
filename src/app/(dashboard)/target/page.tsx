@@ -23,6 +23,12 @@ import {
   Smartphone,
   Vote as VoteIcon,
   Users as UsersIcon,
+  BarChart3,
+  ShieldCheck,
+  Target as TargetIcon,
+  TrendingDown,
+  AlertOctagon,
+  Flame,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -357,6 +363,7 @@ export default function TargetPage() {
   const [activePreset, setActivePreset] = useState<PresetKey>("all");
   const [sortByPriority, setSortByPriority] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [dashboardMode, setDashboardMode] = useState(false);
   const [fKontak, setFKontak] = useState("all");
   const [fDukungan, setFDukungan] = useState("all");
   const [fGrup, setFGrup] = useState("all");
@@ -430,10 +437,12 @@ export default function TargetPage() {
     return Array.from(set).sort((a, b) => a - b);
   }, [allTargets]);
 
-  // Stats — funnel counts + preset counts
+  // Stats — funnel counts + preset counts + DPT metrics
   const stats = useMemo(() => {
     const total = allTargets.length;
     let kontak = 0, dukung = 0, formDpt = 0, webDpt = 0, dpt = 0, vote = 0, grup = 0;
+    let withHP = 0, ragu = 0, sebelah = 0, belumTahu = 0;
+    let suaraAman = 0, suaraPotensial = 0, suaraHarusDikejar = 0;
     const presetCounts: Record<PresetKey, number> = {
       all: total,
       belumKontak: 0,
@@ -443,22 +452,67 @@ export default function TargetPage() {
       webBelumDpt: 0,
       dptBelumVote: 0,
     };
+    const byAngkatan: Record<number, {
+      angkatan: number;
+      total: number;
+      kontak: number;
+      dukung: number;
+      formDpt: number;
+      webDpt: number;
+      dpt: number;
+      vote: number;
+    }> = {};
+    const ensure = (a: number) => {
+      if (!byAngkatan[a]) {
+        byAngkatan[a] = { angkatan: a, total: 0, kontak: 0, dukung: 0, formDpt: 0, webDpt: 0, dpt: 0, vote: 0 };
+      }
+      return byAngkatan[a];
+    };
     for (const t of allTargets) {
       const contacted = t.sudah_dikontak === "Sudah" || t.masuk_grup === "Sudah";
       const pendukung = t.dukungan === "dukung" || t.dukungan === "terkonvert";
-      if (contacted) kontak++;
-      if (pendukung) dukung++;
+      const tIsVote = t.vote === "Sudah";
+      const tIsDpt = t.status_dpt === "Sudah";
+      const pa = ensure(t.angkatan);
+      pa.total++;
+      if (contacted) { kontak++; pa.kontak++; }
+      if (pendukung) { dukung++; pa.dukung++; }
+      if (t.dukungan === "ragu_ragu") ragu++;
+      if (t.dukungan === "milih_sebelah") sebelah++;
+      if (!t.dukungan) belumTahu++;
       if (t.masuk_grup === "Sudah") grup++;
-      if (t.isi_form_dpt === "Sudah") formDpt++;
-      if (t.registrasi_website_dpt === "Sudah") webDpt++;
-      if (t.status_dpt === "Sudah") dpt++;
-      if (t.vote === "Sudah") vote++;
+      if (t.isi_form_dpt === "Sudah") { formDpt++; pa.formDpt++; }
+      if (t.registrasi_website_dpt === "Sudah") { webDpt++; pa.webDpt++; }
+      if (tIsDpt) { dpt++; pa.dpt++; }
+      if (tIsVote) { vote++; pa.vote++; }
+      if (t.no_hp && t.no_hp.trim().length > 0) withHP++;
+      if (pendukung && tIsVote) suaraAman++;
+      if (tIsDpt && !tIsVote && (pendukung || t.dukungan === "ragu_ragu")) suaraPotensial++;
 
       for (const k of ["belumKontak", "kontakBelumDukungan", "dukungBelumForm", "formBelumWeb", "webBelumDpt", "dptBelumVote"] as PresetKey[]) {
         if (presetMatch(t, k)) presetCounts[k]++;
       }
     }
-    return { total, kontak, dukung, formDpt, webDpt, dpt, vote, grup, presetCounts };
+    suaraHarusDikejar = dukung - suaraAman;
+    const perAngkatan = Object.values(byAngkatan).sort((a, b) => a.angkatan - b.angkatan);
+    return {
+      total, kontak, dukung, formDpt, webDpt, dpt, vote, grup,
+      withHP, ragu, sebelah, belumTahu,
+      suaraAman, suaraPotensial, suaraHarusDikejar,
+      presetCounts, perAngkatan,
+    };
+  }, [allTargets]);
+
+  // Top 5 priority targets — who to contact first
+  const topPriority = useMemo(() => {
+    return [...allTargets]
+      .map((t) => ({ row: t, action: computeNextAction(t) }))
+      .filter((x) => x.action.priority < 10)
+      .sort((a, b) => {
+        if (a.action.priority !== b.action.priority) return a.action.priority - b.action.priority;
+        return a.row.nama.localeCompare(b.row.nama);
+      })
+      .slice(0, 5);
   }, [allTargets]);
 
   // Filter targets — per-column
@@ -665,6 +719,18 @@ export default function TargetPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setDashboardMode(!dashboardMode)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  dashboardMode
+                    ? "bg-[#FE8DA1] text-white hover:bg-[#e97e91]"
+                    : "bg-white/10 text-white hover:bg-white/20"
+                }`}
+                title={dashboardMode ? "Tutup Dashboard" : "Buka Dashboard"}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </button>
+              <button
                 onClick={handleRefresh}
                 disabled={refreshing}
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white/80 hover:text-white transition-colors"
@@ -686,6 +752,250 @@ export default function TargetPage() {
       </header>
 
       <div className="px-4 sm:px-6 py-6 space-y-4">
+        {/* Dashboard Mode — metrics + priority + per-TN funnel */}
+        {dashboardMode && (
+          <div className="bg-gradient-to-br from-[#0B27BC]/5 to-[#FE8DA1]/10 rounded-xl border-2 border-[#FE8DA1]/30 p-4 sm:p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-[#0B27BC]" />
+              <h2 className="text-base font-bold text-foreground">Dashboard Target</h2>
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                Klik Dashboard lagi untuk tutup
+              </span>
+            </div>
+
+            {/* 4 Suara metric cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+              {[
+                {
+                  label: "Suara Aman",
+                  sub: "Pendukung sdh Vote",
+                  value: stats.suaraAman,
+                  icon: ShieldCheck,
+                  color: "text-emerald-700",
+                  bg: "bg-emerald-50",
+                  border: "border-emerald-200",
+                  denom: stats.dukung,
+                },
+                {
+                  label: "Harus Dikejar",
+                  sub: "Pendukung blm Vote",
+                  value: stats.suaraHarusDikejar,
+                  icon: TargetIcon,
+                  color: "text-[#0B27BC]",
+                  bg: "bg-[#0B27BC]/10",
+                  border: "border-[#0B27BC]/30",
+                  denom: stats.dukung,
+                },
+                {
+                  label: "Potensial",
+                  sub: "DPT ✓, Pendukung/Ragu, blm Vote",
+                  value: stats.suaraPotensial,
+                  icon: TrendingDown,
+                  color: "text-yellow-700",
+                  bg: "bg-yellow-50",
+                  border: "border-yellow-200",
+                  denom: null,
+                },
+                {
+                  label: "Hilang",
+                  sub: "Milih sebelah",
+                  value: stats.sebelah,
+                  icon: AlertOctagon,
+                  color: "text-red-600",
+                  bg: "bg-red-50",
+                  border: "border-red-200",
+                  denom: null,
+                },
+              ].map((c) => {
+                const Icon = c.icon;
+                const pct = c.denom && c.denom > 0 ? Math.round((c.value / c.denom) * 100) : null;
+                return (
+                  <div key={c.label} className={`rounded-xl border-2 ${c.border} ${c.bg} p-3`}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Icon className={`w-3.5 h-3.5 ${c.color}`} />
+                      <p className={`text-[10px] font-semibold uppercase tracking-wide ${c.color}`}>
+                        {c.label}
+                      </p>
+                    </div>
+                    <p className={`text-2xl font-bold ${c.color} tabular-nums leading-tight`}>
+                      {formatNum(c.value)}
+                    </p>
+                    {pct !== null && (
+                      <p className={`text-[10px] font-semibold ${c.color}`}>
+                        {pct}% dari pendukung
+                      </p>
+                    )}
+                    <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{c.sub}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Konversi per tahap */}
+            <div className="bg-white rounded-xl border border-border p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Konversi Per Tahap
+              </p>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {[
+                  { label: "Target→Kontak", value: stats.kontak, base: stats.total },
+                  { label: "Kontak→Form", value: stats.formDpt, base: stats.kontak },
+                  { label: "Form→Web", value: stats.webDpt, base: stats.formDpt },
+                  { label: "Web→DPT", value: stats.dpt, base: stats.webDpt },
+                  { label: "DPT→Vote", value: stats.vote, base: stats.dpt },
+                ].map((s) => {
+                  const pct = s.base > 0 ? Math.round((s.value / s.base) * 100) : 0;
+                  const tone = pct >= 70 ? "text-emerald-600" : pct >= 40 ? "text-yellow-600" : "text-red-500";
+                  return (
+                    <div key={s.label} className="text-center bg-gray-50 rounded-lg p-2 border border-border">
+                      <p className={`text-lg font-bold ${tone} tabular-nums leading-tight`}>{pct}%</p>
+                      <p className="text-[9px] text-muted-foreground leading-tight">{s.label}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Per-TN funnel + Top priority */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {/* Per-angkatan mini-bars — only show if > 1 TN */}
+              {stats.perAngkatan.length > 1 && (
+                <div className="bg-white rounded-xl border border-border p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                    Per Angkatan
+                  </p>
+                  <div className="space-y-1.5">
+                    {stats.perAngkatan.map((a) => {
+                      const base = a.total || 1;
+                      const bocor = a.total - a.vote;
+                      const bocorPct = Math.round((bocor / base) * 100);
+                      return (
+                        <div key={a.angkatan} className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold text-[#0B27BC] w-10 tabular-nums">
+                            TN{a.angkatan}
+                          </span>
+                          <div className="flex-1 h-4 rounded-full bg-gray-100 overflow-hidden flex">
+                            {(() => {
+                              const pctVote = (a.vote / base) * 100;
+                              const pctDpt = ((a.dpt - a.vote) / base) * 100;
+                              const pctWeb = ((a.webDpt - a.dpt) / base) * 100;
+                              const pctForm = ((a.formDpt - a.webDpt) / base) * 100;
+                              const pctKontak = ((a.kontak - a.formDpt) / base) * 100;
+                              return [
+                                { w: pctVote, c: "#84303F" },
+                                { w: pctDpt, c: "#f97316" },
+                                { w: pctWeb, c: "#eab308" },
+                                { w: pctForm, c: "#10b981" },
+                                { w: pctKontak, c: "#3b82f6" },
+                              ].map((seg, i) => seg.w > 0 ? (
+                                <div
+                                  key={i}
+                                  className="h-full"
+                                  style={{ width: `${Math.max(0, seg.w)}%`, backgroundColor: seg.c }}
+                                />
+                              ) : null);
+                            })()}
+                          </div>
+                          <span className="text-[10px] font-semibold text-red-500 w-16 text-right tabular-nums">
+                            −{formatNum(bocor)} ({bocorPct}%)
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-border text-[9px]">
+                    {[
+                      { c: "#84303F", l: "Vote" },
+                      { c: "#f97316", l: "DPT" },
+                      { c: "#eab308", l: "Web" },
+                      { c: "#10b981", l: "Form" },
+                      { c: "#3b82f6", l: "Kontak" },
+                    ].map((s) => (
+                      <span key={s.l} className="flex items-center gap-1 text-muted-foreground">
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.c }} />
+                        {s.l}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Top 5 prioritas */}
+              <div className={`bg-white rounded-xl border border-border p-3 ${stats.perAngkatan.length > 1 ? "" : "lg:col-span-2"}`}>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Flame className="w-3.5 h-3.5 text-[#84303F]" />
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Top 5 Prioritas
+                  </p>
+                </div>
+                {topPriority.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">
+                    Semua sudah lengkap 🎉
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {topPriority.map(({ row, action }, idx) => (
+                      <div
+                        key={row.alumni_id}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-50 border border-border"
+                      >
+                        <span className="text-[10px] font-bold text-gray-400 tabular-nums w-4">
+                          {idx + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">{row.nama}</p>
+                          <p className="text-[9px] text-muted-foreground">
+                            TN{row.angkatan} · {row.no_hp || "belum ada HP"}
+                          </p>
+                        </div>
+                        <span className={`text-[10px] font-bold whitespace-nowrap ${action.color}`}>
+                          {action.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Coverage footer */}
+            <div className="bg-white rounded-xl border border-border p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Cakupan Data Target
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-bold text-[#0B27BC] tabular-nums">
+                    {formatNum(stats.withHP)}
+                    <span className="text-gray-300 text-xs font-normal">/{formatNum(stats.total)}</span>
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Punya No HP</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-emerald-600 tabular-nums">
+                    {formatNum(stats.dukung + stats.ragu + stats.sebelah)}
+                    <span className="text-gray-300 text-xs font-normal">/{formatNum(stats.total)}</span>
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Sudah Dukungan</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-yellow-600 tabular-nums">
+                    {formatNum(stats.belumTahu)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Belum Diketahui Dukungan</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-[#84303F] tabular-nums">
+                    {formatNum(stats.grup)}
+                    <span className="text-gray-300 text-xs font-normal">/{formatNum(stats.total)}</span>
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Di Grup WA</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Funnel strip — 6 stages */}
         <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">

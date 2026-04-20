@@ -35,6 +35,11 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Download,
+  BarChart3,
+  ShieldCheck,
+  Target as TargetIcon,
+  TrendingDown,
+  Vote,
 } from "lucide-react";
 
 const PAGE_SIZE = 50;
@@ -368,6 +373,54 @@ interface FunnelNextActions {
   kontakBelumDukungan: number;
 }
 
+interface FunnelStatsLite {
+  coverage: {
+    totalAlumni: number;
+    totalTerdata: number;
+    pct: number;
+    withPhone: number;
+    withPhonePct: number;
+    withDukungan: number;
+    withDukunganPct: number;
+  };
+  conversion: {
+    terdataToContacted: number;
+    contactedToForm: number;
+    formToWeb: number;
+    webToDpt: number;
+    dptToVote: number;
+    terdataToVote: number;
+  };
+  dptMetrics: {
+    pendukungTotal: number;
+    raguTotal: number;
+    sebelahTotal: number;
+    suaraAman: number;
+    suaraPotensial: number;
+    suaraHilang: number;
+    suaraHarusDikejar: number;
+  };
+  topBocorAngkatan: {
+    angkatan: number;
+    terdata: number;
+    vote: number;
+    bocor: number;
+    bocorPct: number;
+  }[];
+  perAngkatan: {
+    angkatan: number;
+    alumniTotal: number;
+    terdata: { total: number };
+    contacted: { total: number };
+    formDpt: { total: number };
+    webDpt: { total: number };
+    dpt: { total: number };
+    vote: { total: number };
+    bocorPct: number;
+    coveragePct: number;
+  }[];
+}
+
 /* ── Main Page ─────────────────────────────────────────── */
 
 export default function AdminAlumniPage() {
@@ -383,7 +436,9 @@ export default function AdminAlumniPage() {
   const [page, setPage] = useState(1);
   const [unlinkedFormCount, setUnlinkedFormCount] = useState(0);
   const [nextActions, setNextActions] = useState<FunnelNextActions | null>(null);
+  const [funnelStats, setFunnelStats] = useState<FunnelStatsLite | null>(null);
   const [activePreset, setActivePreset] = useState<PresetKey | null>(null);
+  const [dashboardMode, setDashboardMode] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -470,6 +525,15 @@ export default function AdminAlumniPage() {
       if (funnelRes?.ok) {
         const fJson = await funnelRes.json();
         if (fJson?.nextActions) setNextActions(fJson.nextActions);
+        if (fJson?.coverage && fJson?.dptMetrics) {
+          setFunnelStats({
+            coverage: fJson.coverage,
+            conversion: fJson.conversion,
+            dptMetrics: fJson.dptMetrics,
+            topBocorAngkatan: fJson.topBocorAngkatan || [],
+            perAngkatan: fJson.perAngkatan || [],
+          });
+        }
       }
     } catch {
       showToastRef.current("Gagal memuat data alumni", "error");
@@ -1091,6 +1155,18 @@ export default function AdminAlumniPage() {
                 <Download className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Export Excel</span>
               </button>
+              <button
+                onClick={() => setDashboardMode(!dashboardMode)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  dashboardMode
+                    ? "bg-[#FE8DA1] text-white hover:bg-[#e97e91]"
+                    : "bg-white/10 text-white hover:bg-white/20"
+                }`}
+                title={dashboardMode ? "Tutup Dashboard" : "Buka Dashboard"}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Dashboard</span>
+              </button>
               <button onClick={handleRefresh} disabled={refreshing} className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50">
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
                 <span className="hidden sm:inline">Refresh</span>
@@ -1102,6 +1178,169 @@ export default function AdminAlumniPage() {
       </header>
 
       <div className="px-4 sm:px-6 py-6 space-y-4">
+        {/* Dashboard mode — DPT metrics + coverage + top bocor */}
+        {dashboardMode && funnelStats && (
+          <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+            <div className="px-4 py-3 bg-gradient-to-r from-[#0B27BC]/5 to-[#FE8DA1]/10 border-b border-border flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-[#0B27BC]" />
+                Dashboard DPT — Analisa Tim
+              </h3>
+              <span className="text-[10px] text-muted-foreground">
+                {formatNum(funnelStats.coverage.totalTerdata)} terdata dari {formatNum(funnelStats.coverage.totalAlumni)} alumni
+              </span>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* 4 Suara cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                    <span className="text-[11px] font-medium text-emerald-700">Suara Aman</span>
+                  </div>
+                  <p className="text-2xl font-bold text-emerald-800 leading-tight">{formatNum(funnelStats.dptMetrics.suaraAman)}</p>
+                  <p className="text-[10px] text-emerald-600 mt-0.5">Pendukung sudah vote</p>
+                </div>
+                <div className="bg-[#FE8DA1]/15 border border-[#FE8DA1]/30 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TargetIcon className="w-4 h-4 text-[#84303F]" />
+                    <span className="text-[11px] font-medium text-[#84303F]">Harus Dikejar</span>
+                  </div>
+                  <p className="text-2xl font-bold text-[#84303F] leading-tight">{formatNum(funnelStats.dptMetrics.suaraHarusDikejar)}</p>
+                  <p className="text-[10px] text-[#84303F]/80 mt-0.5">Pendukung belum vote</p>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <HelpCircle className="w-4 h-4 text-yellow-700" />
+                    <span className="text-[11px] font-medium text-yellow-700">Potensial</span>
+                  </div>
+                  <p className="text-2xl font-bold text-yellow-800 leading-tight">{formatNum(funnelStats.dptMetrics.suaraPotensial)}</p>
+                  <p className="text-[10px] text-yellow-600 mt-0.5">DPT tapi belum vote</p>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertOctagon className="w-4 h-4 text-red-700" />
+                    <span className="text-[11px] font-medium text-red-700">Suara Hilang</span>
+                  </div>
+                  <p className="text-2xl font-bold text-red-800 leading-tight">{formatNum(funnelStats.dptMetrics.suaraHilang)}</p>
+                  <p className="text-[10px] text-red-600 mt-0.5">Dukung sebelah</p>
+                </div>
+              </div>
+
+              {/* Coverage bars */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { label: "Alumni → Terdata", pct: funnelStats.coverage.pct, num: funnelStats.coverage.totalTerdata, den: funnelStats.coverage.totalAlumni, color: "bg-[#0B27BC]" },
+                  { label: "Punya No. HP", pct: funnelStats.coverage.withPhonePct, num: funnelStats.coverage.withPhone, den: funnelStats.coverage.totalTerdata, color: "bg-emerald-600" },
+                  { label: "Sudah Dukungan", pct: funnelStats.coverage.withDukunganPct, num: funnelStats.coverage.withDukungan, den: funnelStats.coverage.totalTerdata, color: "bg-[#FE8DA1]" },
+                ].map((b) => (
+                  <div key={b.label} className="bg-gray-50 rounded-lg p-2.5 border border-border">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] font-medium text-muted-foreground">{b.label}</span>
+                      <span className="text-xs font-semibold text-foreground">{b.pct.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-1.5 bg-white rounded-full overflow-hidden">
+                      <div className={`h-full ${b.color} rounded-full transition-all`} style={{ width: `${Math.min(100, b.pct)}%` }} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">{formatNum(b.num)} / {formatNum(b.den)}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Konversi per tahap */}
+              <div>
+                <p className="text-xs font-semibold text-foreground mb-2">Konversi per tahap</p>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                  {[
+                    { label: "Terdata → Kontak", pct: funnelStats.conversion.terdataToContacted },
+                    { label: "Kontak → Form", pct: funnelStats.conversion.contactedToForm },
+                    { label: "Form → Web", pct: funnelStats.conversion.formToWeb },
+                    { label: "Web → DPT", pct: funnelStats.conversion.webToDpt },
+                    { label: "DPT → Vote", pct: funnelStats.conversion.dptToVote },
+                  ].map((c) => {
+                    const color = c.pct >= 75 ? "text-emerald-700 bg-emerald-50 border-emerald-200" : c.pct >= 50 ? "text-yellow-700 bg-yellow-50 border-yellow-200" : "text-red-700 bg-red-50 border-red-200";
+                    return (
+                      <div key={c.label} className={`rounded-lg border p-2 text-center ${color}`}>
+                        <p className="text-sm font-bold leading-tight">{c.pct.toFixed(0)}%</p>
+                        <p className="text-[9px] leading-tight mt-0.5">{c.label}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Top 3 bocor angkatan */}
+              {funnelStats.topBocorAngkatan.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                    <TrendingDown className="w-3.5 h-3.5 text-red-600" />
+                    Angkatan Paling Bocor (prioritas tim)
+                  </p>
+                  <div className="space-y-1.5">
+                    {funnelStats.topBocorAngkatan.map((b) => (
+                      <div key={b.angkatan} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 border border-border">
+                        <span className="text-sm font-bold text-[#0B27BC] w-10">A{b.angkatan}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-[10px] text-muted-foreground">{formatNum(b.terdata)} terdata → {formatNum(b.vote)} vote</span>
+                            <span className="text-[10px] font-semibold text-red-700">−{formatNum(b.bocor)} ({b.bocorPct.toFixed(0)}%)</span>
+                          </div>
+                          <div className="h-1.5 bg-white rounded-full overflow-hidden">
+                            <div className="h-full bg-red-500 rounded-full" style={{ width: `${Math.min(100, b.bocorPct)}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Per-angkatan mini funnel */}
+              {funnelStats.perAngkatan.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                    <Vote className="w-3.5 h-3.5 text-[#0B27BC]" />
+                    Per Angkatan — Terdata vs Vote
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-[10px] text-muted-foreground border-b border-border">
+                          <th className="text-left py-1 pr-2">Ang</th>
+                          <th className="text-right py-1 px-1">Alumni</th>
+                          <th className="text-right py-1 px-1">Terdata</th>
+                          <th className="text-right py-1 px-1">Kontak</th>
+                          <th className="text-right py-1 px-1">DPT</th>
+                          <th className="text-right py-1 px-1">Vote</th>
+                          <th className="text-right py-1 pl-1">Cakupan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {funnelStats.perAngkatan.map((r) => (
+                          <tr key={r.angkatan} className="border-b border-border/50 hover:bg-gray-50">
+                            <td className="py-1 pr-2 font-semibold text-[#0B27BC]">A{r.angkatan}</td>
+                            <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.alumniTotal)}</td>
+                            <td className="py-1 px-1 text-right">{formatNum(r.terdata.total)}</td>
+                            <td className="py-1 px-1 text-right">{formatNum(r.contacted.total)}</td>
+                            <td className="py-1 px-1 text-right">{formatNum(r.dpt.total)}</td>
+                            <td className="py-1 px-1 text-right font-semibold text-emerald-700">{formatNum(r.vote.total)}</td>
+                            <td className="py-1 pl-1 text-right">
+                              <span className={`text-[10px] font-medium ${r.coveragePct >= 80 ? "text-emerald-700" : r.coveragePct >= 50 ? "text-yellow-700" : "text-red-700"}`}>
+                                {r.coveragePct.toFixed(0)}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {[

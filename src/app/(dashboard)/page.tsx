@@ -31,6 +31,12 @@ import {
   ArrowDown,
   AlertTriangle,
   Filter as FilterIcon,
+  ShieldCheck,
+  Target as TargetIcon,
+  AlertOctagon,
+  TrendingDown,
+  Phone,
+  MessageSquare,
 } from "lucide-react";
 import { useRole } from "@/lib/RoleContext";
 import type { Member } from "@/lib/types";
@@ -80,7 +86,7 @@ interface FunnelBucket {
   belum: number;
 }
 
-type FunnelStageKey = "alumni" | "contacted" | "formDpt" | "webDpt" | "dpt" | "vote";
+type FunnelStageKey = "terdata" | "contacted" | "formDpt" | "webDpt" | "dpt" | "vote";
 
 interface FunnelTransition {
   from: FunnelStageKey;
@@ -97,12 +103,16 @@ interface FunnelStats {
   leakiest: FunnelTransition;
   perAngkatan: {
     angkatan: number;
-    alumni: FunnelBucket;
+    alumniTotal: number;
+    terdata: FunnelBucket;
     contacted: FunnelBucket;
     formDpt: FunnelBucket;
     webDpt: FunnelBucket;
     dpt: FunnelBucket;
     vote: FunnelBucket;
+    bocor: number;
+    bocorPct: number;
+    coveragePct: number;
   }[];
   nextActions: {
     dukungBelumKontak: number;
@@ -113,10 +123,44 @@ interface FunnelStats {
     belumKontak: number;
     kontakBelumDukungan: number;
   };
+  coverage: {
+    totalAlumni: number;
+    totalTerdata: number;
+    pct: number;
+    withPhone: number;
+    withPhonePct: number;
+    withDukungan: number;
+    withDukunganPct: number;
+  };
+  conversion: {
+    terdataToContacted: number;
+    contactedToForm: number;
+    formToWeb: number;
+    webToDpt: number;
+    dptToVote: number;
+    terdataToVote: number;
+  };
+  dptMetrics: {
+    pendukungTotal: number;
+    raguTotal: number;
+    belumTahuTotal: number;
+    sebelahTotal: number;
+    suaraAman: number;
+    suaraPotensial: number;
+    suaraHilang: number;
+    suaraHarusDikejar: number;
+  };
+  topBocorAngkatan: {
+    angkatan: number;
+    terdata: number;
+    vote: number;
+    bocor: number;
+    bocorPct: number;
+  }[];
 }
 
 const STAGE_LABELS: Record<FunnelStageKey, string> = {
-  alumni: "Alumni",
+  terdata: "Terdata",
   contacted: "Terkontak",
   formDpt: "Form DPT",
   webDpt: "Web DPT",
@@ -125,7 +169,7 @@ const STAGE_LABELS: Record<FunnelStageKey, string> = {
 };
 
 const STAGE_ORDER: FunnelStageKey[] = [
-  "alumni",
+  "terdata",
   "contacted",
   "formDpt",
   "webDpt",
@@ -318,7 +362,7 @@ function AngkatanRow({ d }: { d: { angkatan: string; punyaHP: number; kontak: nu
 /* ── DPT Funnel ────────────────────────────────── */
 
 function FunnelChart({ stats }: { stats: FunnelStats }) {
-  const max = stats.overall.alumni.total || 1;
+  const max = stats.overall.terdata.total || 1;
   // Filter out stages with no data (e.g. vote=0 early in campaign) — keep them visible
   // but render as nearly-empty bar so user can still see the shape of the funnel
   return (
@@ -363,7 +407,7 @@ function FunnelChart({ stats }: { stats: FunnelStats }) {
                 )}
               </div>
               <span className="text-[10px] text-muted-foreground tabular-nums">
-                {Math.round(pctOfAlumni)}% alumni
+                {Math.round(pctOfAlumni)}% terdata
               </span>
             </div>
             <div
@@ -383,8 +427,8 @@ function FunnelChart({ stats }: { stats: FunnelStats }) {
                 );
               })}
             </div>
-            {/* dukungan breakdown line — shown only at contacted stage onward */}
-            {key !== "alumni" && bucket.total > 0 && (
+            {/* dukungan breakdown line */}
+            {bucket.total > 0 && (
               <div className="flex items-center gap-3 mt-1 text-[9px] tabular-nums">
                 <span className="text-emerald-600 font-medium">
                   ● {formatNum(bucket.dukung)}
@@ -410,7 +454,7 @@ function FunnelChart({ stats }: { stats: FunnelStats }) {
 /* ── Leaky Bucket Card ─────────────────────────── */
 
 const LEAK_MESSAGE: Record<FunnelStageKey, string> = {
-  alumni: "alumni",
+  terdata: "terdata",
   contacted: "terkontak",
   formDpt: "isi Form DPT",
   webDpt: "registrasi Web DPT",
@@ -447,7 +491,7 @@ function LeakyCard({ stats }: { stats: FunnelStats }) {
           </p>
           <p className={`text-sm ${severity.text} mt-1`}>
             <span className="font-bold">{formatNum(leak.drop)}</span> orang{" "}
-            {LEAK_MESSAGE[leak.from] !== "alumni" ? LEAK_MESSAGE[leak.from] : "alumni"} tapi{" "}
+            {LEAK_MESSAGE[leak.from]} tapi{" "}
             <span className="font-semibold">belum</span> {LEAK_MESSAGE[leak.to]} (
             {Math.round(leak.dropPct)}% drop-off).
           </p>
@@ -510,7 +554,7 @@ function FunnelHeatmap({ stats }: { stats: FunnelStats }) {
               TN
             </th>
             <th className="text-right px-2 py-1 text-[9px] uppercase tracking-wider text-muted-foreground font-medium">
-              Alumni
+              Terdata
             </th>
             {STAGE_ORDER.slice(1).map((k) => (
               <th
@@ -524,24 +568,28 @@ function FunnelHeatmap({ stats }: { stats: FunnelStats }) {
         </thead>
         <tbody>
           {rows.map((r) => {
-            const base = r.alumni.total || 1;
+            const base = r.terdata.total || 1;
             return (
               <tr key={r.angkatan}>
                 <td className="px-2 py-1 font-bold text-[#0B27BC] text-[11px] tabular-nums sticky left-0 bg-white">
                   TN{r.angkatan}
                 </td>
-                <td className="px-2 py-1 text-right text-[10px] tabular-nums text-muted-foreground font-medium">
-                  {r.alumni.total}
+                <td
+                  className="px-2 py-1 text-right text-[10px] tabular-nums text-muted-foreground font-medium"
+                  title={`${r.terdata.total} dari ${r.alumniTotal} alumni (${Math.round(r.coveragePct)}%)`}
+                >
+                  {r.terdata.total}
+                  <span className="text-gray-300 ml-0.5">/{r.alumniTotal}</span>
                 </td>
                 {STAGE_ORDER.slice(1).map((k) => {
-                  const count = r[k as Exclude<FunnelStageKey, "alumni">].total;
+                  const count = r[k as Exclude<FunnelStageKey, "terdata">].total;
                   const pct = (count / base) * 100;
                   return (
                     <td
                       key={k}
                       className="px-2 py-1 text-center text-[10px] tabular-nums font-semibold text-foreground rounded"
                       style={{ backgroundColor: cellColor(pct) }}
-                      title={`${STAGE_LABELS[k]}: ${count}/${r.alumni.total} (${Math.round(pct)}%)`}
+                      title={`${STAGE_LABELS[k]}: ${count}/${r.terdata.total} (${Math.round(pct)}%)`}
                     >
                       {Math.round(pct)}%
                     </td>
@@ -552,6 +600,241 @@ function FunnelHeatmap({ stats }: { stats: FunnelStats }) {
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/* ── DPT Vote Metrics (Suara Aman / Potensial / Harus Dikejar / Hilang) ── */
+
+function DptMetricsCard({ stats }: { stats: FunnelStats }) {
+  const m = stats.dptMetrics;
+  const totalPendukung = m.pendukungTotal;
+
+  const cards = [
+    {
+      label: "Suara Aman",
+      sub: "Pendukung sdh Vote",
+      value: m.suaraAman,
+      icon: ShieldCheck,
+      color: "text-emerald-700",
+      bg: "bg-emerald-50",
+      border: "border-emerald-200",
+    },
+    {
+      label: "Harus Dikejar",
+      sub: "Pendukung blm Vote",
+      value: m.suaraHarusDikejar,
+      icon: TargetIcon,
+      color: "text-[#0B27BC]",
+      bg: "bg-[#0B27BC]/10",
+      border: "border-[#0B27BC]/30",
+    },
+    {
+      label: "Potensial",
+      sub: "Sudah DPT, Pendukung/Ragu, blm Vote",
+      value: m.suaraPotensial,
+      icon: TrendingDown,
+      color: "text-yellow-700",
+      bg: "bg-yellow-50",
+      border: "border-yellow-200",
+    },
+    {
+      label: "Hilang",
+      sub: "Milih sebelah",
+      value: m.suaraHilang,
+      icon: AlertOctagon,
+      color: "text-red-600",
+      bg: "bg-red-50",
+      border: "border-red-200",
+    },
+  ];
+
+  return (
+    <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Vote className="w-5 h-5 text-[#0B27BC]" />
+          <h3 className="text-base font-bold text-foreground">Metrik Suara</h3>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          dari <span className="font-semibold text-foreground">{formatNum(stats.coverage.totalTerdata)}</span> terdata
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {cards.map((c) => {
+          const Icon = c.icon;
+          const pct = totalPendukung > 0 && (c.label === "Suara Aman" || c.label === "Harus Dikejar")
+            ? Math.round((c.value / totalPendukung) * 100)
+            : null;
+          return (
+            <div key={c.label} className={`rounded-xl border-2 ${c.border} ${c.bg} p-3`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Icon className={`w-3.5 h-3.5 ${c.color}`} />
+                <p className={`text-[10px] font-semibold uppercase tracking-wide ${c.color}`}>
+                  {c.label}
+                </p>
+              </div>
+              <p className={`text-2xl font-bold ${c.color} tabular-nums leading-tight`}>
+                {formatNum(c.value)}
+              </p>
+              {pct !== null && (
+                <p className={`text-[10px] font-semibold ${c.color}`}>
+                  {pct}% dari pendukung
+                </p>
+              )}
+              <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{c.sub}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Conversion strip — per-stage conversion %, one-line reading */}
+      <div className="pt-3 border-t border-border">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          Konversi Per Tahap
+        </p>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+          {[
+            { label: "Terdata→Kontak", pct: stats.conversion.terdataToContacted },
+            { label: "Kontak→Form", pct: stats.conversion.contactedToForm },
+            { label: "Form→Web", pct: stats.conversion.formToWeb },
+            { label: "Web→DPT", pct: stats.conversion.webToDpt },
+            { label: "DPT→Vote", pct: stats.conversion.dptToVote },
+          ].map((s) => {
+            const pct = Math.round(s.pct);
+            const tone =
+              pct >= 70 ? "text-emerald-600" : pct >= 40 ? "text-yellow-600" : "text-red-500";
+            return (
+              <div key={s.label} className="text-center bg-gray-50 rounded-lg p-2 border border-border">
+                <p className={`text-lg font-bold ${tone} tabular-nums leading-tight`}>{pct}%</p>
+                <p className="text-[9px] text-muted-foreground leading-tight">{s.label}</p>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-2 text-center">
+          Total konversi terdata → vote:{" "}
+          <span className="font-bold text-foreground">
+            {Math.round(stats.conversion.terdataToVote)}%
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Coverage & Team Action panel ────────────── */
+
+function TeamActionPanel({ stats }: { stats: FunnelStats }) {
+  const cov = stats.coverage;
+  const top = stats.topBocorAngkatan;
+
+  return (
+    <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="w-5 h-5 text-[#84303F]" />
+        <h3 className="text-base font-bold text-foreground">Analisa Tim</h3>
+      </div>
+
+      {/* Data coverage strip — alumni → terdata, HP, Dukungan */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Cakupan Data
+        </p>
+        {[
+          {
+            label: "Alumni → Terdata",
+            value: cov.totalTerdata,
+            total: cov.totalAlumni,
+            pct: cov.pct,
+            icon: Users,
+            color: "bg-[#0B27BC]",
+          },
+          {
+            label: "Punya No HP",
+            value: cov.withPhone,
+            total: cov.totalTerdata,
+            pct: cov.withPhonePct,
+            icon: Phone,
+            color: "bg-emerald-500",
+          },
+          {
+            label: "Sudah ada Dukungan",
+            value: cov.withDukungan,
+            total: cov.totalTerdata,
+            pct: cov.withDukunganPct,
+            icon: MessageSquare,
+            color: "bg-[#FE8DA1]",
+          },
+        ].map((c) => {
+          const Icon = c.icon;
+          const pct = Math.round(c.pct);
+          return (
+            <div key={c.label}>
+              <div className="flex items-center justify-between mb-0.5">
+                <div className="flex items-center gap-1.5">
+                  <Icon className="w-3 h-3 text-muted-foreground" />
+                  <span className="text-[11px] font-medium text-foreground">{c.label}</span>
+                </div>
+                <span className="text-[11px] font-bold text-foreground tabular-nums">
+                  {formatNum(c.value)}
+                  <span className="text-gray-400 font-normal">/{formatNum(c.total)}</span>
+                  <span className={`ml-1 ${pct >= 60 ? "text-emerald-600" : pct >= 30 ? "text-yellow-600" : "text-red-500"}`}>
+                    {pct}%
+                  </span>
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                <div
+                  className={c.color + " h-full transition-all duration-700"}
+                  style={{ width: `${Math.min(100, c.pct)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Top bocor angkatan — who needs the most attention */}
+      {top.length > 0 && (
+        <div className="pt-3 border-t border-border">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            TN Paling Perlu Dibantu
+          </p>
+          <div className="space-y-1.5">
+            {top.map((a, idx) => (
+              <div
+                key={a.angkatan}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-gray-50 border border-border"
+              >
+                <span className="text-[10px] font-bold text-gray-400 tabular-nums w-4">
+                  #{idx + 1}
+                </span>
+                <span className="text-xs font-bold text-[#0B27BC] tabular-nums w-10">
+                  TN{a.angkatan}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[10px] text-muted-foreground">
+                      {formatNum(a.vote)}/{formatNum(a.terdata)} vote
+                    </span>
+                    <span className="text-[10px] font-bold text-red-500 tabular-nums">
+                      −{formatNum(a.bocor)} ({Math.round(a.bocorPct)}%)
+                    </span>
+                  </div>
+                  <div className="h-1 rounded-full bg-gray-200 overflow-hidden">
+                    <div
+                      className="h-full bg-red-400"
+                      style={{ width: `${Math.min(100, a.bocorPct)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1085,6 +1368,16 @@ export default function Dashboard() {
           </div>
         ) : (
           <ChartSkeleton title="Funnel DPT → Vote" />
+        )}
+
+        {/* ═══════ DPT METRICS + TEAM ACTION ═══════ */}
+        {funnelLoaded && funnelStats && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2">
+              <DptMetricsCard stats={funnelStats} />
+            </div>
+            <TeamActionPanel stats={funnelStats} />
+          </div>
         )}
 
         {/* ═══════ STATS ROW ═══════ */}
