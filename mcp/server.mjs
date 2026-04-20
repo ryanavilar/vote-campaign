@@ -60,6 +60,20 @@ function pickDefined(obj) {
   return out;
 }
 
+async function findUserByEmail(email) {
+  const target = email.toLowerCase();
+  let page = 1;
+  for (;;) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw error;
+    const hit = data.users.find((u) => (u.email || "").toLowerCase() === target);
+    if (hit) return hit;
+    if (data.users.length < 200) return null;
+    page++;
+    if (page > 50) return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Tool definitions
 // ---------------------------------------------------------------------------
@@ -721,6 +735,133 @@ const tools = [
         .single();
       if (error) return fail(error);
       return ok({ upserted: data });
+    },
+  },
+  {
+    name: "create_campaigner_account",
+    description:
+      "Create a tim sukses (campaigner) account by email. Default flow: create user with a direct password and email auto-confirmed (no magic-link). Pass send_invite_email=true to send a magic-link invite instead. Sets role='campaigner' in user_roles and assigns to the target angkatan. Idempotent — existing auth accounts are reused (password reset if provided), existing non-campaigner roles are preserved, and the angkatan assignment is upserted.",
+    inputSchema: {
+      type: "object",
+      required: ["email", "angkatan"],
+      properties: {
+        email: { type: "string", description: "Email address" },
+        angkatan: { type: "integer", minimum: 1, maximum: 33 },
+        nama: { type: "string", description: "Display name (optional, stored in user_metadata)" },
+        password: {
+          type: "string",
+          description:
+            "Direct password to set (used when send_invite_email is false, which is the default). If omitted and send_invite_email is false, a default password is used.",
+        },
+        send_invite_email: {
+          type: "boolean",
+          default: false,
+          description:
+            "If true, sends a magic-link invitation email instead of setting a password. Default is false (password flow with email auto-confirmed).",
+        },
+      },
+    },
+    handler: async (args) => {
+      const email = String(args.email || "").trim().toLowerCase();
+      if (!email) return fail("email is required");
+      const angkatan = args.angkatan;
+      const sendInvite = args.send_invite_email === true;
+      const password = args.password || (sendInvite ? undefined : "IkastaraKitaPastiMenang123!!!");
+
+      // 1. Find or create auth user
+      let user = null;
+      let created = false;
+      let passwordSet = false;
+      const metadata = args.nama ? { full_name: args.nama } : undefined;
+
+      if (sendInvite) {
+        const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
+          data: metadata,
+        });
+        if (error) {
+          if (/already/i.test(error.message || "") || /registered/i.test(error.message || "")) {
+            const found = await findUserByEmail(email);
+            if (!found) return fail(error);
+            user = found;
+          } else {
+            return fail(error);
+          }
+        } else {
+          user = data.user;
+          created = true;
+        }
+      } else {
+        const { data, error } = await supabase.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: metadata,
+        });
+        if (error) {
+          if (/already/i.test(error.message || "") || /registered/i.test(error.message || "")) {
+            const found = await findUserByEmail(email);
+            if (!found) return fail(error);
+            user = found;
+            // Reset password + confirm email for existing user
+            const { error: upErr } = await supabase.auth.admin.updateUserById(user.id, {
+              password,
+              email_confirm: true,
+              ...(metadata ? { user_metadata: metadata } : {}),
+            });
+            if (upErr) return fail(upErr);
+            passwordSet = true;
+          } else {
+            return fail(error);
+          }
+        } else {
+          user = data.user;
+          created = true;
+          passwordSet = true;
+        }
+      }
+
+      if (!user) return fail("Failed to resolve auth user");
+
+      // 2. Ensure user_roles row (preserve existing role if already set)
+      const { data: existingRole, error: roleErr } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (roleErr) return fail(roleErr);
+
+      let role_assigned = existingRole?.role;
+      if (!existingRole) {
+        const { data: inserted, error: insErr } = await supabase
+          .from("user_roles")
+          .insert({ user_id: user.id, role: "campaigner" })
+          .select()
+          .single();
+        if (insErr) return fail(insErr);
+        role_assigned = inserted.role;
+      }
+
+      // 3. Upsert campaigner_angkatan
+      const { data: assignment, error: assignErr } = await supabase
+        .from("campaigner_angkatan")
+        .upsert(
+          { user_id: user.id, angkatan },
+          { onConflict: "user_id,angkatan" }
+        )
+        .select()
+        .single();
+      if (assignErr) return fail(assignErr);
+
+      return ok({
+        user_id: user.id,
+        email: user.email,
+        auth_user_created: created,
+        invited: created && sendInvite,
+        password_set: passwordSet,
+        role: role_assigned,
+        role_preserved: Boolean(existingRole) && existingRole.role !== "campaigner",
+        angkatan_assignment: assignment,
+      });
     },
   },
   {
