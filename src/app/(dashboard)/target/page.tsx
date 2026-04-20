@@ -3,8 +3,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
+import DeadlineBanner from "@/components/DeadlineBanner";
+import TierPendukungCard from "@/components/TierPendukungCard";
 import { formatNum } from "@/lib/format";
 import type { StatusValue } from "@/lib/types";
+import { classifyTier, type DptTier } from "@/lib/dptDeadline";
 import {
   Search,
   Loader2,
@@ -443,6 +446,10 @@ export default function TargetPage() {
     let kontak = 0, dukung = 0, formDpt = 0, webDpt = 0, dpt = 0, vote = 0, grup = 0;
     let withHP = 0, ragu = 0, sebelah = 0, belumTahu = 0;
     let suaraAman = 0, suaraPotensial = 0, suaraHarusDikejar = 0;
+    const tiersPendukung: Record<DptTier, number> = {
+      aman: 0, pending_verifikator: 0, perlu_web: 0, perlu_gform: 0, hilang: 0,
+    };
+    const now = new Date();
     const presetCounts: Record<PresetKey, number> = {
       all: total,
       belumKontak: 0,
@@ -489,6 +496,18 @@ export default function TargetPage() {
       if (pendukung && tIsVote) suaraAman++;
       if (tIsDpt && !tIsVote && (pendukung || t.dukungan === "ragu_ragu")) suaraPotensial++;
 
+      if (pendukung) {
+        const tier = classifyTier(
+          {
+            isi_form_dpt: t.isi_form_dpt,
+            registrasi_website_dpt: t.registrasi_website_dpt,
+            status_dpt: t.status_dpt,
+          },
+          now,
+        );
+        tiersPendukung[tier]++;
+      }
+
       for (const k of ["belumKontak", "kontakBelumDukungan", "dukungBelumForm", "formBelumWeb", "webBelumDpt", "dptBelumVote"] as PresetKey[]) {
         if (presetMatch(t, k)) presetCounts[k]++;
       }
@@ -499,6 +518,7 @@ export default function TargetPage() {
       total, kontak, dukung, formDpt, webDpt, dpt, vote, grup,
       withHP, ragu, sebelah, belumTahu,
       suaraAman, suaraPotensial, suaraHarusDikejar,
+      tiersPendukung,
       presetCounts, perAngkatan,
     };
   }, [allTargets]);
@@ -752,6 +772,8 @@ export default function TargetPage() {
       </header>
 
       <div className="px-4 sm:px-6 py-6 space-y-4">
+        <DeadlineBanner />
+
         {/* Dashboard Mode — metrics + priority + per-TN funnel */}
         {dashboardMode && (
           <div className="bg-gradient-to-br from-[#0B27BC]/5 to-[#FE8DA1]/10 rounded-xl border-2 border-[#FE8DA1]/30 p-4 sm:p-5 space-y-4">
@@ -868,6 +890,13 @@ export default function TargetPage() {
                 })}
               </div>
             </div>
+
+            {/* Tier Pendukung — DPT registration urgency */}
+            <TierPendukungCard
+              tiers={stats.tiersPendukung}
+              pendukungTotal={stats.dukung}
+              subtitle="Tier registrasi DPT per pendukung — yang belum selesai tahap = beresiko hilang suara."
+            />
 
             {/* Per-TN funnel + Top priority */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">

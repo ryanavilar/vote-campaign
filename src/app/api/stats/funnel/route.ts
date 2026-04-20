@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { classifyTier, type DptTier } from "@/lib/dptDeadline";
 
 /**
  * GET /api/stats/funnel
@@ -179,6 +180,19 @@ export async function GET() {
     let raguTotal = 0;       // ragu_ragu
     let belumTahuTotal = 0;  // dukungan null
 
+    // Tier counts — DPT registration stage classification (see lib/dptDeadline)
+    const emptyTiers = (): Record<DptTier, number> => ({
+      aman: 0,
+      pending_verifikator: 0,
+      perlu_web: 0,
+      perlu_gform: 0,
+      hilang: 0,
+    });
+    const tiersPendukung = emptyTiers(); // among dukung members
+    const tiersAll = emptyTiers();       // among all members
+    const tiersPendukungPerAngkatan: Record<number, Record<DptTier, number>> = {};
+    const now = new Date();
+
     for (const m of memberRows) {
       const d = classifyDukungan(m.dukungan);
       const pa = ensureAngkatan(m.angkatan);
@@ -230,6 +244,16 @@ export async function GET() {
       if (pendukung && vote) suaraAman++;
       if (dpt && !vote && (pendukung || d === "ragu")) suaraPotensial++;
       if (d === "sebelah") suaraHilang++;
+
+      const tier = classifyTier(m, now);
+      tiersAll[tier]++;
+      if (pendukung) {
+        tiersPendukung[tier]++;
+        if (!tiersPendukungPerAngkatan[m.angkatan]) {
+          tiersPendukungPerAngkatan[m.angkatan] = emptyTiers();
+        }
+        tiersPendukungPerAngkatan[m.angkatan][tier]++;
+      }
     }
 
     const overallCounts: Record<StageKey, number> = {
@@ -275,6 +299,7 @@ export async function GET() {
           bocor: terdataCount - voteCount,
           bocorPct: terdataCount > 0 ? ((terdataCount - voteCount) / terdataCount) * 100 : 0,
           coveragePct: alumniTotal > 0 ? (terdataCount / alumniTotal) * 100 : 0,
+          tiersPendukung: tiersPendukungPerAngkatan[ang] || emptyTiers(),
         };
       })
       .sort((a, b) => a.angkatan - b.angkatan);
@@ -340,6 +365,10 @@ export async function GET() {
       conversion,
       dptMetrics,
       topBocorAngkatan,
+      tiers: {
+        pendukung: tiersPendukung,
+        all: tiersAll,
+      },
     });
   } catch (err) {
     return NextResponse.json(

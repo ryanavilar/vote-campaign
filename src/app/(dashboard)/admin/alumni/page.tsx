@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import * as XLSX from "xlsx";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
+import DeadlineBanner from "@/components/DeadlineBanner";
+import TierPendukungCard from "@/components/TierPendukungCard";
 import { formatNum } from "@/lib/format";
 import type { StatusValue } from "@/lib/types";
 import {
@@ -419,7 +421,30 @@ interface FunnelStatsLite {
     vote: { total: number };
     bocorPct: number;
     coveragePct: number;
+    tiersPendukung: {
+      aman: number;
+      pending_verifikator: number;
+      perlu_web: number;
+      perlu_gform: number;
+      hilang: number;
+    };
   }[];
+  tiers: {
+    pendukung: {
+      aman: number;
+      pending_verifikator: number;
+      perlu_web: number;
+      perlu_gform: number;
+      hilang: number;
+    };
+    all: {
+      aman: number;
+      pending_verifikator: number;
+      perlu_web: number;
+      perlu_gform: number;
+      hilang: number;
+    };
+  };
 }
 
 /* ── Main Page ─────────────────────────────────────────── */
@@ -533,6 +558,10 @@ export default function AdminAlumniPage() {
             dptMetrics: fJson.dptMetrics,
             topBocorAngkatan: fJson.topBocorAngkatan || [],
             perAngkatan: fJson.perAngkatan || [],
+            tiers: fJson.tiers || {
+              pendukung: { aman: 0, pending_verifikator: 0, perlu_web: 0, perlu_gform: 0, hilang: 0 },
+              all: { aman: 0, pending_verifikator: 0, perlu_web: 0, perlu_gform: 0, hilang: 0 },
+            },
           });
         }
       }
@@ -1179,6 +1208,8 @@ export default function AdminAlumniPage() {
       </header>
 
       <div className="px-4 sm:px-6 py-6 space-y-4">
+        <DeadlineBanner />
+
         {/* Dashboard mode — DPT metrics + coverage + top bocor */}
         {dashboardMode && funnelStats && (
           <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
@@ -1319,6 +1350,13 @@ export default function AdminAlumniPage() {
                   })}
                 </div>
               </div>
+
+              {/* Tier Pendukung — DPT registration urgency */}
+              <TierPendukungCard
+                tiers={funnelStats.tiers.pendukung}
+                pendukungTotal={funnelStats.dptMetrics.pendukungTotal}
+                subtitle="Tier registrasi DPT per pendukung — yang belum selesai tahap = beresiko hilang suara."
+              />
 
               {/* Top 3 bocor angkatan */}
               {funnelStats.topBocorAngkatan.length > 0 && (

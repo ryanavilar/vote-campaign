@@ -41,6 +41,8 @@ import type { Member } from "@/lib/types";
 import { formatNum } from "@/lib/format";
 import * as XLSX from "xlsx";
 import { BatchProgressTab } from "@/components/BatchProgressTab";
+import DeadlineBanner from "@/components/DeadlineBanner";
+import TierPendukungCard from "@/components/TierPendukungCard";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -111,6 +113,13 @@ interface FunnelStats {
     bocor: number;
     bocorPct: number;
     coveragePct: number;
+    tiersPendukung: {
+      aman: number;
+      pending_verifikator: number;
+      perlu_web: number;
+      perlu_gform: number;
+      hilang: number;
+    };
   }[];
   nextActions: {
     dukungBelumKontak: number;
@@ -155,6 +164,22 @@ interface FunnelStats {
     bocor: number;
     bocorPct: number;
   }[];
+  tiers: {
+    pendukung: {
+      aman: number;
+      pending_verifikator: number;
+      perlu_web: number;
+      perlu_gform: number;
+      hilang: number;
+    };
+    all: {
+      aman: number;
+      pending_verifikator: number;
+      perlu_web: number;
+      perlu_gform: number;
+      hilang: number;
+    };
+  };
 }
 
 const STAGE_LABELS: Record<FunnelStageKey, string> = {
@@ -1286,6 +1311,8 @@ export default function Dashboard() {
 
       {activeTab === "overview" ? (
       <div className="px-4 sm:px-6 py-6 space-y-4">
+        <DeadlineBanner />
+
         {/* ═══════ PETA PERTARUNGAN ═══════ */}
         {membersLoaded ? (
           <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
@@ -1421,6 +1448,15 @@ export default function Dashboard() {
             </div>
             <TeamActionPanel stats={funnelStats} />
           </div>
+        )}
+
+        {/* ═══════ TIER PENDUKUNG (DPT registration urgency) ═══════ */}
+        {funnelLoaded && funnelStats && (
+          <TierPendukungCard
+            tiers={funnelStats.tiers.pendukung}
+            pendukungTotal={funnelStats.dptMetrics.pendukungTotal}
+            subtitle="Tier registrasi DPT per pendukung — yang belum selesai tahap = beresiko hilang suara."
+          />
         )}
 
         {/* ═══════ STATS ROW ═══════ */}
