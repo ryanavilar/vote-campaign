@@ -394,6 +394,7 @@ interface FunnelStatsLite {
   dptMetrics: {
     pendukungTotal: number;
     raguTotal: number;
+    belumTahuTotal: number;
     sebelahTotal: number;
     suaraAman: number;
     suaraPotensial: number;
@@ -1192,39 +1193,63 @@ export default function AdminAlumniPage() {
             </div>
 
             <div className="p-4 space-y-4">
-              {/* 4 Suara cards */}
+              {/* Peta Dukungan — 4 cards by dukungan status */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                 <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                    <span className="text-[11px] font-medium text-emerald-700">Suara Aman</span>
+                    <span className="text-[11px] font-medium text-emerald-700">Pendukung Kita</span>
                   </div>
-                  <p className="text-2xl font-bold text-emerald-800 leading-tight">{formatNum(funnelStats.dptMetrics.suaraAman)}</p>
-                  <p className="text-[10px] text-emerald-600 mt-0.5">Pendukung sudah vote</p>
-                </div>
-                <div className="bg-[#FE8DA1]/15 border border-[#FE8DA1]/30 rounded-xl p-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <TargetIcon className="w-4 h-4 text-[#84303F]" />
-                    <span className="text-[11px] font-medium text-[#84303F]">Harus Dikejar</span>
-                  </div>
-                  <p className="text-2xl font-bold text-[#84303F] leading-tight">{formatNum(funnelStats.dptMetrics.suaraHarusDikejar)}</p>
-                  <p className="text-[10px] text-[#84303F]/80 mt-0.5">Pendukung belum vote</p>
+                  <p className="text-2xl font-bold text-emerald-800 leading-tight">{formatNum(funnelStats.dptMetrics.pendukungTotal)}</p>
+                  <p className="text-[10px] text-emerald-600 mt-0.5">Dukung / terkonvert</p>
                 </div>
                 <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <HelpCircle className="w-4 h-4 text-yellow-700" />
-                    <span className="text-[11px] font-medium text-yellow-700">Potensial</span>
+                    <span className="text-[11px] font-medium text-yellow-700">Masih Ragu</span>
                   </div>
-                  <p className="text-2xl font-bold text-yellow-800 leading-tight">{formatNum(funnelStats.dptMetrics.suaraPotensial)}</p>
-                  <p className="text-[10px] text-yellow-600 mt-0.5">DPT tapi belum vote</p>
+                  <p className="text-2xl font-bold text-yellow-800 leading-tight">{formatNum(funnelStats.dptMetrics.raguTotal)}</p>
+                  <p className="text-[10px] text-yellow-600 mt-0.5">Bisa diyakinkan</p>
                 </div>
                 <div className="bg-red-50 border border-red-200 rounded-xl p-3">
                   <div className="flex items-center gap-2 mb-1">
                     <AlertOctagon className="w-4 h-4 text-red-700" />
-                    <span className="text-[11px] font-medium text-red-700">Suara Hilang</span>
+                    <span className="text-[11px] font-medium text-red-700">Pilih Lawan</span>
                   </div>
                   <p className="text-2xl font-bold text-red-800 leading-tight">{formatNum(funnelStats.dptMetrics.suaraHilang)}</p>
-                  <p className="text-[10px] text-red-600 mt-0.5">Dukung sebelah</p>
+                  <p className="text-[10px] text-red-600 mt-0.5">Sdh pilih sebelah</p>
+                </div>
+                <div className="bg-[#0B27BC]/10 border border-[#0B27BC]/30 rounded-xl p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TargetIcon className="w-4 h-4 text-[#0B27BC]" />
+                    <span className="text-[11px] font-medium text-[#0B27BC]">Belum Ditanya</span>
+                  </div>
+                  <p className="text-2xl font-bold text-[#0B27BC] leading-tight">{formatNum(funnelStats.dptMetrics.belumTahuTotal)}</p>
+                  <p className="text-[10px] text-[#0B27BC]/80 mt-0.5">Belum ada info dukungan</p>
+                </div>
+              </div>
+
+              {/* Reminder Vote strip — vote is reminder goal, not success metric */}
+              <div className="bg-gray-50 rounded-xl border border-border p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Reminder Vote (dari pendukung kita)
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5">
+                    <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">Sudah Vote</p>
+                    <p className="text-xl font-bold text-emerald-700 tabular-nums leading-tight">{formatNum(funnelStats.dptMetrics.suaraAman)}</p>
+                    <p className="text-[9px] text-emerald-700/80">
+                      {funnelStats.dptMetrics.pendukungTotal > 0
+                        ? Math.round((funnelStats.dptMetrics.suaraAman / funnelStats.dptMetrics.pendukungTotal) * 100)
+                        : 0}
+                      % pendukung
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-[#FE8DA1]/40 bg-[#FE8DA1]/15 p-2.5">
+                    <p className="text-[10px] font-semibold text-[#84303F] uppercase tracking-wide">Perlu Diingatkan</p>
+                    <p className="text-xl font-bold text-[#84303F] tabular-nums leading-tight">{formatNum(funnelStats.dptMetrics.suaraHarusDikejar)}</p>
+                    <p className="text-[9px] text-[#84303F]/80">Pendukung blm vote — kejar hari-H</p>
+                  </div>
                 </div>
               </div>
 
@@ -1233,7 +1258,15 @@ export default function AdminAlumniPage() {
                 {[
                   { label: "Alumni → Terdata", pct: funnelStats.coverage.pct, num: funnelStats.coverage.totalTerdata, den: funnelStats.coverage.totalAlumni, color: "bg-[#0B27BC]" },
                   { label: "Punya No. HP", pct: funnelStats.coverage.withPhonePct, num: funnelStats.coverage.withPhone, den: funnelStats.coverage.totalTerdata, color: "bg-emerald-600" },
-                  { label: "Sudah Dukungan", pct: funnelStats.coverage.withDukunganPct, num: funnelStats.coverage.withDukungan, den: funnelStats.coverage.totalTerdata, color: "bg-[#FE8DA1]" },
+                  {
+                    label: "Pendukung Kita",
+                    pct: funnelStats.coverage.totalTerdata > 0
+                      ? (funnelStats.dptMetrics.pendukungTotal / funnelStats.coverage.totalTerdata) * 100
+                      : 0,
+                    num: funnelStats.dptMetrics.pendukungTotal,
+                    den: funnelStats.coverage.totalTerdata,
+                    color: "bg-emerald-500",
+                  },
                 ].map((b) => (
                   <div key={b.label} className="bg-gray-50 rounded-lg p-2.5 border border-border">
                     <div className="flex items-center justify-between mb-1">

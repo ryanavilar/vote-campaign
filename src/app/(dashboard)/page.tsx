@@ -36,7 +36,6 @@ import {
   AlertOctagon,
   TrendingDown,
   Phone,
-  MessageSquare,
 } from "lucide-react";
 import { useRole } from "@/lib/RoleContext";
 import type { Member } from "@/lib/types";
@@ -604,48 +603,49 @@ function FunnelHeatmap({ stats }: { stats: FunnelStats }) {
   );
 }
 
-/* ── DPT Vote Metrics (Suara Aman / Potensial / Harus Dikejar / Hilang) ── */
+/* ── DPT Dukungan Metrics (pendukung / ragu / sebelah / belum) ── */
 
 function DptMetricsCard({ stats }: { stats: FunnelStats }) {
   const m = stats.dptMetrics;
-  const totalPendukung = m.pendukungTotal;
+  const terdata = stats.coverage.totalTerdata;
+  const pctOf = (n: number) => (terdata > 0 ? Math.round((n / terdata) * 100) : 0);
 
   const cards = [
     {
-      label: "Suara Aman",
-      sub: "Pendukung sdh Vote",
-      value: m.suaraAman,
+      label: "Pendukung Kita",
+      sub: "Dukung / terkonvert",
+      value: m.pendukungTotal,
       icon: ShieldCheck,
       color: "text-emerald-700",
       bg: "bg-emerald-50",
       border: "border-emerald-200",
     },
     {
-      label: "Harus Dikejar",
-      sub: "Pendukung blm Vote",
-      value: m.suaraHarusDikejar,
-      icon: TargetIcon,
-      color: "text-[#0B27BC]",
-      bg: "bg-[#0B27BC]/10",
-      border: "border-[#0B27BC]/30",
-    },
-    {
-      label: "Potensial",
-      sub: "Sudah DPT, Pendukung/Ragu, blm Vote",
-      value: m.suaraPotensial,
-      icon: TrendingDown,
+      label: "Masih Ragu",
+      sub: "Bisa diyakinkan",
+      value: m.raguTotal,
+      icon: HelpCircle,
       color: "text-yellow-700",
       bg: "bg-yellow-50",
       border: "border-yellow-200",
     },
     {
-      label: "Hilang",
-      sub: "Milih sebelah",
+      label: "Pilih Lawan",
+      sub: "Sdh pilih sebelah",
       value: m.suaraHilang,
       icon: AlertOctagon,
       color: "text-red-600",
       bg: "bg-red-50",
       border: "border-red-200",
+    },
+    {
+      label: "Belum Ditanya",
+      sub: "Belum ada info dukungan",
+      value: m.belumTahuTotal,
+      icon: TargetIcon,
+      color: "text-[#0B27BC]",
+      bg: "bg-[#0B27BC]/10",
+      border: "border-[#0B27BC]/30",
     },
   ];
 
@@ -653,20 +653,18 @@ function DptMetricsCard({ stats }: { stats: FunnelStats }) {
     <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Vote className="w-5 h-5 text-[#0B27BC]" />
-          <h3 className="text-base font-bold text-foreground">Metrik Suara</h3>
+          <ShieldCheck className="w-5 h-5 text-emerald-700" />
+          <h3 className="text-base font-bold text-foreground">Peta Dukungan</h3>
         </div>
         <p className="text-[10px] text-muted-foreground">
-          dari <span className="font-semibold text-foreground">{formatNum(stats.coverage.totalTerdata)}</span> terdata
+          dari <span className="font-semibold text-foreground">{formatNum(terdata)}</span> terdata
         </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         {cards.map((c) => {
           const Icon = c.icon;
-          const pct = totalPendukung > 0 && (c.label === "Suara Aman" || c.label === "Harus Dikejar")
-            ? Math.round((c.value / totalPendukung) * 100)
-            : null;
+          const pct = pctOf(c.value);
           return (
             <div key={c.label} className={`rounded-xl border-2 ${c.border} ${c.bg} p-3`}>
               <div className="flex items-center gap-1.5 mb-1">
@@ -678,15 +676,35 @@ function DptMetricsCard({ stats }: { stats: FunnelStats }) {
               <p className={`text-2xl font-bold ${c.color} tabular-nums leading-tight`}>
                 {formatNum(c.value)}
               </p>
-              {pct !== null && (
-                <p className={`text-[10px] font-semibold ${c.color}`}>
-                  {pct}% dari pendukung
-                </p>
-              )}
+              <p className={`text-[10px] font-semibold ${c.color}`}>{pct}% terdata</p>
               <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{c.sub}</p>
             </div>
           );
         })}
+      </div>
+
+      {/* Vote reminder strip — vote is a reminder goal, not success metric */}
+      <div className="pt-3 border-t border-border">
+        <div className="flex items-center gap-2 mb-2">
+          <Vote className="w-3.5 h-3.5 text-[#0B27BC]" />
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Reminder Vote (dari pendukung kita)
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5">
+            <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">Sudah Vote</p>
+            <p className="text-xl font-bold text-emerald-700 tabular-nums leading-tight">{formatNum(m.suaraAman)}</p>
+            <p className="text-[9px] text-emerald-700/80">
+              {m.pendukungTotal > 0 ? Math.round((m.suaraAman / m.pendukungTotal) * 100) : 0}% pendukung
+            </p>
+          </div>
+          <div className="rounded-lg border border-[#FE8DA1]/40 bg-[#FE8DA1]/15 p-2.5">
+            <p className="text-[10px] font-semibold text-[#84303F] uppercase tracking-wide">Perlu Diingatkan</p>
+            <p className="text-xl font-bold text-[#84303F] tabular-nums leading-tight">{formatNum(m.suaraHarusDikejar)}</p>
+            <p className="text-[9px] text-[#84303F]/80">Pendukung blm vote — kejar hari-H</p>
+          </div>
+        </div>
       </div>
 
       {/* Conversion strip — per-stage conversion %, one-line reading */}
@@ -713,12 +731,6 @@ function DptMetricsCard({ stats }: { stats: FunnelStats }) {
             );
           })}
         </div>
-        <p className="text-[10px] text-muted-foreground mt-2 text-center">
-          Total konversi terdata → vote:{" "}
-          <span className="font-bold text-foreground">
-            {Math.round(stats.conversion.terdataToVote)}%
-          </span>
-        </p>
       </div>
     </div>
   );
@@ -760,12 +772,12 @@ function TeamActionPanel({ stats }: { stats: FunnelStats }) {
             color: "bg-emerald-500",
           },
           {
-            label: "Sudah ada Dukungan",
-            value: cov.withDukungan,
+            label: "Pendukung Kita",
+            value: stats.dptMetrics.pendukungTotal,
             total: cov.totalTerdata,
-            pct: cov.withDukunganPct,
-            icon: MessageSquare,
-            color: "bg-[#FE8DA1]",
+            pct: cov.totalTerdata > 0 ? (stats.dptMetrics.pendukungTotal / cov.totalTerdata) * 100 : 0,
+            icon: ShieldCheck,
+            color: "bg-emerald-500",
           },
         ].map((c) => {
           const Icon = c.icon;

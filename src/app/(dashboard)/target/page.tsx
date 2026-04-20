@@ -26,8 +26,8 @@ import {
   BarChart3,
   ShieldCheck,
   Target as TargetIcon,
-  TrendingDown,
   AlertOctagon,
+  HelpCircle,
   Flame,
 } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -763,52 +763,48 @@ export default function TargetPage() {
               </span>
             </div>
 
-            {/* 4 Suara metric cards */}
+            {/* Peta Dukungan — 4 cards by dukungan status */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
               {[
                 {
-                  label: "Suara Aman",
-                  sub: "Pendukung sdh Vote",
-                  value: stats.suaraAman,
+                  label: "Pendukung Kita",
+                  sub: "Dukung / terkonvert",
+                  value: stats.dukung,
                   icon: ShieldCheck,
                   color: "text-emerald-700",
                   bg: "bg-emerald-50",
                   border: "border-emerald-200",
-                  denom: stats.dukung,
                 },
                 {
-                  label: "Harus Dikejar",
-                  sub: "Pendukung blm Vote",
-                  value: stats.suaraHarusDikejar,
-                  icon: TargetIcon,
-                  color: "text-[#0B27BC]",
-                  bg: "bg-[#0B27BC]/10",
-                  border: "border-[#0B27BC]/30",
-                  denom: stats.dukung,
-                },
-                {
-                  label: "Potensial",
-                  sub: "DPT ✓, Pendukung/Ragu, blm Vote",
-                  value: stats.suaraPotensial,
-                  icon: TrendingDown,
+                  label: "Masih Ragu",
+                  sub: "Bisa diyakinkan",
+                  value: stats.ragu,
+                  icon: HelpCircle,
                   color: "text-yellow-700",
                   bg: "bg-yellow-50",
                   border: "border-yellow-200",
-                  denom: null,
                 },
                 {
-                  label: "Hilang",
-                  sub: "Milih sebelah",
+                  label: "Pilih Lawan",
+                  sub: "Sdh pilih sebelah",
                   value: stats.sebelah,
                   icon: AlertOctagon,
                   color: "text-red-600",
                   bg: "bg-red-50",
                   border: "border-red-200",
-                  denom: null,
+                },
+                {
+                  label: "Belum Ditanya",
+                  sub: "Belum ada info dukungan",
+                  value: stats.belumTahu,
+                  icon: TargetIcon,
+                  color: "text-[#0B27BC]",
+                  bg: "bg-[#0B27BC]/10",
+                  border: "border-[#0B27BC]/30",
                 },
               ].map((c) => {
                 const Icon = c.icon;
-                const pct = c.denom && c.denom > 0 ? Math.round((c.value / c.denom) * 100) : null;
+                const pct = stats.total > 0 ? Math.round((c.value / stats.total) * 100) : 0;
                 return (
                   <div key={c.label} className={`rounded-xl border-2 ${c.border} ${c.bg} p-3`}>
                     <div className="flex items-center gap-1.5 mb-1">
@@ -820,15 +816,32 @@ export default function TargetPage() {
                     <p className={`text-2xl font-bold ${c.color} tabular-nums leading-tight`}>
                       {formatNum(c.value)}
                     </p>
-                    {pct !== null && (
-                      <p className={`text-[10px] font-semibold ${c.color}`}>
-                        {pct}% dari pendukung
-                      </p>
-                    )}
+                    <p className={`text-[10px] font-semibold ${c.color}`}>{pct}% target</p>
                     <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{c.sub}</p>
                   </div>
                 );
               })}
+            </div>
+
+            {/* Reminder Vote strip — pendukung yg sdh vote vs perlu diingatkan */}
+            <div className="bg-white rounded-xl border border-border p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Reminder Vote (dari pendukung)
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5">
+                  <p className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wide">Sudah Vote</p>
+                  <p className="text-xl font-bold text-emerald-700 tabular-nums leading-tight">{formatNum(stats.suaraAman)}</p>
+                  <p className="text-[9px] text-emerald-700/80">
+                    {stats.dukung > 0 ? Math.round((stats.suaraAman / stats.dukung) * 100) : 0}% pendukung
+                  </p>
+                </div>
+                <div className="rounded-lg border border-[#FE8DA1]/40 bg-[#FE8DA1]/15 p-2.5">
+                  <p className="text-[10px] font-semibold text-[#84303F] uppercase tracking-wide">Perlu Diingatkan</p>
+                  <p className="text-xl font-bold text-[#84303F] tabular-nums leading-tight">{formatNum(stats.suaraHarusDikejar)}</p>
+                  <p className="text-[9px] text-[#84303F]/80">Pendukung blm vote — kejar hari-H</p>
+                </div>
+              </div>
             </div>
 
             {/* Konversi per tahap */}
@@ -973,16 +986,16 @@ export default function TargetPage() {
                 </div>
                 <div>
                   <p className="text-lg font-bold text-emerald-600 tabular-nums">
-                    {formatNum(stats.dukung + stats.ragu + stats.sebelah)}
+                    {formatNum(stats.dukung)}
                     <span className="text-gray-300 text-xs font-normal">/{formatNum(stats.total)}</span>
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Sudah Dukungan</p>
+                  <p className="text-[10px] text-muted-foreground">Pendukung Kita</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-yellow-600 tabular-nums">
                     {formatNum(stats.belumTahu)}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Belum Diketahui Dukungan</p>
+                  <p className="text-[10px] text-muted-foreground">Belum Ditanya</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-[#84303F] tabular-nums">
