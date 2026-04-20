@@ -1253,33 +1253,50 @@ export default function AdminAlumniPage() {
                 </div>
               </div>
 
-              {/* Coverage bars */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {[
-                  { label: "Alumni → Terdata", pct: funnelStats.coverage.pct, num: funnelStats.coverage.totalTerdata, den: funnelStats.coverage.totalAlumni, color: "bg-[#0B27BC]" },
-                  { label: "Punya No. HP", pct: funnelStats.coverage.withPhonePct, num: funnelStats.coverage.withPhone, den: funnelStats.coverage.totalTerdata, color: "bg-emerald-600" },
-                  {
-                    label: "Pendukung Kita",
-                    pct: funnelStats.coverage.totalTerdata > 0
-                      ? (funnelStats.dptMetrics.pendukungTotal / funnelStats.coverage.totalTerdata) * 100
-                      : 0,
-                    num: funnelStats.dptMetrics.pendukungTotal,
-                    den: funnelStats.coverage.totalTerdata,
-                    color: "bg-emerald-500",
-                  },
-                ].map((b) => (
-                  <div key={b.label} className="bg-gray-50 rounded-lg p-2.5 border border-border">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] font-medium text-muted-foreground">{b.label}</span>
-                      <span className="text-xs font-semibold text-foreground">{b.pct.toFixed(1)}%</span>
+              {/* Analisa Tim — 5-way breakdown: DPT vs Pendukung vs Lawan vs Ragu vs Belum Terdata */}
+              {(() => {
+                const totalAlumni = funnelStats.coverage.totalAlumni;
+                const base = totalAlumni || 1;
+                const dptTotal = funnelStats.perAngkatan.reduce((s, r) => s + r.dpt.total, 0);
+                const belumTerdata = Math.max(0, totalAlumni - funnelStats.coverage.totalTerdata);
+                const buckets = [
+                  { label: "DPT Resmi", sub: "Di daftar pemilih", value: dptTotal, color: "bg-orange-500", bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+                  { label: "Pendukung Kita", sub: "Dukung / terkonvert", value: funnelStats.dptMetrics.pendukungTotal, color: "bg-emerald-500", bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+                  { label: "Pendukung Lawan", sub: "Pilih sebelah", value: funnelStats.dptMetrics.suaraHilang, color: "bg-red-500", bg: "bg-red-50", text: "text-red-600", border: "border-red-200" },
+                  { label: "Ragu-ragu", sub: "Bisa diyakinkan", value: funnelStats.dptMetrics.raguTotal, color: "bg-yellow-500", bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200" },
+                  { label: "Belum Terdata", sub: "Alumni blm masuk sistem", value: belumTerdata, color: "bg-gray-400", bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" },
+                ];
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-foreground">Analisa Tim — Peta Alumni</p>
+                      <span className="text-[10px] text-muted-foreground">
+                        dari <span className="font-semibold text-foreground">{formatNum(totalAlumni)}</span> alumni
+                      </span>
                     </div>
-                    <div className="h-1.5 bg-white rounded-full overflow-hidden">
-                      <div className={`h-full ${b.color} rounded-full transition-all`} style={{ width: `${Math.min(100, b.pct)}%` }} />
+                    <div className="space-y-1.5">
+                      {buckets.map((b) => {
+                        const pct = (b.value / base) * 100;
+                        return (
+                          <div key={b.label} className={`rounded-lg border ${b.border} ${b.bg} px-2.5 py-2`}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className={`text-[11px] font-semibold ${b.text}`}>{b.label}</span>
+                              <span className={`text-[11px] font-bold ${b.text} tabular-nums`}>
+                                {formatNum(b.value)}
+                                <span className="text-gray-400 font-normal ml-1">({pct.toFixed(1)}%)</span>
+                              </span>
+                            </div>
+                            <div className="h-1.5 bg-white/70 rounded-full overflow-hidden">
+                              <div className={`h-full ${b.color} rounded-full transition-all`} style={{ width: `${Math.min(100, pct)}%` }} />
+                            </div>
+                            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{b.sub}</p>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">{formatNum(b.num)} / {formatNum(b.den)}</p>
                   </div>
-                ))}
-              </div>
+                );
+              })()}
 
               {/* Konversi per tahap */}
               <div>
