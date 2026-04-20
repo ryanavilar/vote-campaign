@@ -18,39 +18,98 @@ interface DeadlineCardProps {
   now: Date;
 }
 
+interface CountdownParts {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  past: boolean;
+}
+
+function computeParts(target: Date, now: Date): CountdownParts {
+  const diffMs = target.getTime() - now.getTime();
+  if (diffMs <= 0) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, past: true };
+  }
+  const totalSec = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+  return { days, hours, minutes, seconds, past: false };
+}
+
+function CountdownUnit({
+  value,
+  label,
+  color,
+}: {
+  value: number;
+  label: string;
+  color: string;
+}) {
+  return (
+    <div className="flex flex-col items-center min-w-[38px]">
+      <span className={`text-xl sm:text-2xl font-bold ${color} tabular-nums leading-none`}>
+        {String(value).padStart(2, "0")}
+      </span>
+      <span className={`text-[8px] uppercase tracking-wider ${color} opacity-70 mt-0.5`}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 function DeadlineCard({ label, date, sub, now }: DeadlineCardProps) {
   const days = daysUntil(date, now);
   const u = urgency(days);
   const color = URGENCY_COLOR[u];
+  const parts = computeParts(date, now);
   const dateStr = date.toLocaleDateString("id-ID", {
     day: "numeric",
     month: "short",
-    year: "numeric",
   });
+
   return (
-    <div className={`flex-1 min-w-0 rounded-lg border ${color.border} ${color.bg} px-3 py-2`}>
-      <div className="flex items-center justify-between gap-2 mb-0.5">
+    <div className={`flex-1 min-w-0 rounded-lg border-2 ${color.border} ${color.bg} px-3 py-2.5`}>
+      <div className="flex items-center justify-between gap-2 mb-2">
         <span className={`text-[10px] font-semibold uppercase tracking-wide ${color.text}`}>
           {label}
         </span>
-        <span className={`text-[10px] font-semibold ${color.text} tabular-nums`}>
-          {days > 0 ? `${days} hari lg` : days === 0 ? "hari ini" : "lewat"}
+        <span className={`text-[9px] font-semibold ${color.text} tabular-nums`}>
+          {dateStr} 23:59 WIB
         </span>
       </div>
-      <p className={`text-sm font-bold ${color.text} tabular-nums leading-tight`}>{dateStr}</p>
-      <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{sub}</p>
+
+      {parts.past ? (
+        <p className={`text-lg font-bold ${color.text} tabular-nums leading-tight`}>
+          Deadline lewat
+        </p>
+      ) : (
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <CountdownUnit value={parts.days} label="hari" color={color.text} />
+          <span className={`text-xl font-bold ${color.text} opacity-50`}>:</span>
+          <CountdownUnit value={parts.hours} label="jam" color={color.text} />
+          <span className={`text-xl font-bold ${color.text} opacity-50`}>:</span>
+          <CountdownUnit value={parts.minutes} label="mnt" color={color.text} />
+          <span className={`text-xl font-bold ${color.text} opacity-50`}>:</span>
+          <CountdownUnit value={parts.seconds} label="dtk" color={color.text} />
+        </div>
+      )}
+
+      <p className="text-[9px] text-muted-foreground mt-1.5 leading-tight">{sub}</p>
     </div>
   );
 }
 
 /**
- * Three-stage countdown banner shown at the top of the dashboards.
- * Ticks every minute so the day counter stays correct.
+ * Countdown banner shown at the top of the dashboards. Ticks every second so
+ * the seconds digit keeps moving — visual urgency.
  */
 export default function DeadlineBanner() {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
+    const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -62,8 +121,8 @@ export default function DeadlineBanner() {
           <h3 className="text-xs font-bold text-foreground">Deadline DPT Munas XI</h3>
         </div>
         <span className="text-[9px] text-muted-foreground flex items-center gap-1">
-          <Clock className="w-2.5 h-2.5" />
-          update tiap menit
+          <Clock className="w-2.5 h-2.5 animate-pulse" />
+          live
         </span>
       </div>
       <div className="flex flex-col sm:flex-row gap-2">
