@@ -11,10 +11,6 @@ import {
   Crosshair,
   Phone,
   MessageCircle,
-  ThumbsUp,
-  HelpCircle,
-  ArrowLeftRight,
-  Users as UsersIcon,
   CalendarCheck,
   RefreshCw,
   Filter,
@@ -22,6 +18,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  ArrowRight,
+  ClipboardCheck,
+  Smartphone,
+  Vote as VoteIcon,
+  Users as UsersIcon,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -216,6 +217,122 @@ function DukunganSelect({
   );
 }
 
+/* ── Next Action logic ─────────────────────────────────── */
+
+interface NextAction {
+  key: "kontak" | "dukungan" | "form" | "web" | "dpt" | "vote" | "done";
+  label: string;
+  priority: number; // lower = more urgent
+  color: string;
+}
+
+/**
+ * Computes the next action for a target row. Priority order is based on the
+ * funnel: the earliest missing stage is what the campaigner should focus on.
+ * Dukungan=sebelah short-circuits (no further action needed — already a loss).
+ */
+function computeNextAction(row: TargetRow): NextAction {
+  // Lawan → won't convert, lowest priority
+  if (row.dukungan === "milih_sebelah") {
+    return { key: "done", label: "—", priority: 99, color: "text-red-400" };
+  }
+  // Stage 1: contact (including implicit via WA group)
+  const contacted = row.sudah_dikontak === "Sudah" || row.masuk_grup === "Sudah";
+  if (!contacted) {
+    return { key: "kontak", label: "Hubungi dulu", priority: 1, color: "text-[#0B27BC]" };
+  }
+  // Stage 2: know dukungan
+  if (!row.dukungan) {
+    return { key: "dukungan", label: "Tanya Dukungan", priority: 2, color: "text-[#0B27BC]" };
+  }
+  // Only keep pushing supporters & undecided (not sebelah, already handled above)
+  const push = row.dukungan === "dukung" || row.dukungan === "terkonvert" || row.dukungan === "ragu_ragu";
+  if (!push) {
+    return { key: "done", label: "—", priority: 98, color: "text-gray-400" };
+  }
+  // Stage 3-6: DPT funnel
+  if (row.isi_form_dpt !== "Sudah") {
+    return { key: "form", label: "Ajak Isi Form DPT", priority: 3, color: "text-emerald-600" };
+  }
+  if (row.registrasi_website_dpt !== "Sudah") {
+    return { key: "web", label: "Ingatkan Web DPT", priority: 4, color: "text-yellow-600" };
+  }
+  if (row.status_dpt !== "Sudah") {
+    return { key: "dpt", label: "Cek DPT resmi", priority: 5, color: "text-orange-600" };
+  }
+  if (row.vote !== "Sudah") {
+    return { key: "vote", label: "Pengingat Vote", priority: 6, color: "text-[#84303F]" };
+  }
+  return { key: "done", label: "✅ Lengkap", priority: 10, color: "text-emerald-700" };
+}
+
+/* ── Progress Dots (compact stage indicator) ───────────── */
+
+function ProgressDots({ row }: { row: TargetRow }) {
+  const stages = [
+    { key: "kontak", on: row.sudah_dikontak === "Sudah" || row.masuk_grup === "Sudah", label: "Kontak" },
+    { key: "dukungan", on: row.dukungan === "dukung" || row.dukungan === "terkonvert", label: "Dukung" },
+    { key: "form", on: row.isi_form_dpt === "Sudah", label: "Form DPT" },
+    { key: "web", on: row.registrasi_website_dpt === "Sudah", label: "Web DPT" },
+    { key: "dpt", on: row.status_dpt === "Sudah", label: "DPT" },
+    { key: "vote", on: row.vote === "Sudah", label: "Vote" },
+  ];
+  const done = stages.filter((s) => s.on).length;
+  return (
+    <div
+      className="inline-flex items-center gap-0.5"
+      title={stages.map((s) => `${s.on ? "●" : "○"} ${s.label}`).join("  ")}
+    >
+      {stages.map((s) => (
+        <span
+          key={s.key}
+          className={`inline-block w-1.5 h-1.5 rounded-full ${
+            s.on ? "bg-emerald-500" : "bg-gray-200"
+          }`}
+        />
+      ))}
+      <span className="text-[9px] text-muted-foreground ml-1 tabular-nums font-medium">
+        {done}/6
+      </span>
+    </div>
+  );
+}
+
+/* ── Preset filter shortcuts ───────────────────────────── */
+
+type PresetKey =
+  | "all"
+  | "belumKontak"
+  | "kontakBelumDukungan"
+  | "dukungBelumForm"
+  | "formBelumWeb"
+  | "webBelumDpt"
+  | "dptBelumVote";
+
+const PRESET_DEFS: { key: PresetKey; label: string; color: string }[] = [
+  { key: "all", label: "Semua", color: "bg-gray-100 text-gray-700 border-gray-300" },
+  { key: "belumKontak", label: "Belum Kontak", color: "bg-white text-gray-700 border-gray-300" },
+  { key: "kontakBelumDukungan", label: "Kontak, blm Dukungan", color: "bg-[#0B27BC]/10 text-[#0B27BC] border-[#0B27BC]/30" },
+  { key: "dukungBelumForm", label: "Dukung, blm Form", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  { key: "formBelumWeb", label: "Form, blm Web DPT", color: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+  { key: "webBelumDpt", label: "Web, blm DPT resmi", color: "bg-orange-50 text-orange-700 border-orange-200" },
+  { key: "dptBelumVote", label: "DPT, blm Vote", color: "bg-[#84303F]/10 text-[#84303F] border-[#84303F]/30" },
+];
+
+function presetMatch(row: TargetRow, key: PresetKey): boolean {
+  const contacted = row.sudah_dikontak === "Sudah" || row.masuk_grup === "Sudah";
+  const pendukung = row.dukungan === "dukung" || row.dukungan === "terkonvert";
+  switch (key) {
+    case "all": return true;
+    case "belumKontak": return !contacted;
+    case "kontakBelumDukungan": return contacted && !row.dukungan;
+    case "dukungBelumForm": return pendukung && row.isi_form_dpt !== "Sudah";
+    case "formBelumWeb": return row.isi_form_dpt === "Sudah" && row.registrasi_website_dpt !== "Sudah";
+    case "webBelumDpt": return row.registrasi_website_dpt === "Sudah" && row.status_dpt !== "Sudah";
+    case "dptBelumVote": return row.status_dpt === "Sudah" && row.vote !== "Sudah";
+  }
+}
+
 /* ── Main Page ─────────────────────────────────────────── */
 
 export default function TargetPage() {
@@ -237,6 +354,8 @@ export default function TargetPage() {
 
   // Filters
   const [filterAngkatan, setFilterAngkatan] = useState<string>("all");
+  const [activePreset, setActivePreset] = useState<PresetKey>("all");
+  const [sortByPriority, setSortByPriority] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [fKontak, setFKontak] = useState("all");
   const [fDukungan, setFDukungan] = useState("all");
@@ -269,7 +388,7 @@ export default function TargetPage() {
   // Reset page on any filter change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fFormDpt, fWebDpt, fVote, fPhone]);
+  }, [debouncedSearch, filterAngkatan, activePreset, sortByPriority, fKontak, fDukungan, fGrup, fDpt, fFormDpt, fWebDpt, fVote, fPhone]);
 
   // ── Data loading (NO loading state inside) ──
   const loadData = useCallback(async () => {
@@ -311,25 +430,46 @@ export default function TargetPage() {
     return Array.from(set).sort((a, b) => a - b);
   }, [allTargets]);
 
-  // Stats — terkonvert counts as pendukung
+  // Stats — funnel counts + preset counts
   const stats = useMemo(() => {
     const total = allTargets.length;
-    const kontak = allTargets.filter((t) => t.sudah_dikontak === "Sudah").length;
-    const dukung = allTargets.filter((t) => t.dukungan === "dukung" || t.dukungan === "terkonvert").length;
-    const ragu = allTargets.filter((t) => t.dukungan === "ragu_ragu").length;
-    const sebelah = allTargets.filter((t) => t.dukungan === "milih_sebelah").length;
-    const grup = allTargets.filter((t) => t.masuk_grup === "Sudah").length;
-    return { total, kontak, dukung, ragu, sebelah, grup };
+    let kontak = 0, dukung = 0, formDpt = 0, webDpt = 0, dpt = 0, vote = 0, grup = 0;
+    const presetCounts: Record<PresetKey, number> = {
+      all: total,
+      belumKontak: 0,
+      kontakBelumDukungan: 0,
+      dukungBelumForm: 0,
+      formBelumWeb: 0,
+      webBelumDpt: 0,
+      dptBelumVote: 0,
+    };
+    for (const t of allTargets) {
+      const contacted = t.sudah_dikontak === "Sudah" || t.masuk_grup === "Sudah";
+      const pendukung = t.dukungan === "dukung" || t.dukungan === "terkonvert";
+      if (contacted) kontak++;
+      if (pendukung) dukung++;
+      if (t.masuk_grup === "Sudah") grup++;
+      if (t.isi_form_dpt === "Sudah") formDpt++;
+      if (t.registrasi_website_dpt === "Sudah") webDpt++;
+      if (t.status_dpt === "Sudah") dpt++;
+      if (t.vote === "Sudah") vote++;
+
+      for (const k of ["belumKontak", "kontakBelumDukungan", "dukungBelumForm", "formBelumWeb", "webBelumDpt", "dptBelumVote"] as PresetKey[]) {
+        if (presetMatch(t, k)) presetCounts[k]++;
+      }
+    }
+    return { total, kontak, dukung, formDpt, webDpt, dpt, vote, grup, presetCounts };
   }, [allTargets]);
 
   // Filter targets — per-column
   const filtered = useMemo(() => {
-    return allTargets.filter((t) => {
+    const base = allTargets.filter((t) => {
       if (debouncedSearch) {
         const q = debouncedSearch.toLowerCase();
         if (!t.nama.toLowerCase().includes(q) && !(t.no_hp && t.no_hp.includes(debouncedSearch))) return false;
       }
       if (filterAngkatan !== "all" && t.angkatan !== Number(filterAngkatan)) return false;
+      if (activePreset !== "all" && !presetMatch(t, activePreset)) return false;
 
       // Per-column filters
       if (fKontak !== "all") {
@@ -367,7 +507,17 @@ export default function TargetPage() {
 
       return true;
     });
-  }, [allTargets, debouncedSearch, filterAngkatan, fKontak, fDukungan, fGrup, fDpt, fFormDpt, fWebDpt, fVote, fPhone]);
+
+    if (sortByPriority) {
+      return [...base].sort((a, b) => {
+        const pa = computeNextAction(a).priority;
+        const pb = computeNextAction(b).priority;
+        if (pa !== pb) return pa - pb;
+        return a.nama.localeCompare(b.nama);
+      });
+    }
+    return base;
+  }, [allTargets, debouncedSearch, filterAngkatan, activePreset, sortByPriority, fKontak, fDukungan, fGrup, fDpt, fFormDpt, fWebDpt, fVote, fPhone]);
 
   // Client-side pagination
   const totalFiltered = filtered.length;
@@ -536,29 +686,95 @@ export default function TargetPage() {
       </header>
 
       <div className="px-4 sm:px-6 py-6 space-y-4">
-        {/* Stats */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {[
-            { label: "Total", value: stats.total, icon: Crosshair, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
-            { label: "Kontak", value: stats.kontak, icon: MessageCircle, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
-            { label: "Dukung", value: stats.dukung, icon: ThumbsUp, color: "text-emerald-700", bg: "bg-emerald-50" },
-            { label: "Ragu", value: stats.ragu, icon: HelpCircle, color: "text-yellow-700", bg: "bg-yellow-50" },
-            { label: "Sebelah", value: stats.sebelah, icon: ArrowLeftRight, color: "text-red-700", bg: "bg-red-50" },
-            { label: "Grup", value: stats.grup, icon: UsersIcon, color: "text-[#84303F]", bg: "bg-[#84303F]/10" },
-          ].map((s) => (
-            <div
-              key={s.label}
-              className="bg-white rounded-xl border border-border p-2.5 shadow-sm text-center"
-            >
-              <div className={`inline-flex p-1 rounded-lg ${s.bg} mb-1`}>
-                <s.icon className={`w-3.5 h-3.5 ${s.color}`} />
+        {/* Funnel strip — 6 stages */}
+        <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">
+            Funnel DPT → Vote
+          </p>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+            {[
+              { label: "Target", value: stats.total, icon: Crosshair, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10", denom: null },
+              { label: "Kontak", value: stats.kontak, icon: MessageCircle, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10", denom: stats.total },
+              { label: "Form DPT", value: stats.formDpt, icon: ClipboardCheck, color: "text-emerald-700", bg: "bg-emerald-50", denom: stats.total },
+              { label: "Web DPT", value: stats.webDpt, icon: Smartphone, color: "text-yellow-700", bg: "bg-yellow-50", denom: stats.total },
+              { label: "DPT", value: stats.dpt, icon: ClipboardCheck, color: "text-orange-700", bg: "bg-orange-50", denom: stats.total },
+              { label: "Vote", value: stats.vote, icon: VoteIcon, color: "text-[#84303F]", bg: "bg-[#84303F]/10", denom: stats.total },
+            ].map((s, i) => (
+              <div
+                key={s.label}
+                className="bg-white rounded-lg border border-border p-2 text-center relative"
+              >
+                <div className={`inline-flex p-1 rounded-lg ${s.bg} mb-0.5`}>
+                  <s.icon className={`w-3 h-3 ${s.color}`} />
+                </div>
+                <p className="text-base font-bold text-foreground leading-tight">
+                  {formatNum(s.value)}
+                </p>
+                <p className="text-[9px] text-muted-foreground leading-tight">{s.label}</p>
+                {s.denom !== null && s.denom > 0 && (
+                  <p className={`text-[9px] font-semibold ${s.color} leading-tight`}>
+                    {Math.round((s.value / s.denom) * 100)}%
+                  </p>
+                )}
+                {i > 0 && i < 6 && (
+                  <ArrowRight className="hidden sm:block absolute -left-[9px] top-1/2 -translate-y-1/2 w-3 h-3 text-gray-300 z-10 bg-background rounded-full" />
+                )}
               </div>
-              <p className="text-lg font-bold text-foreground leading-tight">
-                {formatNum(s.value)}
-              </p>
-              <p className="text-[10px] text-muted-foreground">{s.label}</p>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border/50 px-1">
+            <span className="text-[10px] text-muted-foreground">Dukungan:</span>
+            <span className="text-[11px] font-semibold text-emerald-600 tabular-nums">
+              ● {formatNum(stats.dukung)} Dukung
+            </span>
+            <span className="text-[11px] font-semibold text-[#84303F] tabular-nums">
+              <UsersIcon className="inline w-3 h-3 mr-0.5" />
+              {formatNum(stats.grup)} Grup
+            </span>
+          </div>
+        </div>
+
+        {/* Next-action preset chips */}
+        <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <ArrowRight className="w-4 h-4 text-[#0B27BC]" />
+              <h3 className="text-sm font-semibold text-foreground">Tindak Lanjut</h3>
             </div>
-          ))}
+            <label className="inline-flex items-center gap-1.5 text-[10px] font-medium text-gray-600 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={sortByPriority}
+                onChange={(e) => setSortByPriority(e.target.checked)}
+                className="rounded border-gray-300 text-[#0B27BC] focus:ring-[#0B27BC]/30"
+              />
+              Urutkan Prioritas
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {PRESET_DEFS.map((p) => {
+              const count = stats.presetCounts[p.key];
+              const isActive = activePreset === p.key;
+              return (
+                <button
+                  key={p.key}
+                  onClick={() => setActivePreset(p.key)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border transition-all ${
+                    isActive
+                      ? "bg-[#0B27BC] text-white border-[#0B27BC] shadow-sm"
+                      : p.color + " hover:opacity-80"
+                  }`}
+                >
+                  <span>{p.label}</span>
+                  <span className={`tabular-nums font-bold px-1.5 rounded-full text-[10px] ${
+                    isActive ? "bg-white/20 text-white" : "bg-white"
+                  }`}>
+                    {formatNum(count)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Filters */}
@@ -771,6 +987,10 @@ export default function TargetPage() {
                     <Phone className="w-3 h-3 inline mr-1" />
                     No HP
                   </th>
+                  <th className="text-left px-2 py-2 font-semibold text-gray-500 text-xs w-[140px]">
+                    <ArrowRight className="w-3 h-3 inline mr-0.5" />
+                    Aksi Berikutnya
+                  </th>
                   <th className="text-center px-2 py-2 font-semibold text-gray-500 text-xs">
                     <CalendarCheck className="w-3 h-3 inline mr-0.5" />
                     Event
@@ -801,7 +1021,7 @@ export default function TargetPage() {
               <tbody>
                 {targets.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-12 text-center">
+                    <td colSpan={12} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <Crosshair className="w-8 h-8 text-gray-200" />
                         <p className="text-sm text-muted-foreground">
@@ -826,12 +1046,15 @@ export default function TargetPage() {
                           <p className="text-sm font-medium text-foreground truncate max-w-[200px]">
                             {row.nama}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            TN {row.angkatan}
-                            {row.alumni_kelanjutan_studi
-                              ? ` · ${row.alumni_kelanjutan_studi}`
-                              : ""}
-                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-[10px] text-muted-foreground">
+                              TN {row.angkatan}
+                              {row.alumni_kelanjutan_studi
+                                ? ` · ${row.alumni_kelanjutan_studi}`
+                                : ""}
+                            </p>
+                            <ProgressDots row={row} />
+                          </div>
                         </div>
                       </td>
                       <td className="px-3 py-2">
@@ -852,6 +1075,16 @@ export default function TargetPage() {
                             </a>
                           )}
                         </div>
+                      </td>
+                      <td className="px-2 py-2">
+                        {(() => {
+                          const action = computeNextAction(row);
+                          return (
+                            <span className={`text-[11px] font-semibold whitespace-nowrap ${action.color}`}>
+                              {action.label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-2 py-2 text-center">
                         <span className={`text-xs font-semibold ${row.attendance_count > 0 ? "text-[#0B27BC]" : "text-gray-300"}`}>
@@ -920,7 +1153,9 @@ export default function TargetPage() {
                 </p>
               </div>
             ) : (
-              targets.map((row) => (
+              targets.map((row) => {
+                const action = computeNextAction(row);
+                return (
                 <div key={row.alumni_id} className="px-4 py-3 space-y-2">
                   {/* Name + angkatan */}
                   <div className="flex items-start justify-between gap-2">
@@ -928,15 +1163,27 @@ export default function TargetPage() {
                       <p className="text-sm font-medium text-foreground truncate">
                         {row.nama}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        TN {row.angkatan}
-                        {row.alumni_kelanjutan_studi
-                          ? ` · ${row.alumni_kelanjutan_studi}`
-                          : ""}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-[10px] text-muted-foreground">
+                          TN {row.angkatan}
+                          {row.alumni_kelanjutan_studi
+                            ? ` · ${row.alumni_kelanjutan_studi}`
+                            : ""}
+                        </p>
+                        <ProgressDots row={row} />
+                      </div>
                     </div>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#0B27BC]/10 text-[#0B27BC] font-medium shrink-0">
                       TN{row.angkatan}
+                    </span>
+                  </div>
+
+                  {/* Next Action banner */}
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-50 border border-border">
+                    <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" />
+                    <span className="text-[9px] text-gray-400 uppercase tracking-wider">Aksi</span>
+                    <span className={`text-[11px] font-semibold ${action.color}`}>
+                      {action.label}
                     </span>
                   </div>
 
@@ -1020,7 +1267,8 @@ export default function TargetPage() {
                     </div>
                   </div>
                 </div>
-              ))
+                );
+              })
             )}
           </div>
 

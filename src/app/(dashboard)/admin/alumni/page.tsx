@@ -242,6 +242,132 @@ function DukunganSelect({
   );
 }
 
+/* ── Progress Dots (funnel stage indicator) ─────────────── */
+
+function ProgressDots({ member }: { member: MemberInfo | null }) {
+  const stages: { key: string; label: string; on: boolean }[] = [
+    { key: "kontak", label: "Kontak", on: member?.sudah_dikontak === "Sudah" || member?.masuk_grup === "Sudah" },
+    { key: "dukungan", label: "Dukungan", on: member?.dukungan === "dukung" || member?.dukungan === "terkonvert" },
+    { key: "form", label: "Form DPT", on: member?.isi_form_dpt === "Sudah" },
+    { key: "web", label: "Web DPT", on: member?.registrasi_website_dpt === "Sudah" },
+    { key: "dpt", label: "DPT Resmi", on: member?.status_dpt === "Sudah" },
+    { key: "vote", label: "Vote", on: member?.vote === "Sudah" },
+  ];
+  const done = stages.filter((s) => s.on).length;
+  return (
+    <div
+      className="inline-flex items-center gap-0.5"
+      title={`${done}/6 tahap · ${stages.map((s) => `${s.on ? "●" : "○"} ${s.label}`).join("  ")}`}
+    >
+      {stages.map((s) => (
+        <span
+          key={s.key}
+          className={`inline-block w-1.5 h-1.5 rounded-full ${
+            s.on ? "bg-emerald-500" : "bg-gray-200"
+          }`}
+        />
+      ))}
+      <span className="text-[9px] text-muted-foreground ml-1 tabular-nums font-medium">
+        {done}/6
+      </span>
+    </div>
+  );
+}
+
+/* ── Preset Filter Chips ────────────────────────────────── */
+
+type PresetKey =
+  | "dukungBelumForm"
+  | "formBelumWeb"
+  | "webBelumDpt"
+  | "dptBelumVote"
+  | "kontakBelumDukungan"
+  | "belumKontak";
+
+interface PresetSpec {
+  key: PresetKey;
+  label: string;
+  color: string;
+  apply: (setters: {
+    setFLinked: (v: string) => void;
+    setFKontak: (v: string) => void;
+    setFDukungan: (v: string) => void;
+    setFFormDpt: (v: string) => void;
+    setFWebDpt: (v: string) => void;
+    setFDpt: (v: string) => void;
+    setFVote: (v: string) => void;
+    setFGrup: (v: string) => void;
+    setFPhone: (v: string) => void;
+  }) => void;
+}
+
+const PRESETS: PresetSpec[] = [
+  {
+    key: "belumKontak",
+    label: "Belum Kontak",
+    color: "bg-gray-100 text-gray-700 border-gray-300",
+    apply: (s) => {
+      s.setFLinked("true");
+      s.setFKontak("Belum");
+    },
+  },
+  {
+    key: "kontakBelumDukungan",
+    label: "Kontak, blm Dukungan",
+    color: "bg-[#0B27BC]/10 text-[#0B27BC] border-[#0B27BC]/30",
+    apply: (s) => {
+      s.setFKontak("Sudah");
+      s.setFDukungan("empty");
+    },
+  },
+  {
+    key: "dukungBelumForm",
+    label: "Dukung, blm Form",
+    color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    apply: (s) => {
+      s.setFDukungan("pendukung");
+      s.setFFormDpt("Belum");
+    },
+  },
+  {
+    key: "formBelumWeb",
+    label: "Form, blm Web DPT",
+    color: "bg-yellow-50 text-yellow-700 border-yellow-200",
+    apply: (s) => {
+      s.setFFormDpt("Sudah");
+      s.setFWebDpt("Belum");
+    },
+  },
+  {
+    key: "webBelumDpt",
+    label: "Web, blm DPT resmi",
+    color: "bg-orange-50 text-orange-700 border-orange-200",
+    apply: (s) => {
+      s.setFWebDpt("Sudah");
+      s.setFDpt("Belum");
+    },
+  },
+  {
+    key: "dptBelumVote",
+    label: "DPT, blm Vote",
+    color: "bg-[#84303F]/10 text-[#84303F] border-[#84303F]/30",
+    apply: (s) => {
+      s.setFDpt("Sudah");
+      s.setFVote("Belum");
+    },
+  },
+];
+
+interface FunnelNextActions {
+  dukungBelumKontak: number;
+  dukungBelumForm: number;
+  formBelumWeb: number;
+  webBelumDpt: number;
+  dptBelumVote: number;
+  belumKontak: number;
+  kontakBelumDukungan: number;
+}
+
 /* ── Main Page ─────────────────────────────────────────── */
 
 export default function AdminAlumniPage() {
@@ -256,6 +382,8 @@ export default function AdminAlumniPage() {
   const [refreshing, setRefreshing] = useState(false); // only for manual Refresh button
   const [page, setPage] = useState(1);
   const [unlinkedFormCount, setUnlinkedFormCount] = useState(0);
+  const [nextActions, setNextActions] = useState<FunnelNextActions | null>(null);
+  const [activePreset, setActivePreset] = useState<PresetKey | null>(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -279,6 +407,26 @@ export default function AdminAlumniPage() {
     setFKontak("all"); setFDukungan("all"); setFGrup("all");
     setFDpt("all"); setFFormDpt("all"); setFWebDpt("all");
     setFVote("all"); setFPhone("all");
+    setActivePreset(null);
+  };
+
+  const applyPreset = (p: PresetSpec) => {
+    if (activePreset === p.key) {
+      resetFilters();
+      return;
+    }
+    // Clear all per-column filters first
+    setFKontak("all"); setFDukungan("all"); setFGrup("all");
+    setFDpt("all"); setFFormDpt("all"); setFWebDpt("all");
+    setFVote("all"); setFPhone("all");
+    setFLinked("all");
+    // Apply the preset's setters
+    p.apply({
+      setFLinked, setFKontak, setFDukungan, setFFormDpt,
+      setFWebDpt, setFDpt, setFVote, setFGrup, setFPhone,
+    });
+    setActivePreset(p.key);
+    setShowFilters(true);
   };
 
   // Debounce search
@@ -302,9 +450,10 @@ export default function AdminAlumniPage() {
   // Load data from API — called ONCE on mount, silently on error recovery
   const loadData = useCallback(async () => {
     try {
-      const [alumniRes, formLogRes] = await Promise.all([
+      const [alumniRes, formLogRes, funnelRes] = await Promise.all([
         fetch("/api/alumni"),
         fetch("/api/form-log?limit=1").catch(() => null),
+        fetch("/api/stats/funnel").catch(() => null),
       ]);
       if (alumniRes.ok) {
         const json = await alumniRes.json();
@@ -317,6 +466,10 @@ export default function AdminAlumniPage() {
       if (formLogRes?.ok) {
         const formJson = await formLogRes.json();
         setUnlinkedFormCount(formJson.unlinked_count || 0);
+      }
+      if (funnelRes?.ok) {
+        const fJson = await funnelRes.json();
+        if (fJson?.nextActions) setNextActions(fJson.nextActions);
       }
     } catch {
       showToastRef.current("Gagal memuat data alumni", "error");
@@ -1109,6 +1262,49 @@ export default function AdminAlumniPage() {
           </div>
         )}
 
+        {/* Preset shortcut chips — map funnel gaps → one-tap filters */}
+        {nextActions && (
+          <div className="bg-white rounded-xl border border-border shadow-sm px-4 py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertOctagon className="w-4 h-4 text-[#84303F]" />
+              <h3 className="text-sm font-semibold text-foreground">Tindak Lanjut Cepat</h3>
+              <span className="text-[10px] text-muted-foreground">
+                Klik untuk filter baris yang perlu aksi
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map((p) => {
+                const count =
+                  p.key === "belumKontak" ? nextActions.belumKontak :
+                  p.key === "kontakBelumDukungan" ? nextActions.kontakBelumDukungan :
+                  p.key === "dukungBelumForm" ? nextActions.dukungBelumForm :
+                  p.key === "formBelumWeb" ? nextActions.formBelumWeb :
+                  p.key === "webBelumDpt" ? nextActions.webBelumDpt :
+                  p.key === "dptBelumVote" ? nextActions.dptBelumVote : 0;
+                const isActive = activePreset === p.key;
+                return (
+                  <button
+                    key={p.key}
+                    onClick={() => applyPreset(p)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full border transition-all ${
+                      isActive
+                        ? "bg-[#0B27BC] text-white border-[#0B27BC] shadow-sm"
+                        : p.color + " hover:opacity-80"
+                    }`}
+                  >
+                    <span>{p.label}</span>
+                    <span className={`tabular-nums font-bold ${
+                      isActive ? "bg-white/20 text-white" : "bg-white"
+                    } px-1.5 rounded-full text-[10px]`}>
+                      {formatNum(count)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
           <div className="px-4 py-3 space-y-2">
@@ -1309,10 +1505,13 @@ export default function AdminAlumniPage() {
                                 </button>
                               )}
                             </div>
-                            <p className="text-[10px] text-muted-foreground">
-                              TN {item.angkatan}
-                              {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
-                            </p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-[10px] text-muted-foreground">
+                                TN {item.angkatan}
+                                {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
+                              </p>
+                              <ProgressDots member={member} />
+                            </div>
                             {multiCount > 1 && (
                               <div className="mt-1 space-y-0.5">
                                 {item.members!.map((m, mi) => (
@@ -1412,10 +1611,13 @@ export default function AdminAlumniPage() {
                             </button>
                           )}
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
-                          TN {item.angkatan}
-                          {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-[10px] text-muted-foreground">
+                            TN {item.angkatan}
+                            {item.kelanjutan_studi ? ` · ${item.kelanjutan_studi}` : ""}
+                          </p>
+                          <ProgressDots member={member} />
+                        </div>
                         {multiCount > 1 && (
                           <div className="mt-1 space-y-0.5">
                             {item.members!.map((m, mi) => (

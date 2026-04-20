@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
@@ -27,9 +27,10 @@ import {
   GraduationCap,
   Users,
   RefreshCw,
-  ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  AlertTriangle,
+  Filter as FilterIcon,
 } from "lucide-react";
 import { useRole } from "@/lib/RoleContext";
 import type { Member } from "@/lib/types";
@@ -68,6 +69,69 @@ interface WaGroupStats {
   unlinked: number;
   memberInGroup: Record<string, boolean>;
 }
+
+/* ── Funnel types ───────────────────────────────── */
+
+interface FunnelBucket {
+  total: number;
+  dukung: number;
+  ragu: number;
+  sebelah: number;
+  belum: number;
+}
+
+type FunnelStageKey = "alumni" | "contacted" | "formDpt" | "webDpt" | "dpt" | "vote";
+
+interface FunnelTransition {
+  from: FunnelStageKey;
+  to: FunnelStageKey;
+  fromCount: number;
+  toCount: number;
+  drop: number;
+  dropPct: number;
+}
+
+interface FunnelStats {
+  overall: Record<FunnelStageKey, FunnelBucket>;
+  transitions: FunnelTransition[];
+  leakiest: FunnelTransition;
+  perAngkatan: {
+    angkatan: number;
+    alumni: FunnelBucket;
+    contacted: FunnelBucket;
+    formDpt: FunnelBucket;
+    webDpt: FunnelBucket;
+    dpt: FunnelBucket;
+    vote: FunnelBucket;
+  }[];
+  nextActions: {
+    dukungBelumKontak: number;
+    dukungBelumForm: number;
+    formBelumWeb: number;
+    webBelumDpt: number;
+    dptBelumVote: number;
+    belumKontak: number;
+    kontakBelumDukungan: number;
+  };
+}
+
+const STAGE_LABELS: Record<FunnelStageKey, string> = {
+  alumni: "Alumni",
+  contacted: "Terkontak",
+  formDpt: "Form DPT",
+  webDpt: "Web DPT",
+  dpt: "DPT Resmi",
+  vote: "Vote",
+};
+
+const STAGE_ORDER: FunnelStageKey[] = [
+  "alumni",
+  "contacted",
+  "formDpt",
+  "webDpt",
+  "dpt",
+  "vote",
+];
 
 /* ── Battle Bar (stacked horizontal) ───────────── */
 
@@ -251,6 +315,247 @@ function AngkatanRow({ d }: { d: { angkatan: string; punyaHP: number; kontak: nu
   );
 }
 
+/* ── DPT Funnel ────────────────────────────────── */
+
+function FunnelChart({ stats }: { stats: FunnelStats }) {
+  const max = stats.overall.alumni.total || 1;
+  // Filter out stages with no data (e.g. vote=0 early in campaign) — keep them visible
+  // but render as nearly-empty bar so user can still see the shape of the funnel
+  return (
+    <div className="space-y-2">
+      {STAGE_ORDER.map((key, idx) => {
+        const bucket = stats.overall[key];
+        const pctOfAlumni = (bucket.total / max) * 100;
+        const prev = idx > 0 ? stats.overall[STAGE_ORDER[idx - 1]].total : null;
+        const conv = prev && prev > 0 ? Math.round((bucket.total / prev) * 100) : null;
+
+        // Stacked segments, as percentages of this stage's total
+        const segTotal = bucket.total || 1;
+        const segments = [
+          { key: "dukung", value: bucket.dukung, color: "#10b981" },
+          { key: "ragu", value: bucket.ragu, color: "#eab308" },
+          { key: "sebelah", value: bucket.sebelah, color: "#ef4444" },
+          { key: "belum", value: bucket.belum, color: "#cbd5e1" },
+        ];
+
+        return (
+          <div key={key} className="group">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-foreground w-[76px]">
+                  {STAGE_LABELS[key]}
+                </span>
+                <span className="text-sm font-bold text-[#0B27BC] tabular-nums">
+                  {formatNum(bucket.total)}
+                </span>
+                {conv !== null && (
+                  <span
+                    className={`text-[10px] font-semibold tabular-nums ${
+                      conv >= 70
+                        ? "text-emerald-600"
+                        : conv >= 40
+                        ? "text-yellow-600"
+                        : "text-red-500"
+                    }`}
+                  >
+                    ↓ {conv}%
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-muted-foreground tabular-nums">
+                {Math.round(pctOfAlumni)}% alumni
+              </span>
+            </div>
+            <div
+              className="h-6 rounded-lg bg-gray-100 overflow-hidden flex transition-all"
+              style={{ width: `${Math.max(2, pctOfAlumni)}%` }}
+            >
+              {segments.map((s) => {
+                const segPct = (s.value / segTotal) * 100;
+                if (segPct < 0.5) return null;
+                return (
+                  <div
+                    key={s.key}
+                    className="h-full transition-all duration-700"
+                    style={{ width: `${segPct}%`, backgroundColor: s.color }}
+                    title={`${s.key}: ${formatNum(s.value)} (${Math.round(segPct)}%)`}
+                  />
+                );
+              })}
+            </div>
+            {/* dukungan breakdown line — shown only at contacted stage onward */}
+            {key !== "alumni" && bucket.total > 0 && (
+              <div className="flex items-center gap-3 mt-1 text-[9px] tabular-nums">
+                <span className="text-emerald-600 font-medium">
+                  ● {formatNum(bucket.dukung)}
+                </span>
+                <span className="text-yellow-600 font-medium">
+                  ● {formatNum(bucket.ragu)}
+                </span>
+                <span className="text-red-500 font-medium">
+                  ● {formatNum(bucket.sebelah)}
+                </span>
+                <span className="text-gray-400 font-medium">
+                  ● {formatNum(bucket.belum)}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Leaky Bucket Card ─────────────────────────── */
+
+const LEAK_MESSAGE: Record<FunnelStageKey, string> = {
+  alumni: "alumni",
+  contacted: "terkontak",
+  formDpt: "isi Form DPT",
+  webDpt: "registrasi Web DPT",
+  dpt: "masuk DPT resmi",
+  vote: "vote",
+};
+
+function LeakyCard({ stats }: { stats: FunnelStats }) {
+  const leak = stats.leakiest;
+  if (!leak || leak.drop <= 0) return null;
+
+  const fromLabel = STAGE_LABELS[leak.from];
+  const toLabel = STAGE_LABELS[leak.to];
+
+  const severity =
+    leak.dropPct >= 60
+      ? { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", icon: "text-red-500" }
+      : leak.dropPct >= 30
+      ? { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700", icon: "text-yellow-500" }
+      : { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", icon: "text-emerald-500" };
+
+  return (
+    <div
+      className={`rounded-xl border-2 ${severity.border} ${severity.bg} p-4`}
+    >
+      <div className="flex items-start gap-3">
+        <AlertTriangle className={`w-5 h-5 ${severity.icon} shrink-0 mt-0.5`} />
+        <div className="flex-1 min-w-0">
+          <p className={`text-xs font-semibold uppercase tracking-wider ${severity.text}`}>
+            Tahap Paling Bocor
+          </p>
+          <p className="text-base font-bold text-foreground mt-0.5">
+            {fromLabel} → {toLabel}
+          </p>
+          <p className={`text-sm ${severity.text} mt-1`}>
+            <span className="font-bold">{formatNum(leak.drop)}</span> orang{" "}
+            {LEAK_MESSAGE[leak.from] !== "alumni" ? LEAK_MESSAGE[leak.from] : "alumni"} tapi{" "}
+            <span className="font-semibold">belum</span> {LEAK_MESSAGE[leak.to]} (
+            {Math.round(leak.dropPct)}% drop-off).
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Next Action Buckets ───────────────────────── */
+
+function NextActionStrip({ stats }: { stats: FunnelStats }) {
+  const buckets = [
+    { label: "Belum Kontak", value: stats.nextActions.belumKontak, color: "text-gray-700", bg: "bg-gray-100" },
+    { label: "Kontak, blm Dukungan", value: stats.nextActions.kontakBelumDukungan, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
+    { label: "Dukung, blm Form", value: stats.nextActions.dukungBelumForm, color: "text-emerald-700", bg: "bg-emerald-50" },
+    { label: "Form, blm Web DPT", value: stats.nextActions.formBelumWeb, color: "text-yellow-700", bg: "bg-yellow-50" },
+    { label: "Web, blm DPT resmi", value: stats.nextActions.webBelumDpt, color: "text-orange-700", bg: "bg-orange-50" },
+    { label: "DPT, blm Vote", value: stats.nextActions.dptBelumVote, color: "text-[#84303F]", bg: "bg-[#84303F]/10" },
+  ];
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      {buckets.map((b) => (
+        <div
+          key={b.label}
+          className={`rounded-lg border border-border ${b.bg} p-2.5`}
+        >
+          <p className="text-[10px] text-muted-foreground leading-tight">{b.label}</p>
+          <p className={`text-lg font-bold ${b.color} tabular-nums leading-tight mt-0.5`}>
+            {formatNum(b.value)}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Funnel Heatmap ────────────────────────────── */
+
+function FunnelHeatmap({ stats }: { stats: FunnelStats }) {
+  const rows = stats.perAngkatan;
+  if (rows.length === 0) return null;
+
+  // For each angkatan, compute % of its alumni reaching each stage
+  // Color intensity: 0% = pale gray, 100% = emerald
+  const cellColor = (pct: number) => {
+    if (pct <= 0) return "rgba(203,213,225,0.25)";
+    const clamped = Math.min(100, pct);
+    // gradient: gray → emerald
+    const opacity = 0.15 + (clamped / 100) * 0.75;
+    return `rgba(16,185,129,${opacity.toFixed(2)})`;
+  };
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs border-separate border-spacing-[2px]">
+        <thead>
+          <tr>
+            <th className="text-left px-2 py-1 text-[9px] uppercase tracking-wider text-muted-foreground font-medium sticky left-0 bg-white">
+              TN
+            </th>
+            <th className="text-right px-2 py-1 text-[9px] uppercase tracking-wider text-muted-foreground font-medium">
+              Alumni
+            </th>
+            {STAGE_ORDER.slice(1).map((k) => (
+              <th
+                key={k}
+                className="text-center px-2 py-1 text-[9px] uppercase tracking-wider text-muted-foreground font-medium min-w-[68px]"
+              >
+                {STAGE_LABELS[k]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const base = r.alumni.total || 1;
+            return (
+              <tr key={r.angkatan}>
+                <td className="px-2 py-1 font-bold text-[#0B27BC] text-[11px] tabular-nums sticky left-0 bg-white">
+                  TN{r.angkatan}
+                </td>
+                <td className="px-2 py-1 text-right text-[10px] tabular-nums text-muted-foreground font-medium">
+                  {r.alumni.total}
+                </td>
+                {STAGE_ORDER.slice(1).map((k) => {
+                  const count = r[k as Exclude<FunnelStageKey, "alumni">].total;
+                  const pct = (count / base) * 100;
+                  return (
+                    <td
+                      key={k}
+                      className="px-2 py-1 text-center text-[10px] tabular-nums font-semibold text-foreground rounded"
+                      style={{ backgroundColor: cellColor(pct) }}
+                      title={`${STAGE_LABELS[k]}: ${count}/${r.alumni.total} (${Math.round(pct)}%)`}
+                    >
+                      {Math.round(pct)}%
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* ── Main Dashboard ────────────────────────────── */
 
 export default function Dashboard() {
@@ -271,6 +576,9 @@ export default function Dashboard() {
   const [waGroupLoaded, setWaGroupLoaded] = useState(false);
   const [perBatchStats, setPerBatchStats] = useState<PerBatchStats[]>([]);
   const [perBatchLoaded, setPerBatchLoaded] = useState(false);
+  const [funnelStats, setFunnelStats] = useState<FunnelStats | null>(null);
+  const [funnelLoaded, setFunnelLoaded] = useState(false);
+  const [batchView, setBatchView] = useState<"bar" | "heatmap">("bar");
   const [formDukunganCount, setFormDukunganCount] = useState(0);
   const { loading: roleLoading, role } = useRole();
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
@@ -323,6 +631,11 @@ export default function Dashboard() {
       .then((res) => res.json())
       .catch(() => []);
 
+    // Fetch funnel stats
+    const funnelPromise = fetch("/api/stats/funnel")
+      .then((res) => res.json())
+      .catch(() => null);
+
     // Progressive loading
     membersPromise.then((members) => {
       setData(members);
@@ -339,6 +652,10 @@ export default function Dashboard() {
     perBatchPromise.then((bStats: PerBatchStats[]) => {
       setPerBatchStats(Array.isArray(bStats) ? bStats : []);
       setPerBatchLoaded(true);
+    });
+    funnelPromise.then((f: FunnelStats | null) => {
+      if (f && f.overall) setFunnelStats(f);
+      setFunnelLoaded(true);
     });
 
     // Count distinct members who submitted via /form/dukungan
@@ -594,6 +911,7 @@ export default function Dashboard() {
                   setAlumniLoaded(false);
                   setWaGroupLoaded(false);
                   setPerBatchLoaded(false);
+                  setFunnelLoaded(false);
                   fetchData();
                 }}
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-white/80 hover:text-white transition-colors"
@@ -725,6 +1043,50 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* ═══════ FUNNEL DPT ═══════ */}
+        {funnelLoaded && funnelStats ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Vote className="w-5 h-5 text-[#0B27BC]" />
+                  <h3 className="text-base font-bold text-foreground">
+                    Funnel DPT → Vote
+                  </h3>
+                </div>
+                <div className="hidden sm:flex items-center gap-3">
+                  {[
+                    { color: "bg-emerald-500", label: "Dukung" },
+                    { color: "bg-yellow-400", label: "Ragu" },
+                    { color: "bg-red-500", label: "Sebelah" },
+                    { color: "bg-gray-300", label: "Belum" },
+                  ].map((l) => (
+                    <div key={l.label} className="flex items-center gap-1">
+                      <div className={`w-2 h-2 rounded-full ${l.color}`} />
+                      <span className="text-[9px] text-muted-foreground">{l.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <FunnelChart stats={funnelStats} />
+            </div>
+            <div className="space-y-3">
+              <LeakyCard stats={funnelStats} />
+              <div className="bg-white rounded-xl border border-border shadow-sm p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <FilterIcon className="w-4 h-4 text-[#0B27BC]" />
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Butuh Tindak Lanjut
+                  </h3>
+                </div>
+                <NextActionStrip stats={funnelStats} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <ChartSkeleton title="Funnel DPT → Vote" />
+        )}
+
         {/* ═══════ STATS ROW ═══════ */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {statsCards.map((card) => {
@@ -771,7 +1133,27 @@ export default function Dashboard() {
                 Peta Dukungan per Angkatan
               </h3>
               <div className="flex items-center gap-2">
-                {/* Sort controls */}
+                {/* View toggle: bar ↔ heatmap */}
+                <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
+                  {[
+                    { key: "bar", label: "Bar" },
+                    { key: "heatmap", label: "Funnel Heatmap" },
+                  ].map((v) => (
+                    <button
+                      key={v.key}
+                      onClick={() => setBatchView(v.key as "bar" | "heatmap")}
+                      className={`px-2 py-1 text-[10px] font-medium rounded-md transition-colors ${
+                        batchView === v.key
+                          ? "bg-[#0B27BC] text-white shadow-sm"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Sort controls — only for bar view */}
+                {batchView === "bar" && (
                 <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
                   {[
                     { key: "angkatan", label: "Batch" },
@@ -806,7 +1188,9 @@ export default function Dashboard() {
                     );
                   })}
                 </div>
+                )}
                 {/* Legend */}
+                {batchView === "bar" && (
                 <div className="hidden sm:flex items-center gap-3">
                   {[
                     { color: "bg-emerald-500", label: "Dukung" },
@@ -820,10 +1204,11 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             </div>
 
-            {/* 2-column grid on desktop */}
+            {batchView === "bar" ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6">
               {(() => {
                 const mid = Math.ceil(sortedBattle.length / 2);
@@ -848,6 +1233,13 @@ export default function Dashboard() {
                 ));
               })()}
             </div>
+            ) : funnelStats ? (
+              <FunnelHeatmap stats={funnelStats} />
+            ) : (
+              <div className="flex items-center justify-center h-[200px]">
+                <Loader2 className="w-6 h-6 animate-spin text-gray-300" />
+              </div>
+            )}
           </div>
         ) : (
           <ChartSkeleton title="Peta Dukungan per Angkatan" />
