@@ -150,8 +150,8 @@ interface FunnelStats {
   };
   topBocorAngkatan: {
     angkatan: number;
-    terdata: number;
-    vote: number;
+    pendukung: number;
+    pendukungDpt: number;
     bocor: number;
     bocorPct: number;
   }[];
@@ -839,11 +839,11 @@ function TeamActionPanel({ stats }: { stats: FunnelStats }) {
         })}
       </div>
 
-      {/* Top bocor angkatan — who needs the most attention */}
+      {/* Top bocor angkatan — pendukung belum masuk DPT */}
       {top.length > 0 && (
         <div className="pt-3 border-t border-border">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            TN Paling Perlu Dibantu
+            TN Paling Perlu Dibantu — Pendukung blm DPT
           </p>
           <div className="space-y-1.5">
             {top.map((a, idx) => (
@@ -860,7 +860,7 @@ function TeamActionPanel({ stats }: { stats: FunnelStats }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="text-[10px] text-muted-foreground">
-                      {formatNum(a.vote)}/{formatNum(a.terdata)} vote
+                      {formatNum(a.pendukungDpt)}/{formatNum(a.pendukung)} pendukung di DPT
                     </span>
                     <span className="text-[10px] font-bold text-red-500 tabular-nums">
                       −{formatNum(a.bocor)} ({Math.round(a.bocorPct)}%)

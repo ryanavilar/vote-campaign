@@ -279,18 +279,20 @@ export async function GET() {
       })
       .sort((a, b) => a.angkatan - b.angkatan);
 
-    // Top 3 angkatan by absolute drop — "which batch needs the most attention"
+    // Top 3 angkatan by pendukung-belum-DPT — our own supporters not yet on the
+    // official voter list. This is more actionable than vote-based leakage because
+    // it points the team at supporters we still need to get registered.
     const topBocorAngkatan = [...perAngkatanArr]
-      .filter((x) => x.terdata.total > 0)
+      .map((x) => {
+        const pendukung = x.terdata.dukung;
+        const pendukungDpt = x.dpt.dukung;
+        const bocor = Math.max(0, pendukung - pendukungDpt);
+        const bocorPct = pendukung > 0 ? (bocor / pendukung) * 100 : 0;
+        return { angkatan: x.angkatan, pendukung, pendukungDpt, bocor, bocorPct };
+      })
+      .filter((x) => x.pendukung > 0)
       .sort((a, b) => b.bocor - a.bocor)
-      .slice(0, 3)
-      .map((x) => ({
-        angkatan: x.angkatan,
-        terdata: x.terdata.total,
-        vote: x.vote.total,
-        bocor: x.bocor,
-        bocorPct: x.bocorPct,
-      }));
+      .slice(0, 3);
 
     const totalAlumni = alumniRows.length;
     const totalTerdata = memberRows.length;

@@ -403,8 +403,8 @@ interface FunnelStatsLite {
   };
   topBocorAngkatan: {
     angkatan: number;
-    terdata: number;
-    vote: number;
+    pendukung: number;
+    pendukungDpt: number;
     bocor: number;
     bocorPct: number;
   }[];
@@ -1325,7 +1325,7 @@ export default function AdminAlumniPage() {
                 <div>
                   <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
                     <TrendingDown className="w-3.5 h-3.5 text-red-600" />
-                    Angkatan Paling Bocor (prioritas tim)
+                    Angkatan Paling Bocor — Pendukung blm DPT
                   </p>
                   <div className="space-y-1.5">
                     {funnelStats.topBocorAngkatan.map((b) => (
@@ -1333,7 +1333,7 @@ export default function AdminAlumniPage() {
                         <span className="text-sm font-bold text-[#0B27BC] w-10">A{b.angkatan}</span>
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-0.5">
-                            <span className="text-[10px] text-muted-foreground">{formatNum(b.terdata)} terdata → {formatNum(b.vote)} vote</span>
+                            <span className="text-[10px] text-muted-foreground">{formatNum(b.pendukungDpt)}/{formatNum(b.pendukung)} pendukung di DPT</span>
                             <span className="text-[10px] font-semibold text-red-700">−{formatNum(b.bocor)} ({b.bocorPct.toFixed(0)}%)</span>
                           </div>
                           <div className="h-1.5 bg-white rounded-full overflow-hidden">
