@@ -528,22 +528,25 @@ function LeakyCard({ stats }: { stats: FunnelStats }) {
 
 function NextActionStrip({ stats }: { stats: FunnelStats }) {
   const buckets = [
-    { label: "Belum Kontak", value: stats.nextActions.belumKontak, color: "text-gray-700", bg: "bg-gray-100" },
-    { label: "Kontak, blm Dukungan", value: stats.nextActions.kontakBelumDukungan, color: "text-[#0B27BC]", bg: "bg-[#0B27BC]/10" },
-    { label: "Dukung, blm Form", value: stats.nextActions.dukungBelumForm, color: "text-emerald-700", bg: "bg-emerald-50" },
-    { label: "Form, blm Web DPT", value: stats.nextActions.formBelumWeb, color: "text-yellow-700", bg: "bg-yellow-50" },
-    { label: "Web, blm DPT resmi", value: stats.nextActions.webBelumDpt, color: "text-orange-700", bg: "bg-orange-50" },
-    { label: "DPT, blm Vote", value: stats.nextActions.dptBelumVote, color: "text-[#84303F]", bg: "bg-[#84303F]/10" },
+    { label: "Belum Kontak", value: stats.nextActions.belumKontak, color: "text-gray-700", dot: "bg-gray-400" },
+    { label: "Kontak, blm Dukungan", value: stats.nextActions.kontakBelumDukungan, color: "text-[#0B27BC]", dot: "bg-[#0B27BC]" },
+    { label: "Dukung, blm Form", value: stats.nextActions.dukungBelumForm, color: "text-emerald-700", dot: "bg-emerald-500" },
+    { label: "Form, blm Web DPT", value: stats.nextActions.formBelumWeb, color: "text-yellow-700", dot: "bg-yellow-500" },
+    { label: "Web, blm DPT resmi", value: stats.nextActions.webBelumDpt, color: "text-orange-700", dot: "bg-orange-500" },
+    { label: "DPT, blm Vote", value: stats.nextActions.dptBelumVote, color: "text-[#84303F]", dot: "bg-[#84303F]" },
   ];
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+    <div className="divide-y divide-border">
       {buckets.map((b) => (
         <div
           key={b.label}
-          className={`rounded-lg border border-border ${b.bg} p-2.5`}
+          className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
         >
-          <p className="text-[10px] text-muted-foreground leading-tight">{b.label}</p>
-          <p className={`text-lg font-bold ${b.color} tabular-nums leading-tight mt-0.5`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={`w-1.5 h-1.5 rounded-full ${b.dot} flex-shrink-0`} />
+            <p className="text-xs text-muted-foreground truncate">{b.label}</p>
+          </div>
+          <p className={`text-sm font-bold ${b.color} tabular-nums flex-shrink-0`}>
             {formatNum(b.value)}
           </p>
         </div>
