@@ -45,3 +45,9 @@ yarn-error.log*
 next-env.d.ts
 mcp/node_modules/
 mcp/.env.local
+.env*.local
+
+# source data — PII (alumni NOSIS / names), jangan push
+*.xlsx
+*.pdf
+scripts/_*
