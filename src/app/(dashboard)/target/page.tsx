@@ -1075,15 +1075,30 @@ export default function TargetPage() {
               </div>
             ))}
           </div>
-          <div className="flex items-center gap-3 mt-2 pt-2 border-t border-border/50 px-1">
-            <span className="text-[10px] text-muted-foreground">Dukungan:</span>
-            <span className="text-[11px] font-semibold text-emerald-600 tabular-nums">
-              ● {formatNum(stats.dukung)} Dukung
-            </span>
-            <span className="text-[11px] font-semibold text-[#84303F] tabular-nums">
-              <UsersIcon className="inline w-3 h-3 mr-0.5" />
-              {formatNum(stats.grup)} Grup
-            </span>
+          <div className="mt-2 pt-2 border-t border-border/50 px-1 space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] text-muted-foreground">Dukungan:</span>
+              <span className="text-[11px] font-semibold text-emerald-600 tabular-nums flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                {formatNum(stats.dukung)} Dukung
+              </span>
+              <span className="text-[11px] font-semibold text-yellow-600 tabular-nums flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                {formatNum(stats.ragu)} Ragu
+              </span>
+              <span className="text-[11px] font-semibold text-red-600 tabular-nums flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                {formatNum(stats.sebelah)} Sebelah
+              </span>
+              <span className="text-[11px] font-semibold text-gray-500 tabular-nums flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                {formatNum(Math.max(0, stats.total - stats.kontak))} Blm di-approach
+              </span>
+              <span className="text-[11px] font-semibold text-[#84303F] tabular-nums ml-auto">
+                <UsersIcon className="inline w-3 h-3 mr-0.5" />
+                {formatNum(stats.grup)} Grup WA
+              </span>
+            </div>
           </div>
         </div>
 
