@@ -1092,7 +1092,7 @@ export default function TargetPage() {
               </span>
               <span className="text-[11px] font-semibold text-gray-500 tabular-nums flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                {formatNum(Math.max(0, stats.total - stats.kontak))} Blm di-approach
+                {formatNum(stats.belumTahu)} Blm di-approach
               </span>
               <span className="text-[11px] font-semibold text-[#84303F] tabular-nums ml-auto">
                 <UsersIcon className="inline w-3 h-3 mr-0.5" />
