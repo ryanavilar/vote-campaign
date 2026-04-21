@@ -58,6 +58,14 @@ const SOURCES = [
     phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
     filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
   },
+  {
+    ang: 23,
+    file: "tn23-formdpt.xlsx",
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
 ];
 
 function normNosis(s) {
