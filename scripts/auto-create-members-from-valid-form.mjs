@@ -24,7 +24,23 @@ const SOURCES = [
     sheet: "COPY FORM",
     nosisCol: "NOSIS",
     phoneCol: null,
-    validCol: "Validate",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    ang: 17,
+    file: "tn17-formdpt.xlsx",
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    ang: 18,
+    file: "tn18-formdpt.xlsx",
+    sheet: "Sheet1",
+    nosisCol: "Nosis",
+    phoneCol: null,
+    filter: () => true,
   },
   {
     ang: 20,
@@ -32,9 +48,23 @@ const SOURCES = [
     sheet: "Form responses 1",
     nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
     phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
-    validCol: "Validate",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    ang: 21,
+    file: "tn21-formdpt.xlsx",
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
   },
 ];
+
+function normNosis(s) {
+  const digits = String(s ?? "").replace(/\D+/g, "");
+  if (!digits) return "";
+  return digits.length < 6 ? digits.padStart(6, "0") : digits;
+}
 
 function normPhone(p) {
   if (!p) return null;
@@ -63,20 +93,22 @@ for (const src of SOURCES) {
   console.log(`=== TN${src.ang} ===`);
   const wb = XLSX.read(readFileSync(src.file), { type: "buffer" });
   const rows = XLSX.utils.sheet_to_json(wb.Sheets[src.sheet], { defval: null, raw: false });
-  const valid = rows.filter((r) => String(r[src.validCol] || "").trim().toLowerCase() === "valid");
+  const valid = rows.filter(src.filter);
 
   // Map NOSIS → phone (first occurrence)
   const phoneByNosis = new Map();
+  const nosisSet = new Set();
   for (const r of valid) {
-    const n = String(r[src.nosisCol] || "").replace(/\s+/g, "").trim();
+    const n = normNosis(r[src.nosisCol]);
     if (!n) continue;
+    nosisSet.add(n);
     if (src.phoneCol) {
       const p = normPhone(r[src.phoneCol]);
       if (p && !phoneByNosis.has(n)) phoneByNosis.set(n, p);
     }
   }
 
-  const nosisList = [...phoneByNosis.keys()].length > 0 ? [...phoneByNosis.keys()] : [...new Set(valid.map((r) => String(r[src.nosisCol] || "").replace(/\s+/g, "").trim()).filter(Boolean))];
+  const nosisList = [...nosisSet];
 
   const { data: alumni } = await supabase
     .from("alumni")

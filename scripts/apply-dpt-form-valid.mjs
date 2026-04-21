@@ -38,8 +38,32 @@ const SOURCES = [
     filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
   },
   {
+    file: "tn17-formdpt.xlsx",
+    ang: 17,
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    nameCol: "Nama Lengkap",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    file: "tn18-formdpt.xlsx",
+    ang: 18,
+    sheet: "Sheet1",
+    nosisCol: "Nosis",
+    nameCol: "Nama Lengkap",
+    filter: () => true,
+  },
+  {
     file: "tn20-formdpt.xlsx",
     ang: 20,
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    nameCol: "Nama Lengkap",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    file: "tn21-formdpt.xlsx",
+    ang: 21,
     sheet: "Form responses 1",
     nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
     nameCol: "Nama Lengkap",
@@ -48,7 +72,9 @@ const SOURCES = [
 ];
 
 function normNosis(s) {
-  return String(s ?? "").replace(/\s+/g, "").trim();
+  const digits = String(s ?? "").replace(/\D+/g, "");
+  if (!digits) return "";
+  return digits.length < 6 ? digits.padStart(6, "0") : digits;
 }
 
 async function processSource(src) {
