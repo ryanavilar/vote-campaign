@@ -1397,11 +1397,11 @@ export default function AdminAlumniPage() {
                         <tr className="text-[10px] text-muted-foreground border-b border-border">
                           <th className="text-left py-1 pr-2">Ang</th>
                           <th className="text-right py-1 px-1">Alumni</th>
+                          <th className="text-right py-1 px-1">Dukung</th>
                           <th className="text-right py-1 px-1">Form DPT</th>
                           <th className="text-right py-1 px-1">Web DPT</th>
                           <th className="text-right py-1 px-1">DPT</th>
-                          <th className="text-right py-1 px-1">Vote</th>
-                          <th className="text-right py-1 pl-1">Dukung</th>
+                          <th className="text-right py-1 pl-1">Vote</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1409,11 +1409,11 @@ export default function AdminAlumniPage() {
                           <tr key={r.angkatan} className="border-b border-border/50 hover:bg-gray-50">
                             <td className="py-1 pr-2 font-semibold text-[#0B27BC]">A{r.angkatan}</td>
                             <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.alumniTotal)}</td>
+                            <td className="py-1 px-1 text-right font-semibold text-[#84303F]">{formatNum(r.terdata.dukung)}</td>
                             <td className="py-1 px-1 text-right">{formatNum(r.formDpt.total)}</td>
                             <td className="py-1 px-1 text-right">{formatNum(r.webDpt.total)}</td>
                             <td className="py-1 px-1 text-right">{formatNum(r.dpt.total)}</td>
-                            <td className="py-1 px-1 text-right font-semibold text-emerald-700">{formatNum(r.vote.total)}</td>
-                            <td className="py-1 pl-1 text-right font-semibold text-[#84303F]">{formatNum(r.terdata.dukung)}</td>
+                            <td className="py-1 pl-1 text-right font-semibold text-emerald-700">{formatNum(r.vote.total)}</td>
                           </tr>
                         ))}
                       </tbody>
