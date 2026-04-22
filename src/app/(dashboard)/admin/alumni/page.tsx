@@ -417,7 +417,7 @@ interface FunnelStatsLite {
     contacted: { total: number };
     formDpt: { total: number };
     webDpt: { total: number };
-    dpt: { total: number };
+    dpt: { total: number; dukung: number };
     vote: { total: number };
     bocorPct: number;
     coveragePct: number;
@@ -1389,7 +1389,7 @@ export default function AdminAlumniPage() {
                 <div>
                   <p className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
                     <Vote className="w-3.5 h-3.5 text-[#0B27BC]" />
-                    Per Angkatan — Terdata vs Vote
+                    Per Angkatan — Funnel DPT
                   </p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
@@ -1401,7 +1401,7 @@ export default function AdminAlumniPage() {
                           <th className="text-right py-1 px-1 bg-white">Form DPT</th>
                           <th className="text-right py-1 px-1 bg-white">Web DPT</th>
                           <th className="text-right py-1 px-1 bg-white">DPT</th>
-                          <th className="text-right py-1 pl-1 bg-white">Vote</th>
+                          <th className="text-right py-1 pl-1 bg-white">DPT+Dukung</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1413,7 +1413,7 @@ export default function AdminAlumniPage() {
                             <td className="py-1 px-1 text-right">{formatNum(r.formDpt.total)}</td>
                             <td className="py-1 px-1 text-right">{formatNum(r.webDpt.total)}</td>
                             <td className="py-1 px-1 text-right">{formatNum(r.dpt.total)}</td>
-                            <td className="py-1 pl-1 text-right font-semibold text-emerald-700">{formatNum(r.vote.total)}</td>
+                            <td className="py-1 pl-1 text-right font-semibold text-emerald-700">{formatNum(r.dpt.dukung)}</td>
                           </tr>
                         ))}
                       </tbody>
