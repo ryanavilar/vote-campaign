@@ -77,6 +77,46 @@ const SOURCES = [
     nameCol: "Nama Lengkap",
     filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
   },
+  {
+    file: "tn26-formdpt.xlsx",
+    ang: 26,
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    nameCol: "Nama Lengkap",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    file: "tn27-formdpt.xlsx",
+    ang: 27,
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    nameCol: "Nama Lengkap",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    file: "tn30-formdpt.xlsx",
+    ang: 30,
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    nameCol: "Nama Lengkap",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    file: "tn31-formdpt.xlsx",
+    ang: 31,
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    nameCol: "Nama Lengkap",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    file: "tn32-formdpt.xlsx",
+    ang: 32,
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    nameCol: "Nama Lengkap",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
 ];
 
 function normNosis(s) {

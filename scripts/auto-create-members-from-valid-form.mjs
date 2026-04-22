@@ -66,6 +66,46 @@ const SOURCES = [
     phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
     filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
   },
+  {
+    ang: 26,
+    file: "tn26-formdpt.xlsx",
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    ang: 27,
+    file: "tn27-formdpt.xlsx",
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    ang: 30,
+    file: "tn30-formdpt.xlsx",
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    ang: 31,
+    file: "tn31-formdpt.xlsx",
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
+    ang: 32,
+    file: "tn32-formdpt.xlsx",
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    phoneCol: "Nomor WhatsApp yang terdaftar di Grup Angkatan",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
 ];
 
 function normNosis(s) {
