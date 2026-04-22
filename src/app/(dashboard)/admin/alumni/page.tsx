@@ -413,7 +413,7 @@ interface FunnelStatsLite {
   perAngkatan: {
     angkatan: number;
     alumniTotal: number;
-    terdata: { total: number };
+    terdata: { total: number; dukung: number };
     contacted: { total: number };
     formDpt: { total: number };
     webDpt: { total: number };
@@ -1401,7 +1401,7 @@ export default function AdminAlumniPage() {
                           <th className="text-right py-1 px-1">Web DPT</th>
                           <th className="text-right py-1 px-1">DPT</th>
                           <th className="text-right py-1 px-1">Vote</th>
-                          <th className="text-right py-1 pl-1">Cakupan</th>
+                          <th className="text-right py-1 pl-1">Dukung</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1413,11 +1413,7 @@ export default function AdminAlumniPage() {
                             <td className="py-1 px-1 text-right">{formatNum(r.webDpt.total)}</td>
                             <td className="py-1 px-1 text-right">{formatNum(r.dpt.total)}</td>
                             <td className="py-1 px-1 text-right font-semibold text-emerald-700">{formatNum(r.vote.total)}</td>
-                            <td className="py-1 pl-1 text-right">
-                              <span className={`text-[10px] font-medium ${r.coveragePct >= 80 ? "text-emerald-700" : r.coveragePct >= 50 ? "text-yellow-700" : "text-red-700"}`}>
-                                {r.coveragePct.toFixed(0)}%
-                              </span>
-                            </td>
+                            <td className="py-1 pl-1 text-right font-semibold text-[#84303F]">{formatNum(r.terdata.dukung)}</td>
                           </tr>
                         ))}
                       </tbody>
