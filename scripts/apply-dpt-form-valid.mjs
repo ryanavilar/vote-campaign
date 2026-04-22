@@ -117,6 +117,14 @@ const SOURCES = [
     nameCol: "Nama Lengkap",
     filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
   },
+  {
+    file: "tn33-formdpt.xlsx",
+    ang: 33,
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    nameCol: "Nama Lengkap",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
 ];
 
 function normNosis(s) {
