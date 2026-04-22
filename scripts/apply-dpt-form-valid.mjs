@@ -70,6 +70,14 @@ const SOURCES = [
     filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
   },
   {
+    file: "tn22-formdpt.xlsx",
+    ang: 22,
+    sheet: "Form responses 1",
+    nosisCol: "NOSIS (penulisan tanpa spasi e.g: 999999)",
+    nameCol: "Nama Lengkap",
+    filter: (r) => String(r.Validate || "").trim().toLowerCase() === "valid",
+  },
+  {
     file: "tn23-formdpt.xlsx",
     ang: 23,
     sheet: "Form responses 1",
