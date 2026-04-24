@@ -465,6 +465,8 @@ export default function AdminAlumniPage() {
   const [funnelStats, setFunnelStats] = useState<FunnelStatsLite | null>(null);
   const [activePreset, setActivePreset] = useState<PresetKey | null>(null);
   const [dashboardMode, setDashboardMode] = useState(false);
+  const [targetDukung, setTargetDukung] = useState<Record<number, number>>({});
+  const [targetGroups, setTargetGroups] = useState<{ A1_A5?: number; A6_A12?: number }>({});
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -515,6 +517,24 @@ export default function AdminAlumniPage() {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(t);
   }, [searchQuery]);
+
+  // Load angkatan dukung targets from Supabase
+  useEffect(() => {
+    fetch("/api/angkatan-targets")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j?.value) return;
+        const per = j.value.per_angkatan || {};
+        const numMap: Record<number, number> = {};
+        for (const [k, v] of Object.entries(per)) {
+          const n = Number(k);
+          if (!isNaN(n) && typeof v === "number") numMap[n] = v;
+        }
+        setTargetDukung(numMap);
+        setTargetGroups(j.value.groups || {});
+      })
+      .catch(() => { /* silent */ });
+  }, []);
 
   // Reset page when any filter changes
   useEffect(() => {
@@ -666,7 +686,7 @@ export default function AdminAlumniPage() {
     if (fKontak !== "all") {
       result = result.filter((item) => {
         const val = item.members?.[0]?.sudah_dikontak || null;
-        if (fKontak === "empty") return val === null;
+        if (fKontak === "Belum") return val === null || val === "Belum";
         return val === fKontak;
       });
     }
@@ -690,7 +710,7 @@ export default function AdminAlumniPage() {
     if (fDpt !== "all") {
       result = result.filter((item) => {
         const val = item.members?.[0]?.status_dpt || null;
-        if (fDpt === "empty") return val === null;
+        if (fDpt === "Belum") return val === null || val === "Belum";
         return val === fDpt;
       });
     }
@@ -698,7 +718,7 @@ export default function AdminAlumniPage() {
     if (fFormDpt !== "all") {
       result = result.filter((item) => {
         const val = item.members?.[0]?.isi_form_dpt || null;
-        if (fFormDpt === "empty") return val === null;
+        if (fFormDpt === "Belum") return val === null || val === "Belum";
         return val === fFormDpt;
       });
     }
@@ -706,7 +726,7 @@ export default function AdminAlumniPage() {
     if (fWebDpt !== "all") {
       result = result.filter((item) => {
         const val = item.members?.[0]?.registrasi_website_dpt || null;
-        if (fWebDpt === "empty") return val === null;
+        if (fWebDpt === "Belum") return val === null || val === "Belum";
         return val === fWebDpt;
       });
     }
@@ -714,7 +734,7 @@ export default function AdminAlumniPage() {
     if (fVote !== "all") {
       result = result.filter((item) => {
         const val = item.members?.[0]?.vote || null;
-        if (fVote === "empty") return val === null;
+        if (fVote === "Belum") return val === null || val === "Belum";
         return val === fVote;
       });
     }
@@ -1409,14 +1429,69 @@ export default function AdminAlumniPage() {
                           <tr key={r.angkatan} className="border-b border-border/50 hover:bg-gray-50">
                             <td className="py-1 pr-2 font-semibold text-[#0B27BC]">A{r.angkatan}</td>
                             <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.alumniTotal)}</td>
-                            <td className="py-1 px-1 text-right font-semibold text-[#84303F]">{formatNum(r.terdata.dukung)}</td>
+                            <td className="py-1 px-1 text-right font-semibold text-[#84303F]">
+                              {formatNum(r.terdata.dukung)}
+                              {targetDukung[r.angkatan] ? (
+                                <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                                  / {targetDukung[r.angkatan]} ({Math.round((r.terdata.dukung / targetDukung[r.angkatan]) * 100)}%)
+                                </span>
+                              ) : null}
+                            </td>
                             <td className="py-1 px-1 text-right">{formatNum(r.formDpt.total)}</td>
                             <td className="py-1 px-1 text-right">{formatNum(r.webDpt.total)}</td>
                             <td className="py-1 px-1 text-right">{formatNum(r.dpt.total)}</td>
-                            <td className="py-1 pl-1 text-right font-semibold text-emerald-700">{formatNum(r.dpt.dukung)}</td>
+                            <td className="py-1 pl-1 text-right font-semibold text-emerald-700">
+                              {formatNum(r.dpt.dukung)}
+                              {r.terdata.dukung > 0 && (
+                                <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                                  ({Math.round((r.dpt.dukung / r.terdata.dukung) * 100)}%)
+                                </span>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
+                      <tfoot className="sticky bottom-0 z-10 bg-white">
+                        <tr className="border-t-2 border-border font-semibold">
+                          <td className="py-1 pr-2 text-[#0B27BC]">Total</td>
+                          <td className="py-1 px-1 text-right text-muted-foreground">
+                            {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.alumniTotal, 0))}
+                          </td>
+                          <td className="py-1 px-1 text-right text-[#84303F]">
+                            {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.terdata.dukung, 0))}
+                            {(() => {
+                              const d = funnelStats.perAngkatan.reduce((s, r) => s + r.terdata.dukung, 0);
+                              const t = Object.values(targetDukung).reduce((s, v) => s + v, 0) + (targetGroups.A6_A12 ?? 0) + (targetGroups.A1_A5 ?? 0);
+                              return (
+                                <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                                  / {formatNum(t)} ({Math.round((d / t) * 100)}%)
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="py-1 px-1 text-right">
+                            {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.formDpt.total, 0))}
+                          </td>
+                          <td className="py-1 px-1 text-right">
+                            {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.webDpt.total, 0))}
+                          </td>
+                          <td className="py-1 px-1 text-right">
+                            {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.dpt.total, 0))}
+                          </td>
+                          <td className="py-1 pl-1 text-right text-emerald-700">
+                            {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.dpt.dukung, 0))}
+                            {(() => {
+                              const d = funnelStats.perAngkatan.reduce((s, r) => s + r.dpt.dukung, 0);
+                              const t = funnelStats.perAngkatan.reduce((s, r) => s + r.terdata.dukung, 0);
+                              return t > 0 ? (
+                                <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                                  ({Math.round((d / t) * 100)}%)
+                                </span>
+                              ) : null;
+                            })()}
+                          </td>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                 </div>
@@ -1704,7 +1779,7 @@ export default function AdminAlumniPage() {
                   <div>
                     <label className="text-[10px] text-gray-400 mb-0.5 block">Kontak</label>
                     <select value={fKontak} onChange={(e) => setFKontak(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
-                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option>
                     </select>
                   </div>
                   <div>
@@ -1722,25 +1797,25 @@ export default function AdminAlumniPage() {
                   <div>
                     <label className="text-[10px] text-gray-400 mb-0.5 block">Form DPT</label>
                     <select value={fFormDpt} onChange={(e) => setFFormDpt(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
-                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option>
                     </select>
                   </div>
                   <div>
                     <label className="text-[10px] text-gray-400 mb-0.5 block">Web DPT</label>
                     <select value={fWebDpt} onChange={(e) => setFWebDpt(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
-                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option>
                     </select>
                   </div>
                   <div>
                     <label className="text-[10px] text-gray-400 mb-0.5 block">DPT</label>
                     <select value={fDpt} onChange={(e) => setFDpt(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
-                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option>
                     </select>
                   </div>
                   <div>
                     <label className="text-[10px] text-gray-400 mb-0.5 block">Vote</label>
                     <select value={fVote} onChange={(e) => setFVote(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
-                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option><option value="empty">Kosong</option>
+                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option>
                     </select>
                   </div>
                 </div>

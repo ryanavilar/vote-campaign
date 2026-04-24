@@ -547,7 +547,7 @@ export default function TargetPage() {
 
       // Per-column filters
       if (fKontak !== "all") {
-        if (fKontak === "empty") { if (t.sudah_dikontak !== null) return false; }
+        if (fKontak === "Belum") { if (t.sudah_dikontak !== null && t.sudah_dikontak !== "Belum") return false; }
         else if (t.sudah_dikontak !== fKontak) return false;
       }
       if (fDukungan !== "all") {
@@ -559,19 +559,19 @@ export default function TargetPage() {
         if (t.masuk_grup !== fGrup) return false;
       }
       if (fDpt !== "all") {
-        if (fDpt === "empty") { if (t.status_dpt !== null) return false; }
+        if (fDpt === "Belum") { if (t.status_dpt !== null && t.status_dpt !== "Belum") return false; }
         else if (t.status_dpt !== fDpt) return false;
       }
       if (fFormDpt !== "all") {
-        if (fFormDpt === "empty") { if (t.isi_form_dpt !== null) return false; }
+        if (fFormDpt === "Belum") { if (t.isi_form_dpt !== null && t.isi_form_dpt !== "Belum") return false; }
         else if (t.isi_form_dpt !== fFormDpt) return false;
       }
       if (fWebDpt !== "all") {
-        if (fWebDpt === "empty") { if (t.registrasi_website_dpt !== null) return false; }
+        if (fWebDpt === "Belum") { if (t.registrasi_website_dpt !== null && t.registrasi_website_dpt !== "Belum") return false; }
         else if (t.registrasi_website_dpt !== fWebDpt) return false;
       }
       if (fVote !== "all") {
-        if (fVote === "empty") { if (t.vote !== null) return false; }
+        if (fVote === "Belum") { if (t.vote !== null && t.vote !== "Belum") return false; }
         else if (t.vote !== fVote) return false;
       }
       if (fPhone !== "all") {
@@ -687,7 +687,7 @@ export default function TargetPage() {
       milih_sebelah: "Sebelah",
       terkonvert: "Convert",
     };
-    const rows = allTargets.map((t) => ({
+    const rows = filtered.map((t) => ({
       No: t.no || "",
       NOSIS: t.alumni_nosis || "",
       Nama: t.nama,
@@ -760,7 +760,7 @@ export default function TargetPage() {
               </button>
               <button
                 onClick={exportExcel}
-                disabled={allTargets.length === 0}
+                disabled={filtered.length === 0}
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#0B27BC] bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -1232,7 +1232,6 @@ export default function TargetPage() {
                       <option value="all">Semua</option>
                       <option value="Sudah">Sudah</option>
                       <option value="Belum">Belum</option>
-                      <option value="empty">Kosong</option>
                     </select>
                   </div>
                   {/* Dukungan */}
@@ -1276,7 +1275,6 @@ export default function TargetPage() {
                       <option value="all">Semua</option>
                       <option value="Sudah">Sudah</option>
                       <option value="Belum">Belum</option>
-                      <option value="empty">Kosong</option>
                     </select>
                   </div>
                   {/* Web DPT */}
@@ -1290,7 +1288,6 @@ export default function TargetPage() {
                       <option value="all">Semua</option>
                       <option value="Sudah">Sudah</option>
                       <option value="Belum">Belum</option>
-                      <option value="empty">Kosong</option>
                     </select>
                   </div>
                   {/* DPT */}
@@ -1304,7 +1301,6 @@ export default function TargetPage() {
                       <option value="all">Semua</option>
                       <option value="Sudah">Sudah</option>
                       <option value="Belum">Belum</option>
-                      <option value="empty">Kosong</option>
                     </select>
                   </div>
                   {/* Vote */}
@@ -1318,7 +1314,6 @@ export default function TargetPage() {
                       <option value="all">Semua</option>
                       <option value="Sudah">Sudah</option>
                       <option value="Belum">Belum</option>
-                      <option value="empty">Kosong</option>
                     </select>
                   </div>
                 </div>
