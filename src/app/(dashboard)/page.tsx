@@ -938,7 +938,26 @@ export default function Dashboard() {
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "batch">("overview");
   const [chartSort, setChartSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "angkatan", dir: "asc" });
+  const [targetDukung, setTargetDukung] = useState<Record<number, number>>({});
+  const [targetGroups, setTargetGroups] = useState<{ A1_A5?: number; A6_A12?: number }>({});
   const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/angkatan-targets")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j?.value) return;
+        const per = j.value.per_angkatan || {};
+        const numMap: Record<number, number> = {};
+        for (const [k, v] of Object.entries(per)) {
+          const n = Number(k);
+          if (!isNaN(n) && typeof v === "number") numMap[n] = v;
+        }
+        setTargetDukung(numMap);
+        setTargetGroups(j.value.groups || {});
+      })
+      .catch(() => { /* silent */ });
+  }, []);
 
   // Redirect campaigner to their target page
   useEffect(() => {
@@ -1619,6 +1638,99 @@ export default function Dashboard() {
           </div>
         ) : (
           <ChartSkeleton title="Peta Dukungan per Angkatan" />
+        )}
+
+        {/* ═══════ PER ANGKATAN — FUNNEL DPT ═══════ */}
+        {funnelLoaded && funnelStats && funnelStats.perAngkatan.length > 0 && (
+          <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
+            <h3 className="font-semibold text-foreground mb-3 flex items-center gap-1.5">
+              <Vote className="w-4 h-4 text-[#0B27BC]" />
+              Per Angkatan — Funnel DPT
+            </h3>
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 z-10 bg-white">
+                  <tr className="text-[10px] text-muted-foreground border-b border-border">
+                    <th className="text-left py-1 pr-2 bg-white">Ang</th>
+                    <th className="text-right py-1 px-1 bg-white">Alumni</th>
+                    <th className="text-right py-1 px-1 bg-white">Dukung</th>
+                    <th className="text-right py-1 px-1 bg-white">Form DPT</th>
+                    <th className="text-right py-1 px-1 bg-white">Web DPT</th>
+                    <th className="text-right py-1 px-1 bg-white">DPT</th>
+                    <th className="text-right py-1 pl-1 bg-white">DPT+Dukung</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {funnelStats.perAngkatan.map((r) => (
+                    <tr key={r.angkatan} className="border-b border-border/50 hover:bg-gray-50">
+                      <td className="py-1 pr-2 font-semibold text-[#0B27BC]">A{r.angkatan}</td>
+                      <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.alumniTotal)}</td>
+                      <td className="py-1 px-1 text-right font-semibold text-[#84303F]">
+                        {formatNum(r.terdata.dukung)}
+                        {targetDukung[r.angkatan] ? (
+                          <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                            / {targetDukung[r.angkatan]} ({Math.round((r.terdata.dukung / targetDukung[r.angkatan]) * 100)}%)
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="py-1 px-1 text-right">{formatNum(r.formDpt.total)}</td>
+                      <td className="py-1 px-1 text-right">{formatNum(r.webDpt.total)}</td>
+                      <td className="py-1 px-1 text-right">{formatNum(r.dpt.total)}</td>
+                      <td className="py-1 pl-1 text-right font-semibold text-emerald-700">
+                        {formatNum(r.dpt.dukung)}
+                        {r.terdata.dukung > 0 && (
+                          <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                            ({Math.round((r.dpt.dukung / r.terdata.dukung) * 100)}%)
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="sticky bottom-0 z-10 bg-white">
+                  <tr className="border-t-2 border-border font-semibold">
+                    <td className="py-1 pr-2 text-[#0B27BC]">Total</td>
+                    <td className="py-1 px-1 text-right text-muted-foreground">
+                      {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.alumniTotal, 0))}
+                    </td>
+                    <td className="py-1 px-1 text-right text-[#84303F]">
+                      {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.terdata.dukung, 0))}
+                      {(() => {
+                        const d = funnelStats.perAngkatan.reduce((s, r) => s + r.terdata.dukung, 0);
+                        const t = Object.values(targetDukung).reduce((s, v) => s + v, 0) + (targetGroups.A6_A12 ?? 0) + (targetGroups.A1_A5 ?? 0);
+                        return t > 0 ? (
+                          <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                            / {formatNum(t)} ({Math.round((d / t) * 100)}%)
+                          </span>
+                        ) : null;
+                      })()}
+                    </td>
+                    <td className="py-1 px-1 text-right">
+                      {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.formDpt.total, 0))}
+                    </td>
+                    <td className="py-1 px-1 text-right">
+                      {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.webDpt.total, 0))}
+                    </td>
+                    <td className="py-1 px-1 text-right">
+                      {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.dpt.total, 0))}
+                    </td>
+                    <td className="py-1 pl-1 text-right text-emerald-700">
+                      {formatNum(funnelStats.perAngkatan.reduce((s, r) => s + r.dpt.dukung, 0))}
+                      {(() => {
+                        const d = funnelStats.perAngkatan.reduce((s, r) => s + r.dpt.dukung, 0);
+                        const t = funnelStats.perAngkatan.reduce((s, r) => s + r.terdata.dukung, 0);
+                        return t > 0 ? (
+                          <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                            ({Math.round((d / t) * 100)}%)
+                          </span>
+                        ) : null;
+                      })()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
         )}
 
         {/* ═══════ PROGRESS DONUTS — OWN ROW ═══════ */}
