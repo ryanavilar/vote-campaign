@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { toPng } from "html-to-image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
@@ -940,6 +941,41 @@ export default function Dashboard() {
   const [chartSort, setChartSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "angkatan", dir: "asc" });
   const [targetDukung, setTargetDukung] = useState<Record<number, number>>({});
   const [targetGroups, setTargetGroups] = useState<{ A1_A5?: number; A6_A12?: number }>({});
+  const funnelTableRef = useRef<HTMLDivElement>(null);
+  const [downloadingFunnel, setDownloadingFunnel] = useState(false);
+
+  const downloadFunnelImage = async () => {
+    const node = funnelTableRef.current;
+    if (!node) return;
+    setDownloadingFunnel(true);
+    // Temporarily expand the scroll container so the full table is captured.
+    const scrollers = node.querySelectorAll<HTMLElement>(".overflow-y-auto");
+    const prevStyles: { el: HTMLElement; maxHeight: string; overflow: string }[] = [];
+    scrollers.forEach((el) => {
+      prevStyles.push({ el, maxHeight: el.style.maxHeight, overflow: el.style.overflowY });
+      el.style.maxHeight = "none";
+      el.style.overflowY = "visible";
+    });
+    try {
+      const dataUrl = await toPng(node, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2,
+        filter: (n) => !(n instanceof HTMLElement && n.dataset.htmlToImageIgnore !== undefined),
+      });
+      const link = document.createElement("a");
+      link.download = `funnel-dpt-${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (e) {
+      console.error("download failed", e);
+    } finally {
+      prevStyles.forEach(({ el, maxHeight, overflow }) => {
+        el.style.maxHeight = maxHeight;
+        el.style.overflowY = overflow;
+      });
+      setDownloadingFunnel(false);
+    }
+  };
   const router = useRouter();
 
   useEffect(() => {
@@ -1642,11 +1678,22 @@ export default function Dashboard() {
 
         {/* ═══════ PER ANGKATAN — FUNNEL DPT ═══════ */}
         {funnelLoaded && funnelStats && funnelStats.perAngkatan.length > 0 && (
-          <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
-            <h3 className="font-semibold text-foreground mb-3 flex items-center gap-1.5">
-              <Vote className="w-4 h-4 text-[#0B27BC]" />
-              Per Angkatan — Funnel DPT
-            </h3>
+          <div ref={funnelTableRef} className="bg-white rounded-xl border border-border p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-foreground flex items-center gap-1.5">
+                <Vote className="w-4 h-4 text-[#0B27BC]" />
+                Per Angkatan — Funnel DPT
+              </h3>
+              <button
+                onClick={downloadFunnelImage}
+                disabled={downloadingFunnel}
+                data-html-to-image-ignore
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091e94] transition-colors disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {downloadingFunnel ? "..." : "Download PNG"}
+              </button>
+            </div>
             <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 z-10 bg-white">
