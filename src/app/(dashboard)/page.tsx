@@ -958,6 +958,11 @@ export default function Dashboard() {
     for (let a = 13; a <= 33; a++) next.add(a);
     setFunnelAngkatanFilter(next);
   };
+  const setBasisKekuatanLawan = () => {
+    const next = new Set<number>();
+    for (let a = 1; a <= 12; a++) next.add(a);
+    setFunnelAngkatanFilter(next);
+  };
   const resetFunnelFilter = () => setFunnelAngkatanFilter(new Set());
   const toggleFunnelSort = (key: string) => {
     setFunnelSort((prev) => {
@@ -1724,6 +1729,12 @@ export default function Dashboard() {
                 className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md border border-[#84303F]/40 bg-[#84303F]/5 text-[#84303F] hover:bg-[#84303F]/10"
               >
                 Basis Kekuatan (A13–A33)
+              </button>
+              <button
+                onClick={setBasisKekuatanLawan}
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md border border-gray-400/40 bg-gray-100 text-gray-700 hover:bg-gray-200"
+              >
+                Basis Kekuatan Lawan (A1–A12)
               </button>
               {funnelAngkatanFilter.size > 0 && (
                 <button
