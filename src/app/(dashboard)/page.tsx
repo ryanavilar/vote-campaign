@@ -944,6 +944,21 @@ export default function Dashboard() {
   const funnelTableRef = useRef<HTMLDivElement>(null);
   const [downloadingFunnel, setDownloadingFunnel] = useState(false);
   const [funnelSort, setFunnelSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "angkatan", dir: "asc" });
+  const [funnelAngkatanFilter, setFunnelAngkatanFilter] = useState<Set<number>>(new Set());
+  const toggleFunnelAngkatan = (a: number) => {
+    setFunnelAngkatanFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(a)) next.delete(a);
+      else next.add(a);
+      return next;
+    });
+  };
+  const setBasisKekuatan = () => {
+    const next = new Set<number>();
+    for (let a = 13; a <= 33; a++) next.add(a);
+    setFunnelAngkatanFilter(next);
+  };
+  const resetFunnelFilter = () => setFunnelAngkatanFilter(new Set());
   const toggleFunnelSort = (key: string) => {
     setFunnelSort((prev) => {
       if (prev.key === key) return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
@@ -956,12 +971,13 @@ export default function Dashboard() {
     if (!node) return;
     setDownloadingFunnel(true);
     // Temporarily expand the scroll container so the full table is captured.
-    const scrollers = node.querySelectorAll<HTMLElement>(".overflow-y-auto");
-    const prevStyles: { el: HTMLElement; maxHeight: string; overflow: string }[] = [];
+    const scrollers = node.querySelectorAll<HTMLElement>(".overflow-y-auto, .overflow-x-auto");
+    const prevStyles: { el: HTMLElement; maxHeight: string; overflowY: string; overflowX: string }[] = [];
     scrollers.forEach((el) => {
-      prevStyles.push({ el, maxHeight: el.style.maxHeight, overflow: el.style.overflowY });
+      prevStyles.push({ el, maxHeight: el.style.maxHeight, overflowY: el.style.overflowY, overflowX: el.style.overflowX });
       el.style.maxHeight = "none";
       el.style.overflowY = "visible";
+      el.style.overflowX = "visible";
     });
     try {
       const dataUrl = await toPng(node, {
@@ -976,9 +992,10 @@ export default function Dashboard() {
     } catch (e) {
       console.error("download failed", e);
     } finally {
-      prevStyles.forEach(({ el, maxHeight, overflow }) => {
+      prevStyles.forEach(({ el, maxHeight, overflowY, overflowX }) => {
         el.style.maxHeight = maxHeight;
-        el.style.overflowY = overflow;
+        el.style.overflowY = overflowY;
+        el.style.overflowX = overflowX;
       });
       setDownloadingFunnel(false);
     }
@@ -1701,6 +1718,44 @@ export default function Dashboard() {
                 {downloadingFunnel ? "..." : "Download PNG"}
               </button>
             </div>
+            <div data-html-to-image-ignore className="mb-3 flex flex-wrap items-center gap-1.5">
+              <button
+                onClick={setBasisKekuatan}
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md border border-[#84303F]/40 bg-[#84303F]/5 text-[#84303F] hover:bg-[#84303F]/10"
+              >
+                Basis Kekuatan (A13–A33)
+              </button>
+              {funnelAngkatanFilter.size > 0 && (
+                <button
+                  onClick={resetFunnelFilter}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md border border-border bg-white text-gray-600 hover:bg-gray-50"
+                >
+                  Reset · {funnelAngkatanFilter.size} dipilih
+                </button>
+              )}
+              <span className="text-[10px] text-muted-foreground ml-1">Filter angkatan:</span>
+              <div className="flex flex-wrap gap-1">
+                {funnelStats.perAngkatan
+                  .map((r) => r.angkatan)
+                  .sort((a, b) => a - b)
+                  .map((a) => {
+                    const active = funnelAngkatanFilter.has(a);
+                    return (
+                      <button
+                        key={a}
+                        onClick={() => toggleFunnelAngkatan(a)}
+                        className={`px-1.5 py-0.5 text-[10px] font-semibold rounded border transition-colors ${
+                          active
+                            ? "bg-[#0B27BC] text-white border-[#0B27BC]"
+                            : "bg-white text-gray-600 border-border hover:bg-gray-50"
+                        }`}
+                      >
+                        A{a}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
             <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
               <table className="w-full text-xs">
                 <thead className="sticky top-0 z-10 bg-white">
@@ -1734,7 +1789,10 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {(() => {
-                    const sortable = funnelStats.perAngkatan.map((r) => ({
+                    const filteredAng = funnelAngkatanFilter.size > 0
+                      ? funnelStats.perAngkatan.filter((r) => funnelAngkatanFilter.has(r.angkatan))
+                      : funnelStats.perAngkatan;
+                    const sortable = filteredAng.map((r) => ({
                       angkatan: r.angkatan,
                       dukung: r.terdata.dukung,
                       formDpt: r.formDpt.total,
@@ -1782,7 +1840,10 @@ export default function Dashboard() {
                 </tbody>
                 <tfoot className="sticky bottom-0 z-10 bg-white">
                   {(() => {
-                    const totals = funnelStats.perAngkatan.reduce(
+                    const filteredAng = funnelAngkatanFilter.size > 0
+                      ? funnelStats.perAngkatan.filter((r) => funnelAngkatanFilter.has(r.angkatan))
+                      : funnelStats.perAngkatan;
+                    const totals = filteredAng.reduce(
                       (acc, r) => ({
                         dukung: acc.dukung + r.terdata.dukung,
                         formDpt: acc.formDpt + r.formDpt.total,
@@ -1792,7 +1853,9 @@ export default function Dashboard() {
                       }),
                       { dukung: 0, formDpt: 0, webDpt: 0, dpt: 0, dptDukung: 0 }
                     );
-                    const targetTotal = Object.values(targetDukung).reduce((s, v) => s + v, 0) + (targetGroups.A6_A12 ?? 0) + (targetGroups.A1_A5 ?? 0);
+                    const targetTotal = funnelAngkatanFilter.size > 0
+                      ? filteredAng.reduce((s, r) => s + (targetDukung[r.angkatan] ?? 0), 0)
+                      : Object.values(targetDukung).reduce((s, v) => s + v, 0) + (targetGroups.A6_A12 ?? 0) + (targetGroups.A1_A5 ?? 0);
                     return (
                       <tr className="border-t-2 border-border font-semibold">
                         <td className="py-1 pr-2 text-[#0B27BC]">Total</td>
