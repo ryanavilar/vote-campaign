@@ -1825,22 +1825,17 @@ export default function Dashboard() {
                         <td className="py-1 pr-2 font-semibold text-[#0B27BC]">A{r.angkatan}</td>
                         <td className="py-1 px-1 text-right font-semibold text-[#84303F]">
                           {formatNum(r.dukung)}
-                          {targetDukung[r.angkatan] ? (
-                            <span className="text-[10px] font-normal text-muted-foreground ml-1">
-                              / {targetDukung[r.angkatan]} ({Math.round((r.dukung / targetDukung[r.angkatan]) * 100)}%)
-                            </span>
-                          ) : null}
                         </td>
                         <td className="py-1 px-1 text-right">{formatNum(r.formDpt)}</td>
                         <td className="py-1 px-1 text-right">{formatNum(r.webDpt)}</td>
                         <td className="py-1 px-1 text-right">{formatNum(r.dpt)}</td>
                         <td className="py-1 px-1 text-right font-semibold text-emerald-700">
                           {formatNum(r.dptDukung)}
-                          {r.dukung > 0 && (
+                          {targetDukung[r.angkatan] ? (
                             <span className="text-[10px] font-normal text-muted-foreground ml-1">
-                              ({Math.round((r.dptDukung / r.dukung) * 100)}%)
+                              / {targetDukung[r.angkatan]} ({Math.round((r.dptDukung / targetDukung[r.angkatan]) * 100)}%)
                             </span>
-                          )}
+                          ) : null}
                         </td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.formMinus)}</td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.webMinus)}</td>
@@ -1872,20 +1867,15 @@ export default function Dashboard() {
                         <td className="py-1 pr-2 text-[#0B27BC]">Total</td>
                         <td className="py-1 px-1 text-right text-[#84303F]">
                           {formatNum(totals.dukung)}
-                          {targetTotal > 0 && (
-                            <span className="text-[10px] font-normal text-muted-foreground ml-1">
-                              / {formatNum(targetTotal)} ({Math.round((totals.dukung / targetTotal) * 100)}%)
-                            </span>
-                          )}
                         </td>
                         <td className="py-1 px-1 text-right">{formatNum(totals.formDpt)}</td>
                         <td className="py-1 px-1 text-right">{formatNum(totals.webDpt)}</td>
                         <td className="py-1 px-1 text-right">{formatNum(totals.dpt)}</td>
                         <td className="py-1 px-1 text-right text-emerald-700">
                           {formatNum(totals.dptDukung)}
-                          {totals.dukung > 0 && (
+                          {targetTotal > 0 && (
                             <span className="text-[10px] font-normal text-muted-foreground ml-1">
-                              ({Math.round((totals.dptDukung / totals.dukung) * 100)}%)
+                              / {formatNum(targetTotal)} ({Math.round((totals.dptDukung / targetTotal) * 100)}%)
                             </span>
                           )}
                         </td>
