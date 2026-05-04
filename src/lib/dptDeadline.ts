@@ -1,16 +1,15 @@
 /**
  * DPT registration deadlines for Munas XI IKASTARA.
  *
- * Flow: GForm → sync Kamis/Minggu 23:59 → website selfie → verifikator approve → status_dpt Sudah.
+ * Flow: GForm → sync harian → website selfie → verifikator approve → status_dpt Sudah.
  *
  * Dashboard UI uses an EFFECTIVE website deadline 1 day earlier than the
- * official one so the verifikator still has buffer. Countdown, tiering, and
- * "hilang" logic all anchor on the effective date (15 May), not the official
- * hard cutoff (16 May).
+ * official one so the verifikator still has buffer. eVote starts 2026-05-16.
  */
 export const GFORM_DEADLINE = new Date("2026-05-10T23:59:00+07:00");
-export const WEB_DEADLINE_EFFECTIVE = new Date("2026-05-15T23:59:00+07:00");
-export const WEB_DEADLINE_OFFICIAL = new Date("2026-05-16T23:59:00+07:00");
+export const WEB_DEADLINE_EFFECTIVE = new Date("2026-05-11T23:59:00+07:00");
+export const WEB_DEADLINE_OFFICIAL = new Date("2026-05-12T23:59:00+07:00");
+export const EVOTE_START = new Date("2026-05-16T00:00:00+07:00");
 
 export type DptTier =
   | "aman"

@@ -6,6 +6,7 @@ import {
   GFORM_DEADLINE,
   WEB_DEADLINE_EFFECTIVE,
   WEB_DEADLINE_OFFICIAL,
+  EVOTE_START,
   daysUntil,
   urgency,
   URGENCY_COLOR,
@@ -60,30 +61,34 @@ function CountdownUnit({
   );
 }
 
-function DeadlineCard({ label, date, sub, now }: DeadlineCardProps) {
+function DeadlineCard({ label, date, sub, now, variant = "deadline", emoji }: DeadlineCardProps & { variant?: "deadline" | "event"; emoji?: string }) {
   const days = daysUntil(date, now);
   const u = urgency(days);
-  const color = URGENCY_COLOR[u];
+  const baseColor = URGENCY_COLOR[u];
+  // For "event" variant (e.g. eVote start) use emerald instead of urgency-based color
+  const color = variant === "event" ? URGENCY_COLOR.safe : baseColor;
   const parts = computeParts(date, now);
   const dateStr = date.toLocaleDateString("id-ID", {
     day: "numeric",
     month: "short",
   });
+  const timeStr = variant === "event" ? "00:00 WIB" : "23:59 WIB";
+  const pastLabel = variant === "event" ? "Sudah dimulai" : "Deadline lewat";
 
   return (
     <div className={`flex-1 min-w-0 rounded-lg border-2 ${color.border} ${color.bg} px-3 py-2.5`}>
       <div className="flex items-center justify-between gap-2 mb-2">
         <span className={`text-[10px] font-semibold uppercase tracking-wide ${color.text}`}>
-          {label}
+          {emoji ? `${emoji} ` : ""}{label}
         </span>
         <span className={`text-[9px] font-semibold ${color.text} tabular-nums`}>
-          {dateStr} 23:59 WIB
+          {dateStr} {timeStr}
         </span>
       </div>
 
       {parts.past ? (
         <p className={`text-lg font-bold ${color.text} tabular-nums leading-tight`}>
-          Deadline lewat
+          {pastLabel}
         </p>
       ) : (
         <div className="flex items-center gap-1.5 sm:gap-2">
@@ -118,7 +123,7 @@ export default function DeadlineBanner() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <AlarmClock className="w-4 h-4 text-[#84303F]" />
-          <h3 className="text-xs font-bold text-foreground">Deadline DPT Munas XI</h3>
+          <h3 className="text-xs font-bold text-foreground">Timeline Munas XI</h3>
         </div>
         <span className="text-[9px] text-muted-foreground flex items-center gap-1">
           <Clock className="w-2.5 h-2.5 animate-pulse" />
@@ -137,6 +142,14 @@ export default function DeadlineBanner() {
           date={WEB_DEADLINE_EFFECTIVE}
           sub="Batas aman (verifikator butuh 1 hari)"
           now={now}
+        />
+        <DeadlineCard
+          label="3. eVote Munas"
+          date={EVOTE_START}
+          sub="Hari pemungutan suara dimulai"
+          now={now}
+          variant="event"
+          emoji="🎉"
         />
       </div>
       <p className="text-[9px] text-muted-foreground leading-tight">
