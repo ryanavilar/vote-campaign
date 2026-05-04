@@ -58,7 +58,7 @@ const STEPS: Step[] = [
       <div className="space-y-2 text-sm text-gray-700">
         <p>
           Kalau kamu angkatan 20 tapi isi GForm angkatan 21 (atau angkatan
-          lain), submission kamu akan <b>otomatis ditolak</b> oleh sistem.
+          lain), submission kamu akan <b>ditolak verifikator</b>.
         </p>
         <p>
           Solusi: cek link GForm yang dibagikan tim verifikator angkatanmu, atau{" "}
