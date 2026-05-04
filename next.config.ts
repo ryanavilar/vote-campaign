@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/dpt", destination: "/form/gform", permanent: false },
       { source: "/gform", destination: "/form/gform", permanent: false },
+      { source: "/faq", destination: "/form/faq", permanent: false },
+      { source: "/panduan", destination: "/form/faq", permanent: false },
     ];
   },
 };
