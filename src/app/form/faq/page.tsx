@@ -95,8 +95,8 @@ const STEPS: Step[] = [
         </a>
         <p className="text-amber-700 text-[12px]">
           ⏳ <b>Setelah ~24 jam</b> dari GForm disetujui verifikator, baru data
-          bisa dipakai untuk daftar di evote. Sabar ya — sync GForm → website
-          biasanya jalan tiap Kamis & Minggu jam 23:59 WIB.
+          bisa dipakai untuk daftar di evote. Sync GForm → website jalan{" "}
+          <b>tiap hari</b>, jadi tunggu sehari setelah approval.
         </p>
       </div>
     ),
