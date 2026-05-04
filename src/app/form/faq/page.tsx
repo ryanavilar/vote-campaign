@@ -192,7 +192,7 @@ const STEPS: Step[] = [
           ✅ Kalau status sudah DPT resmi, kamu sudah berhak vote di e-voting Munas XI.
         </p>
         <p className="text-[11px] text-gray-500">
-          Deadline GForm: 10 Mei 2026 · Web DPT: 16 Mei 2026 — jangan tunda!
+          Deadline GForm: 10 Mei 2026 · Web DPT: 12 Mei 2026 · eVote dimulai: 16 Mei 2026 — jangan tunda!
         </p>
       </div>
     ),
@@ -257,22 +257,22 @@ export default function FaqDptPage() {
           {/* Mini stats */}
           <div className="grid grid-cols-3 border-t border-gray-100 text-center text-[11px]">
             <div className="p-3">
-              <div className="font-bold text-[#0B27BC] text-base flex items-center justify-center gap-1">
-                <FileText className="w-4 h-4" /> 8
-              </div>
-              <div className="text-gray-500">Step Lengkap</div>
-            </div>
-            <div className="p-3 border-x border-gray-100">
               <div className="font-bold text-[#84303F] text-base flex items-center justify-center gap-1">
                 <Smartphone className="w-4 h-4" /> 10 Mei
               </div>
               <div className="text-gray-500">Deadline GForm</div>
             </div>
-            <div className="p-3">
-              <div className="font-bold text-emerald-700 text-base flex items-center justify-center gap-1">
-                <Globe className="w-4 h-4" /> 16 Mei
+            <div className="p-3 border-x border-gray-100">
+              <div className="font-bold text-[#0B27BC] text-base flex items-center justify-center gap-1">
+                <Globe className="w-4 h-4" /> 12 Mei
               </div>
               <div className="text-gray-500">Deadline Web DPT</div>
+            </div>
+            <div className="p-3">
+              <div className="font-bold text-emerald-700 text-base flex items-center justify-center gap-1">
+                <ShieldCheck className="w-4 h-4" /> 16 Mei
+              </div>
+              <div className="text-gray-500">eVote Dimulai</div>
             </div>
           </div>
         </div>
