@@ -61,8 +61,11 @@ const STEPS: Step[] = [
           lain), submission kamu akan <b>otomatis ditolak</b> oleh sistem.
         </p>
         <p>
-          Solusi: cek link GForm yang dibagikan tim sukses angkatanmu, atau
-          gunakan halaman pemilih angkatan agar tidak salah.
+          Solusi: cek link GForm yang dibagikan tim verifikator angkatanmu, atau{" "}
+          <Link href="/form/gform" className="font-semibold text-[#0B27BC] underline underline-offset-2 hover:text-[#091e94]">
+            gunakan halaman pemilih angkatan ini
+          </Link>{" "}
+          agar tidak salah.
         </p>
       </div>
     ),
