@@ -108,7 +108,7 @@ const STEPS: Step[] = [
     tone: "warn",
     body: (
       <div className="space-y-2 text-sm text-gray-700">
-        <p>Kalau muncul tulisan Server Error, &quot;tidak ada internet&quot;, atau halaman gak load:</p>
+        <p>Kalau muncul tulisan Server Error, &ldquo;tidak ada internet&rdquo;, atau halaman gak load:</p>
         <ul className="list-disc list-inside space-y-1">
           <li>Pastikan device terhubung ke internet yang <b>stabil</b>.</li>
           <li>Gunakan <b>Google Chrome</b> untuk buka web evoting.</li>
@@ -120,7 +120,7 @@ const STEPS: Step[] = [
   },
   {
     num: 6,
-    title: "Input NOSIS &quot;Tidak Ditemukan&quot;",
+    title: "Input NOSIS \"Tidak Ditemukan\"",
     short: "Cek Master Data NOSIS — kalau beda, hubungi panitia.",
     tone: "warn",
     body: (
