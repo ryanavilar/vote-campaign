@@ -140,7 +140,7 @@ const STEPS: Step[] = [
       <div className="space-y-2 text-sm text-gray-700">
         <p>
           Indikasinya: NOSIS / nama yang kamu validasi di GForm berbeda dengan
-          Master Data NOSIS yang dipegang <PanitiaLink>panitia</PanitiaLink>.
+          Master Data NOSIS yang dipegang panitia.
         </p>
         <a
           href="https://docs.google.com/spreadsheets/d/1JCV8PBbWTeKJh0zxzZru08zwmUXY4KqLhEE24aOvm4A/edit?gid=1779616051#gid=1779616051"
@@ -151,9 +151,8 @@ const STEPS: Step[] = [
           Cek Master Data NOSIS <ExternalLink className="w-3.5 h-3.5" />
         </a>
         <p>
-          Kalau beda, segera hubungi <PanitiaLink>panitia</PanitiaLink> untuk
-          pembetulan data. Setelah dibetulkan, biasanya{" "}
-          <PanitiaLink>panitia</PanitiaLink> minta kamu{" "}
+          Kalau beda, segera hubungi <PanitiaLink>panitia (Ikhsan)</PanitiaLink> untuk
+          pembetulan data. Setelah dibetulkan, biasanya panitia minta kamu{" "}
           <b>daftar ulang GForm</b> dengan data yang benar.
         </p>
       </div>
@@ -172,7 +171,7 @@ const STEPS: Step[] = [
           nomor yang salah / tidak ada.
         </p>
         <p>
-          Solusi: kontak <PanitiaLink>panitia</PanitiaLink>, minta perbaikan
+          Solusi: kontak <PanitiaLink>panitia (Ikhsan)</PanitiaLink>, minta perbaikan
           nomor HP di sistem. Setelah dibetulkan, coba kirim OTP lagi.
         </p>
       </div>
