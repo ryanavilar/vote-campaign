@@ -1781,6 +1781,7 @@ export default function Dashboard() {
                       { key: "formMinus", label: "Form−(D+D)", align: "right" },
                       { key: "webMinus", label: "Web−(D+D)", align: "right" },
                       { key: "dptMinus", label: "DPT−(D+D)", align: "right" },
+                      { key: "statusOrder", label: "Status", align: "right" },
                     ].map((col) => {
                       const active = funnelSort.key === col.key;
                       return (
@@ -1803,17 +1804,27 @@ export default function Dashboard() {
                     const filteredAng = funnelAngkatanFilter.size > 0
                       ? funnelStats.perAngkatan.filter((r) => funnelAngkatanFilter.has(r.angkatan))
                       : funnelStats.perAngkatan;
-                    const sortable = filteredAng.map((r) => ({
-                      angkatan: r.angkatan,
-                      dukung: r.terdata.dukung,
-                      formDpt: r.formDpt.total,
-                      webDpt: r.webDpt.total,
-                      dpt: r.dpt.total,
-                      dptDukung: r.dpt.dukung,
-                      formMinus: r.formDpt.total - r.dpt.dukung,
-                      webMinus: r.webDpt.total - r.dpt.dukung,
-                      dptMinus: r.dpt.total - r.dpt.dukung,
-                    }));
+                    const sortable = filteredAng.map((r) => {
+                      const dptMinus = r.dpt.total - r.dpt.dukung;
+                      const dptDukung = r.dpt.dukung;
+                      let status: "Win" | "Draw" | "Lose";
+                      if (dptDukung > dptMinus) status = "Win";
+                      else if (dptDukung === dptMinus) status = "Draw";
+                      else status = "Lose";
+                      return {
+                        angkatan: r.angkatan,
+                        dukung: r.terdata.dukung,
+                        formDpt: r.formDpt.total,
+                        webDpt: r.webDpt.total,
+                        dpt: r.dpt.total,
+                        dptDukung,
+                        formMinus: r.formDpt.total - r.dpt.dukung,
+                        webMinus: r.webDpt.total - r.dpt.dukung,
+                        dptMinus,
+                        status,
+                        statusOrder: status === "Win" ? 2 : status === "Draw" ? 1 : 0,
+                      };
+                    });
                     sortable.sort((a, b) => {
                       const k = funnelSort.key as keyof typeof a;
                       const av = a[k] as number;
@@ -1840,6 +1851,15 @@ export default function Dashboard() {
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.formMinus)}</td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.webMinus)}</td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.dptMinus)}</td>
+                        <td className="py-1 px-1 text-right">
+                          <span className={`inline-block px-1.5 py-0.5 rounded font-bold text-[10px] ${
+                            r.status === "Win" ? "bg-emerald-100 text-emerald-700" :
+                            r.status === "Draw" ? "bg-yellow-100 text-yellow-700" :
+                            "bg-red-100 text-red-700"
+                          }`}>
+                            {r.status}
+                          </span>
+                        </td>
                       </tr>
                     ));
                   })()}
@@ -1882,6 +1902,14 @@ export default function Dashboard() {
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(totals.formDpt - totals.dptDukung)}</td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(totals.webDpt - totals.dptDukung)}</td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(totals.dpt - totals.dptDukung)}</td>
+                        <td className="py-1 px-1 text-right">
+                          {(() => {
+                            const dptMinus = totals.dpt - totals.dptDukung;
+                            const status = totals.dptDukung > dptMinus ? "Win" : totals.dptDukung === dptMinus ? "Draw" : "Lose";
+                            const cls = status === "Win" ? "bg-emerald-100 text-emerald-700" : status === "Draw" ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700";
+                            return <span className={`inline-block px-1.5 py-0.5 rounded font-bold text-[10px] ${cls}`}>{status}</span>;
+                          })()}
+                        </td>
                       </tr>
                     );
                   })()}
