@@ -1779,8 +1779,8 @@ export default function Dashboard() {
                       { key: "dpt", label: "DPT", align: "right" },
                       { key: "dptDukung", label: "DPT+Dukung", align: "right" },
                       { key: "formMinus", label: "Form−(D+D)", align: "right" },
-                      { key: "webMinus", label: "Web−(D+D)", align: "right" },
                       { key: "dptMinus", label: "DPT−(D+D)", align: "right" },
+                      { key: "menuju50", label: "Δ→50% DPT", align: "right" },
                       { key: "statusOrder", label: "Status", align: "right" },
                     ].map((col) => {
                       const active = funnelSort.key === col.key;
@@ -1811,6 +1811,8 @@ export default function Dashboard() {
                       if (dptDukung > dptMinus) status = "Win";
                       else if (dptDukung === dptMinus) status = "Draw";
                       else status = "Lose";
+                      const menuju50raw = (r.dpt.total / 2) - r.dpt.dukung;
+                      const menuju50 = menuju50raw < 0 ? 0 : Math.ceil(menuju50raw);
                       return {
                         angkatan: r.angkatan,
                         dukung: r.terdata.dukung,
@@ -1819,7 +1821,7 @@ export default function Dashboard() {
                         dpt: r.dpt.total,
                         dptDukung,
                         formMinus: r.formDpt.total - r.dpt.dukung,
-                        webMinus: r.webDpt.total - r.dpt.dukung,
+                        menuju50,
                         dptMinus,
                         status,
                         statusOrder: status === "Win" ? 2 : status === "Draw" ? 1 : 0,
@@ -1849,8 +1851,8 @@ export default function Dashboard() {
                           ) : null}
                         </td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.formMinus)}</td>
-                        <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.webMinus)}</td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.dptMinus)}</td>
+                        <td className="py-1 px-1 text-right font-semibold text-[#84303F]">{formatNum(r.menuju50)}</td>
                         <td className="py-1 px-1 text-right">
                           <span className={`inline-block px-1.5 py-0.5 rounded font-bold text-[10px] ${
                             r.status === "Win" ? "bg-emerald-100 text-emerald-700" :
@@ -1900,8 +1902,11 @@ export default function Dashboard() {
                           )}
                         </td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(totals.formDpt - totals.dptDukung)}</td>
-                        <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(totals.webDpt - totals.dptDukung)}</td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(totals.dpt - totals.dptDukung)}</td>
+                        <td className="py-1 px-1 text-right font-semibold text-[#84303F]">{(() => {
+                          const v = (totals.dpt / 2) - totals.dptDukung;
+                          return formatNum(v < 0 ? 0 : Math.ceil(v));
+                        })()}</td>
                         <td className="py-1 px-1 text-right">
                           {(() => {
                             const dptMinus = totals.dpt - totals.dptDukung;
