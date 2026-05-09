@@ -1778,7 +1778,8 @@ export default function Dashboard() {
                       { key: "webDpt", label: "Web DPT", align: "right" },
                       { key: "dpt", label: "DPT", align: "right" },
                       { key: "dptDukung", label: "DPT+Dukung", align: "right" },
-                      { key: "formMinus", label: "Form−(D+D)", align: "right" },
+                      { key: "dukungBelumDpt", label: "Dukung blm DPT", align: "right" },
+                      { key: "dukungBelumForm", label: "Dukung blm Form", align: "right" },
                       { key: "dptMinus", label: "DPT−(D+D)", align: "right" },
                       { key: "menuju50", label: "Δ→50% DPT", align: "right" },
                       { key: "statusOrder", label: "Status", align: "right" },
@@ -1820,7 +1821,8 @@ export default function Dashboard() {
                         webDpt: r.webDpt.total,
                         dpt: r.dpt.total,
                         dptDukung,
-                        formMinus: r.formDpt.total - r.dpt.dukung,
+                        dukungBelumDpt: r.terdata.dukung - r.dpt.dukung,
+                        dukungBelumForm: r.terdata.dukung - r.formDpt.dukung,
                         menuju50,
                         dptMinus,
                         status,
@@ -1850,7 +1852,8 @@ export default function Dashboard() {
                             </span>
                           ) : null}
                         </td>
-                        <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.formMinus)}</td>
+                        <td className="py-1 px-1 text-right text-[#84303F]">{formatNum(r.dukungBelumDpt)}</td>
+                        <td className="py-1 px-1 text-right text-[#84303F]">{formatNum(r.dukungBelumForm)}</td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(r.dptMinus)}</td>
                         <td className="py-1 px-1 text-right font-semibold text-[#84303F]">{formatNum(r.menuju50)}</td>
                         <td className="py-1 px-1 text-right">
@@ -1878,8 +1881,9 @@ export default function Dashboard() {
                         webDpt: acc.webDpt + r.webDpt.total,
                         dpt: acc.dpt + r.dpt.total,
                         dptDukung: acc.dptDukung + r.dpt.dukung,
+                        formDptDukung: acc.formDptDukung + r.formDpt.dukung,
                       }),
-                      { dukung: 0, formDpt: 0, webDpt: 0, dpt: 0, dptDukung: 0 }
+                      { dukung: 0, formDpt: 0, webDpt: 0, dpt: 0, dptDukung: 0, formDptDukung: 0 }
                     );
                     const targetTotal = funnelAngkatanFilter.size > 0
                       ? filteredAng.reduce((s, r) => s + (targetDukung[r.angkatan] ?? 0), 0)
@@ -1901,7 +1905,8 @@ export default function Dashboard() {
                             </span>
                           )}
                         </td>
-                        <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(totals.formDpt - totals.dptDukung)}</td>
+                        <td className="py-1 px-1 text-right text-[#84303F]">{formatNum(totals.dukung - totals.dptDukung)}</td>
+                        <td className="py-1 px-1 text-right text-[#84303F]">{formatNum(totals.dukung - totals.formDptDukung)}</td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(totals.dpt - totals.dptDukung)}</td>
                         <td className="py-1 px-1 text-right font-semibold text-[#84303F]">{(() => {
                           const v = (totals.dpt / 2) - totals.dptDukung;
