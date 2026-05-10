@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getUserRole, canEdit, canManageUsers } from "@/lib/roles";
+import { getUserRole, canEdit, canManageUsers, canEditField } from "@/lib/roles";
 import { logMemberAudit } from "@/lib/audit";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -434,6 +434,12 @@ export async function POST(request: NextRequest) {
 
     // If member exists and field+value provided, update it
     if (field && value !== undefined) {
+      if (!canEditField(role, field)) {
+        return NextResponse.json(
+          { error: `Field ${field} hanya bisa diedit admin` },
+          { status: 403 }
+        );
+      }
       const { data: updated, error: updateError } = await adminClient
         .from("members")
         .update({ [field]: value })

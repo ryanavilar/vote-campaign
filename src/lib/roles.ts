@@ -31,6 +31,22 @@ export function isSuperAdmin(role: UserRole): boolean {
   return role === "super_admin";
 }
 
+export function isAdmin(role: UserRole): boolean {
+  return role === "super_admin" || role === "admin";
+}
+
+/**
+ * Fields that campaigner can edit. Form/Web/Status DPT + Vote = admin only
+ * (per user instruction 2026-05-10 — itu tanggung jawab admin).
+ */
+const CAMPAIGNER_EDITABLE_FIELDS = new Set(["no_hp", "dukungan", "sudah_dikontak"]);
+
+export function canEditField(role: UserRole, field: string): boolean {
+  if (isAdmin(role)) return true;
+  if (role === "campaigner") return CAMPAIGNER_EDITABLE_FIELDS.has(field);
+  return false;
+}
+
 export function getRoleDisplayName(role: UserRole): string {
   switch (role) {
     case "super_admin":

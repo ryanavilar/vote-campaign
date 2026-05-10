@@ -345,7 +345,8 @@ function presetMatch(row: TargetRow, key: PresetKey): boolean {
 /* ── Main Page ─────────────────────────────────────────── */
 
 export default function TargetPage() {
-  const { canEdit: userCanEdit, loading: roleLoading } = useRole();
+  const { canEdit: userCanEdit, role: userRole, loading: roleLoading } = useRole();
+  const isCampaigner = userRole === "campaigner";
   const { showToast } = useToast();
   const showToastRef = useRef(showToast);
   showToastRef.current = showToast;
@@ -1476,25 +1477,29 @@ export default function TargetPage() {
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.isi_form_dpt}
-                          onClick={() => toggleBinary(row, "isi_form_dpt")}
+                          onClick={isCampaigner ? undefined : () => toggleBinary(row, "isi_form_dpt")}
+                          readOnly={isCampaigner}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.registrasi_website_dpt}
-                          onClick={() => toggleBinary(row, "registrasi_website_dpt")}
+                          onClick={isCampaigner ? undefined : () => toggleBinary(row, "registrasi_website_dpt")}
+                          readOnly={isCampaigner}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.status_dpt}
-                          onClick={() => toggleBinary(row, "status_dpt")}
+                          onClick={isCampaigner ? undefined : () => toggleBinary(row, "status_dpt")}
+                          readOnly={isCampaigner}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.vote}
-                          onClick={() => toggleBinary(row, "vote")}
+                          onClick={isCampaigner ? undefined : () => toggleBinary(row, "vote")}
+                          readOnly={isCampaigner}
                         />
                       </td>
                     </tr>
@@ -1604,28 +1609,32 @@ export default function TargetPage() {
                       <span className="text-[9px] text-gray-400 w-10">Form</span>
                       <StatusChip
                         value={row.isi_form_dpt}
-                        onClick={() => toggleBinary(row, "isi_form_dpt")}
+                        onClick={isCampaigner ? undefined : () => toggleBinary(row, "isi_form_dpt")}
+                        readOnly={isCampaigner}
                       />
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] text-gray-400 w-7">Web</span>
                       <StatusChip
                         value={row.registrasi_website_dpt}
-                        onClick={() => toggleBinary(row, "registrasi_website_dpt")}
+                        onClick={isCampaigner ? undefined : () => toggleBinary(row, "registrasi_website_dpt")}
+                        readOnly={isCampaigner}
                       />
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] text-gray-400 w-6">DPT</span>
                       <StatusChip
                         value={row.status_dpt}
-                        onClick={() => toggleBinary(row, "status_dpt")}
+                        onClick={isCampaigner ? undefined : () => toggleBinary(row, "status_dpt")}
+                        readOnly={isCampaigner}
                       />
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] text-gray-400 w-7">Vote</span>
                       <StatusChip
                         value={row.vote}
-                        onClick={() => toggleBinary(row, "vote")}
+                        onClick={isCampaigner ? undefined : () => toggleBinary(row, "vote")}
+                        readOnly={isCampaigner}
                       />
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { getUserRole, canDelete } from "@/lib/roles";
+import { getUserRole, canDelete, canEditField } from "@/lib/roles";
 import { logMemberAudit, logMemberAuditBatch } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -66,10 +66,22 @@ export async function PATCH(
     "alumni_id",
   ];
   const updates: Record<string, unknown> = {};
+  const forbiddenFields: string[] = [];
   for (const key of allowedFields) {
     if (key in body) {
+      if (!canEditField(role, key)) {
+        forbiddenFields.push(key);
+        continue;
+      }
       updates[key] = body[key];
     }
+  }
+
+  if (forbiddenFields.length > 0) {
+    return NextResponse.json(
+      { error: `Field ${forbiddenFields.join(", ")} hanya bisa diedit admin` },
+      { status: 403 }
+    );
   }
 
   if (Object.keys(updates).length === 0) {

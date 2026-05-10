@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
-import { getUserRole, canEdit } from "@/lib/roles";
+import { getUserRole, canEdit, canEditField } from "@/lib/roles";
 import { logMemberAudit } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -181,6 +181,13 @@ export async function PATCH(request: NextRequest) {
 
   if (!allowedFields.includes(field)) {
     return NextResponse.json({ error: "Invalid field" }, { status: 400 });
+  }
+
+  if (!canEditField(role, field)) {
+    return NextResponse.json(
+      { error: `Field ${field} hanya bisa diedit admin` },
+      { status: 403 }
+    );
   }
 
   // Fetch old value for audit
