@@ -9,6 +9,8 @@
 export const GFORM_DEADLINE = new Date("2026-05-10T23:59:00+07:00");
 export const WEB_DEADLINE_OFFICIAL = new Date("2026-05-12T23:59:00+07:00");
 export const EVOTE_START = new Date("2026-05-16T01:00:00+07:00");
+export const EVOTE_END = new Date("2026-05-20T23:59:00+07:00");
+export const ANNOUNCEMENT_DATE = new Date("2026-05-23T00:00:00+07:00");
 
 export type DptTier =
   | "aman"

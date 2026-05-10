@@ -6,6 +6,8 @@ import {
   GFORM_DEADLINE,
   WEB_DEADLINE_OFFICIAL,
   EVOTE_START,
+  EVOTE_END,
+  ANNOUNCEMENT_DATE,
   daysUntil,
   urgency,
   URGENCY_COLOR,
@@ -155,6 +157,22 @@ export default function DeadlineBanner() {
           variant="event"
           emoji="🎉"
         />
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 border-t border-border/50 text-[10px] text-muted-foreground">
+        <span className="font-semibold text-foreground/70">Selanjutnya:</span>
+        <span>
+          eVote tutup —{" "}
+          <span className="font-semibold text-foreground/80">
+            {EVOTE_END.toLocaleDateString("id-ID", { day: "numeric", month: "short" })} 23:59 WIB
+          </span>
+        </span>
+        <span className="opacity-40">•</span>
+        <span>
+          Pengumuman Hasil —{" "}
+          <span className="font-semibold text-foreground/80">
+            {ANNOUNCEMENT_DATE.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+          </span>
+        </span>
       </div>
     </div>
   );
