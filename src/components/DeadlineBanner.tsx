@@ -4,7 +4,6 @@ import { AlarmClock, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   GFORM_DEADLINE,
-  WEB_DEADLINE_EFFECTIVE,
   WEB_DEADLINE_OFFICIAL,
   EVOTE_START,
   daysUntil,
@@ -72,7 +71,12 @@ function DeadlineCard({ label, date, sub, now, variant = "deadline", emoji }: De
     day: "numeric",
     month: "short",
   });
-  const timeStr = variant === "event" ? "00:00 WIB" : "23:59 WIB";
+  const timeStr = date.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Jakarta",
+    hour12: false,
+  }) + " WIB";
   const pastLabel = variant === "event" ? "Sudah dimulai" : "Deadline lewat";
 
   return (
@@ -139,8 +143,8 @@ export default function DeadlineBanner() {
         />
         <DeadlineCard
           label="2. Selfie Web"
-          date={WEB_DEADLINE_EFFECTIVE}
-          sub="Batas aman (verifikator butuh 1 hari)"
+          date={WEB_DEADLINE_OFFICIAL}
+          sub="Selfie web di evote.ikastara.id"
           now={now}
         />
         <DeadlineCard
@@ -152,9 +156,6 @@ export default function DeadlineBanner() {
           emoji="🎉"
         />
       </div>
-      <p className="text-[9px] text-muted-foreground leading-tight">
-        Deadline resmi selfie web: {WEB_DEADLINE_OFFICIAL.toLocaleDateString("id-ID", { day: "numeric", month: "short" })} 23:59 WIB — dashboard pakai 1 hari lebih awal biar verifikator sempet.
-      </p>
     </div>
   );
 }

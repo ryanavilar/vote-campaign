@@ -7,9 +7,8 @@
  * official one so the verifikator still has buffer. eVote starts 2026-05-16.
  */
 export const GFORM_DEADLINE = new Date("2026-05-10T23:59:00+07:00");
-export const WEB_DEADLINE_EFFECTIVE = new Date("2026-05-11T23:59:00+07:00");
 export const WEB_DEADLINE_OFFICIAL = new Date("2026-05-12T23:59:00+07:00");
-export const EVOTE_START = new Date("2026-05-16T00:00:00+07:00");
+export const EVOTE_START = new Date("2026-05-16T01:00:00+07:00");
 
 export type DptTier =
   | "aman"
