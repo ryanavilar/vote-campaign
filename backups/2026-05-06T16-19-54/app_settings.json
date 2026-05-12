@@ -1,0 +1,66 @@
+[
+  {
+    "id": "d1bc17fe-98d2-43a6-9101-ae32bb334014",
+    "key": "waha_config",
+    "value": {
+      "apiKey": "W3YLkehgWDJ0YXbgU2rVLnfqHgubSuRx",
+      "baseUrl": "https://waha-xncqvtkfzuv4.cgk-robin.sumopod.my.id",
+      "groupId": "120363406752105049@g.us",
+      "session": "trial_rra"
+    },
+    "updated_at": "2026-02-22T15:06:07.031+00:00",
+    "updated_by": "92996bc9-1a00-47b2-b696-6d1d4c24191f"
+  },
+  {
+    "id": "d793572e-2efc-4a01-ae32-f736e88cd251",
+    "key": "mimin_token",
+    "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OTg5NTNhNDkyMTZjNTAwMTM2ZTZkMWYiLCJpYXQiOjE3NzIyNzUxNzgsImV4cCI6MTc3MjM2MTU3OH0.eEzs2M_qFrIlyl_V41-g-mXjBUs_rtn2oBM7C0TXMhE",
+    "updated_at": "2026-02-28T21:04:32.479+00:00",
+    "updated_by": "3f5d6eab-5f31-4388-b24d-8bbf56d33a67"
+  },
+  {
+    "id": "ec86beab-2964-4034-bf58-c44397f86bfa",
+    "key": "angkatan_targets",
+    "value": {
+      "groups": {},
+      "updated_at": "2026-05-06T14:12:19.000Z",
+      "per_angkatan": {
+        "1": 50,
+        "2": 10,
+        "3": 50,
+        "4": 10,
+        "5": 20,
+        "6": 10,
+        "7": 10,
+        "8": 10,
+        "9": 50,
+        "10": 50,
+        "11": 30,
+        "12": 60,
+        "13": 225,
+        "14": 95,
+        "15": 205,
+        "16": 95,
+        "17": 195,
+        "18": 175,
+        "19": 105,
+        "20": 155,
+        "21": 176,
+        "22": 95,
+        "23": 125,
+        "24": 125,
+        "25": 55,
+        "26": 75,
+        "27": 75,
+        "28": 125,
+        "29": 125,
+        "30": 124,
+        "31": 105,
+        "32": 105,
+        "33": 75
+      }
+    },
+    "updated_at": "2026-05-06T14:12:19.001+00:00",
+    "updated_by": null
+  }
+]

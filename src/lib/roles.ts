@@ -45,6 +45,7 @@ const CAMPAIGNER_EDITABLE_FIELDS = new Set([
   "sudah_dikontak",
   "registrasi_website_dpt",
   "status_dpt",
+  "vote",
 ]);
 
 export function canEditField(role: UserRole, field: string): boolean {

@@ -1496,8 +1496,7 @@ export default function TargetPage() {
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.vote}
-                          onClick={isCampaigner ? undefined : () => toggleBinary(row, "vote")}
-                          readOnly={isCampaigner}
+                          onClick={() => toggleBinary(row, "vote")}
                         />
                       </td>
                     </tr>

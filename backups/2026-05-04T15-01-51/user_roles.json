@@ -1,0 +1,278 @@
+[
+  {
+    "id": "b6d463b7-e3e9-4b59-bb27-542790bd4644",
+    "user_id": "a2256f72-a017-4710-b4f9-ca4af27675f6",
+    "role": "campaigner",
+    "created_at": "2026-05-01T09:23:56.282874+00:00"
+  },
+  {
+    "id": "01efa0ca-8a8d-44f6-9a24-59ec5e82d5c3",
+    "user_id": "f1fadb9c-cad4-48f1-83a8-f3e28875d83b",
+    "role": "campaigner",
+    "created_at": "2026-05-01T09:57:04.233416+00:00"
+  },
+  {
+    "id": "d2d06e3d-9274-4da3-9604-57366e58e272",
+    "user_id": "7253be30-26ed-4497-ba70-3a0f021f233c",
+    "role": "campaigner",
+    "created_at": "2026-05-02T01:32:59.17121+00:00"
+  },
+  {
+    "id": "e303d348-866e-46e9-aafd-39ef15e8e78e",
+    "user_id": "a715cbc1-0428-4424-926f-3504584b4308",
+    "role": "campaigner",
+    "created_at": "2026-05-03T04:47:50.228513+00:00"
+  },
+  {
+    "id": "287121ed-7d51-4aea-a60c-f5b0b6ac103e",
+    "user_id": "92996bc9-1a00-47b2-b696-6d1d4c24191f",
+    "role": "super_admin",
+    "created_at": "2026-02-11T16:49:43.9123+00:00"
+  },
+  {
+    "id": "0a946f89-7c85-4d44-bc57-3488282c16ea",
+    "user_id": "e0d2b9f8-babd-4b42-89c1-533cdc3d3849",
+    "role": "campaigner",
+    "created_at": "2026-05-03T08:08:30.600537+00:00"
+  },
+  {
+    "id": "327f337d-9e36-4b65-9470-3055ac652f06",
+    "user_id": "3f5d6eab-5f31-4388-b24d-8bbf56d33a67",
+    "role": "super_admin",
+    "created_at": "2026-02-22T13:23:30.376298+00:00"
+  },
+  {
+    "id": "b514834e-0aff-4529-ae65-856cf45fd0ab",
+    "user_id": "8df1924a-3eb4-4311-9f78-3966d55323b9",
+    "role": "campaigner",
+    "created_at": "2026-05-04T06:18:07.492335+00:00"
+  },
+  {
+    "id": "7131f733-c825-4cc6-b2f5-42f0e3fa4ea3",
+    "user_id": "38e597b6-971e-4a5f-9b14-296212220a59",
+    "role": "campaigner",
+    "created_at": "2026-05-04T08:59:52.628216+00:00"
+  },
+  {
+    "id": "7dabb857-9d22-4557-8fbe-c6d9ea551e92",
+    "user_id": "0c7dbec1-a6aa-4762-8b14-ae95d5b3ce21",
+    "role": "admin",
+    "created_at": "2026-03-11T16:16:02.298585+00:00"
+  },
+  {
+    "id": "171fa547-d330-4f0e-adf8-c744de4270bb",
+    "user_id": "f69feb20-dbe9-4594-9f48-14398f835868",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:11:16.298588+00:00"
+  },
+  {
+    "id": "12e72809-9cec-40a4-8f2e-8264991eaeab",
+    "user_id": "aad19719-9807-43ae-977f-30861e72296b",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:11:17.140361+00:00"
+  },
+  {
+    "id": "0466c615-fcf4-4a2c-92ad-dc098738db05",
+    "user_id": "71decf92-ca5b-4867-9488-403a65ae85cd",
+    "role": "campaigner",
+    "created_at": "2026-02-22T15:41:12.000916+00:00"
+  },
+  {
+    "id": "df9b62f1-91b2-45b0-8173-ffb3836819b7",
+    "user_id": "65f112e1-dd2c-4cb1-844e-718c2f8398a6",
+    "role": "campaigner",
+    "created_at": "2026-03-10T06:10:46.373169+00:00"
+  },
+  {
+    "id": "b03a9147-cd27-49c1-9e4b-528009966470",
+    "user_id": "2f4e39af-2e35-4dca-9d89-4ca3c6d9fc13",
+    "role": "campaigner",
+    "created_at": "2026-03-09T15:15:28.716371+00:00"
+  },
+  {
+    "id": "16345446-a7aa-42b1-ac06-f2de1c55c4a8",
+    "user_id": "1fcc2186-4aa9-4950-98e7-ced854dc2218",
+    "role": "campaigner",
+    "created_at": "2026-03-10T06:10:47.187852+00:00"
+  },
+  {
+    "id": "a59f7e73-dbc8-46eb-88fd-c1c89ae5434d",
+    "user_id": "dec07e9b-b003-4dd4-b128-7337ee8f95b8",
+    "role": "campaigner",
+    "created_at": "2026-03-09T15:15:29.281453+00:00"
+  },
+  {
+    "id": "64095a25-7c3f-4ac0-9c31-38bd94697a40",
+    "user_id": "04943f9b-dc3a-4e98-bfc2-fa908d60550d",
+    "role": "campaigner",
+    "created_at": "2026-03-09T15:15:29.800894+00:00"
+  },
+  {
+    "id": "b466de81-a8b1-4cbd-b7cb-440948478625",
+    "user_id": "555864c0-51fc-4494-963e-c4a6b93db937",
+    "role": "campaigner",
+    "created_at": "2026-03-09T15:15:30.316905+00:00"
+  },
+  {
+    "id": "88a89d8b-ac43-4056-a52a-a459f5bb3108",
+    "user_id": "19562798-8d7e-4908-b8ad-2b29dbd1c4c7",
+    "role": "campaigner",
+    "created_at": "2026-03-27T08:29:48.261849+00:00"
+  },
+  {
+    "id": "e513b96c-0dce-42b5-a187-1d80fb69fdde",
+    "user_id": "9a51299a-13d0-4a0e-9f8b-3c18fdc75f77",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:11:20.080274+00:00"
+  },
+  {
+    "id": "295a524f-6e0a-4903-a860-18453269f04d",
+    "user_id": "f497c632-ef95-453d-91c4-2d52f895ae27",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:11:20.560721+00:00"
+  },
+  {
+    "id": "134f3504-9e8d-4f58-b4da-18759732441b",
+    "user_id": "e1b0c69f-fc0f-4a20-9b89-996fbf705fc1",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:54:41.269098+00:00"
+  },
+  {
+    "id": "3563c61d-0faa-4e42-9581-bb874c54a7ec",
+    "user_id": "2228c180-4ead-461d-963d-b67d7a0cda51",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:11:21.176552+00:00"
+  },
+  {
+    "id": "c3451fa8-733a-460c-9e41-d449575f9c6f",
+    "user_id": "f913ef6a-bab0-42c1-8da8-e9fb70a40d5b",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:11:21.579787+00:00"
+  },
+  {
+    "id": "c7d6d510-d962-4917-a525-4b591b42df25",
+    "user_id": "675b8d3b-577e-48b9-b5dc-c9493999901f",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:54:42.595762+00:00"
+  },
+  {
+    "id": "f83ff106-2deb-4386-b758-0d999f3bcce0",
+    "user_id": "0cfbd0f9-ccc6-4ad8-b3e5-b330ab215eed",
+    "role": "campaigner",
+    "created_at": "2026-03-09T15:15:30.803946+00:00"
+  },
+  {
+    "id": "17378779-ac83-4563-861f-95af4b1eb751",
+    "user_id": "2d3b8720-6067-4200-8448-1ea41298cbed",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:11:22.314957+00:00"
+  },
+  {
+    "id": "c0c5b66c-fc69-4541-85e0-0700850c8d4e",
+    "user_id": "1da36358-9a82-4930-a93e-c072c6c37855",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:11:23.467026+00:00"
+  },
+  {
+    "id": "abaa1f60-dc5e-4b7a-b67e-779c6c73f061",
+    "user_id": "c482d0fd-7851-408a-8a3b-a316d9ee8995",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:11:23.855019+00:00"
+  },
+  {
+    "id": "b3fb6b0f-300b-412f-be7b-cd86c043ead1",
+    "user_id": "c091b6c2-a8aa-449a-b63d-4f4f8de198ab",
+    "role": "admin",
+    "created_at": "2026-04-01T15:49:52.258345+00:00"
+  },
+  {
+    "id": "21655607-427d-48ec-91b8-38674caef93d",
+    "user_id": "22e96c2e-3884-420a-be1a-0c8a4e127d66",
+    "role": "campaigner",
+    "created_at": "2026-04-03T15:03:35.894497+00:00"
+  },
+  {
+    "id": "ae252682-1683-4709-ba90-7c7853c5d89b",
+    "user_id": "8c4e2892-a6f9-4673-900e-a9599f03fc76",
+    "role": "campaigner",
+    "created_at": "2026-04-06T10:36:57.688143+00:00"
+  },
+  {
+    "id": "16e0ef14-af3d-4220-a8f3-250a60b9cfbe",
+    "user_id": "347b75ca-efe9-44e1-9bec-6d4372051f27",
+    "role": "admin",
+    "created_at": "2026-03-19T08:37:08.339856+00:00"
+  },
+  {
+    "id": "14140361-fb06-48bd-b935-909ac7b5f509",
+    "user_id": "cc15c709-1c6c-4148-9357-b8cb575ad1c1",
+    "role": "campaigner",
+    "created_at": "2026-03-31T15:11:22.783897+00:00"
+  },
+  {
+    "id": "a9ff25ef-e928-42bf-95bf-7dc0627154c6",
+    "user_id": "bc655865-1c21-425b-84d7-c685f69f79b7",
+    "role": "campaigner",
+    "created_at": "2026-04-12T14:30:44.930353+00:00"
+  },
+  {
+    "id": "7ae6bd51-8109-4d9c-96c2-eda5ec665074",
+    "user_id": "ea606527-55cf-4546-ae9a-4c5b4fd011ff",
+    "role": "admin",
+    "created_at": "2026-04-13T03:33:03.967012+00:00"
+  },
+  {
+    "id": "1e830cd8-0617-4045-bee0-b1811d73ea2b",
+    "user_id": "220100dd-eb4e-4d69-abe7-7053a10535ce",
+    "role": "campaigner",
+    "created_at": "2026-04-16T17:11:07.954582+00:00"
+  },
+  {
+    "id": "54b9be4d-044f-445d-8014-e7a6c0ed5abb",
+    "user_id": "1e8bb425-4afc-4005-926f-ae293abdbf67",
+    "role": "campaigner",
+    "created_at": "2026-04-17T04:26:08.142854+00:00"
+  },
+  {
+    "id": "e5ccdf3f-ae3e-433b-b1a8-bfb16d04bbd8",
+    "user_id": "3c9ffd0b-0fcc-4ed9-80c7-43b879261869",
+    "role": "admin",
+    "created_at": "2026-04-17T04:34:54.4025+00:00"
+  },
+  {
+    "id": "e8dbb7a7-2816-44da-ac37-ce492f598f1f",
+    "user_id": "3ef73c7a-8a8e-4934-88da-91fb8786e5df",
+    "role": "campaigner",
+    "created_at": "2026-04-19T05:53:21.695412+00:00"
+  },
+  {
+    "id": "67defb86-7009-4136-bbf4-927c3a636cc5",
+    "user_id": "e0d2f901-c764-4019-9c64-442e2832db9b",
+    "role": "campaigner",
+    "created_at": "2026-04-22T20:12:39.65008+00:00"
+  },
+  {
+    "id": "dceb1dfd-9c1d-4bb9-88ea-209a2e745fa8",
+    "user_id": "023d5c9a-6fef-4195-86cc-e2fdf2702b6b",
+    "role": "campaigner",
+    "created_at": "2026-04-26T12:41:00.079406+00:00"
+  },
+  {
+    "id": "0137ad2c-dd78-44bf-9da5-66936f9d19ae",
+    "user_id": "97788f8a-2465-4940-a7b2-ff610b3da5a1",
+    "role": "admin",
+    "created_at": "2026-04-29T13:47:40.842109+00:00"
+  },
+  {
+    "id": "571a3407-91c6-488c-93b0-d70ca4d9fbff",
+    "user_id": "c95a354a-f91a-4d09-8f29-c93b3873cfd7",
+    "role": "campaigner",
+    "created_at": "2026-05-01T08:55:08.709374+00:00"
+  },
+  {
+    "id": "c414f000-bfbb-4f42-aef9-299cde1c990b",
+    "user_id": "213bc442-9338-414c-b5cf-d74b486fc245",
+    "role": "campaigner",
+    "created_at": "2026-05-01T09:06:10.618527+00:00"
+  }
+]
