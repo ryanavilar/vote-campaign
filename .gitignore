@@ -51,3 +51,6 @@ mcp/.env.local
 *.xlsx
 *.pdf
 scripts/_*
+
+# DB backup dumps — bisa berisi PII & lumayan gede
+backups/
