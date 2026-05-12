@@ -1484,15 +1484,13 @@ export default function TargetPage() {
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.registrasi_website_dpt}
-                          onClick={isCampaigner ? undefined : () => toggleBinary(row, "registrasi_website_dpt")}
-                          readOnly={isCampaigner}
+                          onClick={() => toggleBinary(row, "registrasi_website_dpt")}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.status_dpt}
-                          onClick={isCampaigner ? undefined : () => toggleBinary(row, "status_dpt")}
-                          readOnly={isCampaigner}
+                          onClick={() => toggleBinary(row, "status_dpt")}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">

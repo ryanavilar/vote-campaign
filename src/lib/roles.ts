@@ -39,7 +39,13 @@ export function isAdmin(role: UserRole): boolean {
  * Fields that campaigner can edit. Form/Web/Status DPT + Vote = admin only
  * (per user instruction 2026-05-10 — itu tanggung jawab admin).
  */
-const CAMPAIGNER_EDITABLE_FIELDS = new Set(["no_hp", "dukungan", "sudah_dikontak"]);
+const CAMPAIGNER_EDITABLE_FIELDS = new Set([
+  "no_hp",
+  "dukungan",
+  "sudah_dikontak",
+  "registrasi_website_dpt",
+  "status_dpt",
+]);
 
 export function canEditField(role: UserRole, field: string): boolean {
   if (isAdmin(role)) return true;
