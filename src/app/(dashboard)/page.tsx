@@ -1905,7 +1905,7 @@ export default function Dashboard() {
                             </span>
                           )}
                         </td>
-                        <td className="py-1 px-1 text-right text-[#84303F]">{formatNum(totals.dukung - totals.dptDukung)}</td>
+                        <td className="py-1 px-1 text-right text-[#84303F]">{formatNum(totals.formDptDukung - totals.dptDukung)}</td>
                         <td className="py-1 px-1 text-right text-[#84303F]">{formatNum(totals.dukung - totals.formDptDukung)}</td>
                         <td className="py-1 px-1 text-right text-muted-foreground">{formatNum(totals.dpt - totals.dptDukung)}</td>
                         <td className="py-1 px-1 text-right font-semibold text-[#84303F]">{(() => {
