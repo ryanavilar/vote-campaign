@@ -2005,7 +2005,14 @@ export default function Dashboard() {
                       <tr key={r.angkatan} className="border-b border-border/50 hover:bg-gray-50">
                         <td className="py-1 pr-2 font-semibold text-[#0B27BC]">A{r.angkatan}</td>
                         <td className="py-1 px-1 text-right">{formatNum(r.dpt.total)}</td>
-                        <td className="py-1 px-1 text-right font-semibold text-emerald-700">{formatNum(r.dpt.dukung)}</td>
+                        <td className="py-1 px-1 text-right font-semibold text-emerald-700">
+                          {formatNum(r.dpt.dukung)}
+                          {targetDukung[r.angkatan] ? (
+                            <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                              / {targetDukung[r.angkatan]} ({Math.round((r.dpt.dukung / targetDukung[r.angkatan]) * 100)}%)
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="py-1 px-1 text-right text-red-600">{formatNum(r.dpt.sebelah)}</td>
                         <td className="py-1 px-1 text-right text-yellow-700">{formatNum(r.dpt.ragu)}</td>
                         <td className="py-1 px-1 text-right text-gray-600">{formatNum(r.dpt.belum)}</td>
@@ -2024,11 +2031,19 @@ export default function Dashboard() {
                       }),
                       { total: 0, dukung: 0, sebelah: 0, ragu: 0, belum: 0 }
                     );
+                    const targetTotal = Object.values(targetDukung).reduce((s, v) => s + v, 0);
                     return (
                       <tr className="border-t-2 border-border font-semibold">
                         <td className="py-1 pr-2 text-[#0B27BC]">Total</td>
                         <td className="py-1 px-1 text-right">{formatNum(totals.total)}</td>
-                        <td className="py-1 px-1 text-right text-emerald-700">{formatNum(totals.dukung)}</td>
+                        <td className="py-1 px-1 text-right text-emerald-700">
+                          {formatNum(totals.dukung)}
+                          {targetTotal > 0 ? (
+                            <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                              / {formatNum(targetTotal)} ({Math.round((totals.dukung / targetTotal) * 100)}%)
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="py-1 px-1 text-right text-red-600">{formatNum(totals.sebelah)}</td>
                         <td className="py-1 px-1 text-right text-yellow-700">{formatNum(totals.ragu)}</td>
                         <td className="py-1 px-1 text-right text-gray-600">{formatNum(totals.belum)}</td>
