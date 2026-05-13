@@ -1929,6 +1929,71 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* ═══════ PER ANGKATAN — BREAKDOWN DUKUNGAN (DPT only) ═══════ */}
+        {funnelLoaded && funnelStats && funnelStats.perAngkatan.length > 0 && (
+          <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
+            <h3 className="font-semibold text-foreground mb-3 flex items-center gap-1.5">
+              <Vote className="w-4 h-4 text-[#0B27BC]" />
+              Per Angkatan — Breakdown Dukungan DPT
+            </h3>
+            <p className="text-[10px] text-muted-foreground mb-2">
+              Hanya alumni yang Status DPT = Sudah (sah jadi DPT).
+            </p>
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 z-10 bg-white">
+                  <tr className="text-[10px] text-muted-foreground border-b border-border">
+                    <th className="py-1 pr-2 text-left">Angkatan</th>
+                    <th className="py-1 px-1 text-right">Total DPT</th>
+                    <th className="py-1 px-1 text-right">Dukung</th>
+                    <th className="py-1 px-1 text-right">Sebelah</th>
+                    <th className="py-1 px-1 text-right">Ragu-ragu</th>
+                    <th className="py-1 px-1 text-right">Belum Menentukan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...funnelStats.perAngkatan]
+                    .sort((a, b) => a.angkatan - b.angkatan)
+                    .map((r) => (
+                      <tr key={r.angkatan} className="border-b border-border/50 hover:bg-gray-50">
+                        <td className="py-1 pr-2 font-semibold text-[#0B27BC]">A{r.angkatan}</td>
+                        <td className="py-1 px-1 text-right">{formatNum(r.dpt.total)}</td>
+                        <td className="py-1 px-1 text-right font-semibold text-emerald-700">{formatNum(r.dpt.dukung)}</td>
+                        <td className="py-1 px-1 text-right text-red-600">{formatNum(r.dpt.sebelah)}</td>
+                        <td className="py-1 px-1 text-right text-yellow-700">{formatNum(r.dpt.ragu)}</td>
+                        <td className="py-1 px-1 text-right text-gray-600">{formatNum(r.dpt.belum)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+                <tfoot className="sticky bottom-0 z-10 bg-white">
+                  {(() => {
+                    const totals = funnelStats.perAngkatan.reduce(
+                      (acc, r) => ({
+                        total: acc.total + r.dpt.total,
+                        dukung: acc.dukung + r.dpt.dukung,
+                        sebelah: acc.sebelah + r.dpt.sebelah,
+                        ragu: acc.ragu + r.dpt.ragu,
+                        belum: acc.belum + r.dpt.belum,
+                      }),
+                      { total: 0, dukung: 0, sebelah: 0, ragu: 0, belum: 0 }
+                    );
+                    return (
+                      <tr className="border-t-2 border-border font-semibold">
+                        <td className="py-1 pr-2 text-[#0B27BC]">Total</td>
+                        <td className="py-1 px-1 text-right">{formatNum(totals.total)}</td>
+                        <td className="py-1 px-1 text-right text-emerald-700">{formatNum(totals.dukung)}</td>
+                        <td className="py-1 px-1 text-right text-red-600">{formatNum(totals.sebelah)}</td>
+                        <td className="py-1 px-1 text-right text-yellow-700">{formatNum(totals.ragu)}</td>
+                        <td className="py-1 px-1 text-right text-gray-600">{formatNum(totals.belum)}</td>
+                      </tr>
+                    );
+                  })()}
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* ═══════ PROGRESS DONUTS — OWN ROW ═══════ */}
         {bothLoaded ? (
           <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
