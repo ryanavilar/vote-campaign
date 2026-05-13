@@ -943,6 +943,8 @@ export default function Dashboard() {
   const [targetGroups, setTargetGroups] = useState<{ A1_A5?: number; A6_A12?: number }>({});
   const funnelTableRef = useRef<HTMLDivElement>(null);
   const [downloadingFunnel, setDownloadingFunnel] = useState(false);
+  const breakdownTableRef = useRef<HTMLDivElement>(null);
+  const [downloadingBreakdown, setDownloadingBreakdown] = useState(false);
   const [funnelSort, setFunnelSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "angkatan", dir: "asc" });
   const [funnelAngkatanFilter, setFunnelAngkatanFilter] = useState<Set<number>>(new Set());
   const toggleFunnelAngkatan = (a: number) => {
@@ -1003,6 +1005,40 @@ export default function Dashboard() {
         el.style.overflowX = overflowX;
       });
       setDownloadingFunnel(false);
+    }
+  };
+
+  const downloadBreakdownImage = async () => {
+    const node = breakdownTableRef.current;
+    if (!node) return;
+    setDownloadingBreakdown(true);
+    const scrollers = node.querySelectorAll<HTMLElement>(".overflow-y-auto, .overflow-x-auto");
+    const prevStyles: { el: HTMLElement; maxHeight: string; overflowY: string; overflowX: string }[] = [];
+    scrollers.forEach((el) => {
+      prevStyles.push({ el, maxHeight: el.style.maxHeight, overflowY: el.style.overflowY, overflowX: el.style.overflowX });
+      el.style.maxHeight = "none";
+      el.style.overflowY = "visible";
+      el.style.overflowX = "visible";
+    });
+    try {
+      const dataUrl = await toPng(node, {
+        backgroundColor: "#ffffff",
+        pixelRatio: 2,
+        filter: (n) => !(n instanceof HTMLElement && n.dataset.htmlToImageIgnore !== undefined),
+      });
+      const link = document.createElement("a");
+      link.download = `breakdown-dukungan-dpt-${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (e) {
+      console.error("download failed", e);
+    } finally {
+      prevStyles.forEach(({ el, maxHeight, overflowY, overflowX }) => {
+        el.style.maxHeight = maxHeight;
+        el.style.overflowY = overflowY;
+        el.style.overflowX = overflowX;
+      });
+      setDownloadingBreakdown(false);
     }
   };
   const router = useRouter();
@@ -1931,11 +1967,22 @@ export default function Dashboard() {
 
         {/* ═══════ PER ANGKATAN — BREAKDOWN DUKUNGAN (DPT only) ═══════ */}
         {funnelLoaded && funnelStats && funnelStats.perAngkatan.length > 0 && (
-          <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
-            <h3 className="font-semibold text-foreground mb-3 flex items-center gap-1.5">
-              <Vote className="w-4 h-4 text-[#0B27BC]" />
-              Per Angkatan — Breakdown Dukungan DPT
-            </h3>
+          <div ref={breakdownTableRef} className="bg-white rounded-xl border border-border p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-foreground flex items-center gap-1.5">
+                <Vote className="w-4 h-4 text-[#0B27BC]" />
+                Per Angkatan — Breakdown Dukungan DPT
+              </h3>
+              <button
+                onClick={downloadBreakdownImage}
+                disabled={downloadingBreakdown}
+                data-html-to-image-ignore
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-[#0B27BC] rounded-lg hover:bg-[#091e94] transition-colors disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {downloadingBreakdown ? "..." : "Download PNG"}
+              </button>
+            </div>
             <p className="text-[10px] text-muted-foreground mb-2">
               Hanya alumni yang Status DPT = Sudah (sah jadi DPT).
             </p>
