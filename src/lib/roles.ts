@@ -48,7 +48,19 @@ const CAMPAIGNER_EDITABLE_FIELDS = new Set([
   "vote",
 ]);
 
+/**
+ * Fields LOCKED after the DPT registration window closes — only super_admin
+ * can override (for emergency corrections). Locked per user instruction
+ * 2026-05-13: masa pendaftaran DPT sudah berakhir.
+ */
+const LOCKED_FIELDS = new Set([
+  "isi_form_dpt",
+  "registrasi_website_dpt",
+  "status_dpt",
+]);
+
 export function canEditField(role: UserRole, field: string): boolean {
+  if (LOCKED_FIELDS.has(field)) return isSuperAdmin(role);
   if (isAdmin(role)) return true;
   if (role === "campaigner") return CAMPAIGNER_EDITABLE_FIELDS.has(field);
   return false;

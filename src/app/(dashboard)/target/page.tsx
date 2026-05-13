@@ -347,6 +347,10 @@ function presetMatch(row: TargetRow, key: PresetKey): boolean {
 export default function TargetPage() {
   const { canEdit: userCanEdit, role: userRole, loading: roleLoading } = useRole();
   const isCampaigner = userRole === "campaigner";
+  const isSuperAdmin = userRole === "super_admin";
+  // DPT registration window has closed — Form/Web/Status DPT are locked for
+  // everyone except super_admin.
+  const dptLocked = !isSuperAdmin;
   const { showToast } = useToast();
   const showToastRef = useRef(showToast);
   showToastRef.current = showToast;
@@ -1477,20 +1481,22 @@ export default function TargetPage() {
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.isi_form_dpt}
-                          onClick={isCampaigner ? undefined : () => toggleBinary(row, "isi_form_dpt")}
-                          readOnly={isCampaigner}
+                          onClick={dptLocked ? undefined : () => toggleBinary(row, "isi_form_dpt")}
+                          readOnly={dptLocked}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.registrasi_website_dpt}
-                          onClick={() => toggleBinary(row, "registrasi_website_dpt")}
+                          onClick={dptLocked ? undefined : () => toggleBinary(row, "registrasi_website_dpt")}
+                          readOnly={dptLocked}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
                         <StatusChip
                           value={row.status_dpt}
-                          onClick={() => toggleBinary(row, "status_dpt")}
+                          onClick={dptLocked ? undefined : () => toggleBinary(row, "status_dpt")}
+                          readOnly={dptLocked}
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
