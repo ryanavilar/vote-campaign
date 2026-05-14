@@ -1362,7 +1362,7 @@ export default function Dashboard() {
     { label: "Form DPT", value: opStats.isiFormDpt, total: opStats.totalMembers, color: "#8b5cf6" },
     { label: "Web DPT", value: opStats.registrasiWebsiteDpt, total: opStats.totalMembers, color: "#a855f7" },
     { label: "DPT", value: opStats.dptSudah, total: opStats.totalMembers, color: "#10b981" },
-    { label: "Vote", value: opStats.voteSudah, total: opStats.totalMembers, color: "#84303F" },
+    { label: "Vote", value: opStats.voteSudah, total: opStats.dptSudah, color: "#84303F" },
   ];
 
   return (
