@@ -144,6 +144,13 @@ export default function DeadlineBanner() {
           emoji="🎉"
         />
         <DeadlineCard
+          label="eVote Berakhir"
+          date={EVOTE_END}
+          sub="Batas akhir pemungutan suara"
+          now={now}
+          emoji="🛑"
+        />
+        <DeadlineCard
           label="Pengumuman Hasil"
           date={ANNOUNCEMENT_DATE}
           sub="Penetapan Ketua Umum Munas XI"
@@ -151,15 +158,6 @@ export default function DeadlineBanner() {
           variant="event"
           emoji="🏆"
         />
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 border-t border-border/50 text-[10px] text-muted-foreground">
-        <span className="font-semibold text-foreground/70">Catatan:</span>
-        <span>
-          eVote ditutup —{" "}
-          <span className="font-semibold text-foreground/80">
-            {EVOTE_END.toLocaleDateString("id-ID", { day: "numeric", month: "short" })} 23:59 WIB
-          </span>
-        </span>
       </div>
     </div>
   );
