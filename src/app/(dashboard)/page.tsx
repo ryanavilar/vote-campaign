@@ -1464,7 +1464,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Tab bar — sticky, thin */}
+      {/* Tab bar — sticky, thin (hidden during eVote phase) */}
+      {SHOW_LEGACY && (
       <div className="sticky top-0 z-40 bg-[#0B27BC] shadow-sm">
         <div className="px-4 sm:px-6 flex gap-0">
           <button
@@ -1490,13 +1491,14 @@ export default function Dashboard() {
         </div>
         <div className="h-[2px] bg-gradient-to-r from-[#fcb7c3] via-[#FE8DA1] to-[#fcb7c3]" />
       </div>
+      )}
 
       {activeTab === "overview" ? (
       <div className="px-4 sm:px-6 py-6 space-y-4">
         <DeadlineBanner />
 
         {/* ═══════ PETA PERTARUNGAN — hidden eVote phase ═══════ */}
-        {SHOW_LEGACY && membersLoaded ? (
+        {SHOW_LEGACY && (membersLoaded ? (
           <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <Crosshair className="w-5 h-5 text-[#0B27BC]" />
@@ -1576,10 +1578,10 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-        )}
+        ))}
 
         {/* ═══════ FUNNEL DPT — hidden eVote phase ═══════ */}
-        {SHOW_LEGACY && funnelLoaded && funnelStats ? (
+        {SHOW_LEGACY && (funnelLoaded && funnelStats ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
@@ -1620,7 +1622,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <ChartSkeleton title="Funnel DPT → Vote" />
-        )}
+        ))}
 
         {/* ═══════ DPT METRICS + TEAM ACTION — hidden eVote phase ═══════ */}
         {SHOW_LEGACY && funnelLoaded && funnelStats && (
@@ -1682,7 +1684,7 @@ export default function Dashboard() {
         )}
 
         {/* ═══════ PETA DUKUNGAN — hidden eVote phase ═══════ */}
-        {SHOW_LEGACY && bothLoaded ? (
+        {SHOW_LEGACY && (bothLoaded ? (
           <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h3 className="font-semibold text-foreground">
@@ -1799,7 +1801,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <ChartSkeleton title="Peta Dukungan per Angkatan" />
-        )}
+        ))}
 
         {/* ═══════ PER ANGKATAN — FUNNEL DPT — hidden eVote phase ═══════ */}
         {SHOW_LEGACY && funnelLoaded && funnelStats && funnelStats.perAngkatan.length > 0 && (
@@ -2285,7 +2287,7 @@ export default function Dashboard() {
         )}
 
         {/* ═══════ PROGRESS DONUTS — hidden eVote phase ═══════ */}
-        {SHOW_LEGACY && bothLoaded ? (
+        {SHOW_LEGACY && (bothLoaded ? (
           <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
             <h3 className="font-semibold text-foreground mb-4">
               Progress Operasional
@@ -2334,7 +2336,7 @@ export default function Dashboard() {
           </div>
         ) : (
           <ChartSkeleton title="Progress Operasional" />
-        )}
+        ))}
 
         {/* ═══════ FORM LINKS — hidden eVote phase ═══════ */}
         {SHOW_LEGACY && (
