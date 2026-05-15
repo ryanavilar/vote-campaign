@@ -956,6 +956,7 @@ export default function Dashboard() {
     vote1: number;
     vote2: number;
     belumVote: number;
+    perAngkatan?: Array<{ angkatan: number; total: number; vote1: number; vote2: number; belum: number }>;
   } | null>(null);
 
   // Inline edit state for Vote Panitia cells (admin only)
@@ -2104,7 +2105,7 @@ export default function Dashboard() {
                     <th className="py-1 px-1 text-right">Sebelah</th>
                     <th className="py-1 px-1 text-right">Ragu-ragu</th>
                     <th className="py-1 px-1 text-right">Belum Menentukan</th>
-                    <th className="py-1 px-1 text-right">Vote Panitia (manual)</th>
+                    <th className="py-1 px-1 text-right">Vote</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2151,49 +2152,65 @@ export default function Dashboard() {
                             </span>
                           ) : null}
                         </td>
-                        <td className="py-1 px-1 text-right text-[#0B27BC] font-semibold">
-                          {editingVotePanitia === r.angkatan ? (
-                            <span className="inline-flex items-center gap-1">
-                              <input
-                                type="number"
-                                value={editVotePanitiaValue}
-                                onChange={(e) => setEditVotePanitiaValue(e.target.value)}
-                                autoFocus
-                                className="w-16 px-1 py-0.5 text-right text-xs border border-blue-300 rounded"
-                              />
-                              <button
-                                onClick={async () => {
-                                  const v = parseInt(editVotePanitiaValue, 10);
-                                  const next = { ...votesPanitia };
-                                  if (isNaN(v) || v <= 0) delete next[r.angkatan];
-                                  else next[r.angkatan] = v;
-                                  const ok = await saveVotesPanitia(next);
-                                  if (ok) { setVotesPanitia(next); setEditingVotePanitia(null); }
-                                }}
-                                className="text-[10px] text-emerald-600 hover:underline"
-                              >
-                                save
-                              </button>
-                              <button
-                                onClick={() => setEditingVotePanitia(null)}
-                                className="text-[10px] text-gray-400 hover:underline"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ) : (
-                            <button
-                              disabled={!isAdminUser}
-                              onClick={() => {
-                                setEditVotePanitiaValue(String(votesPanitia[r.angkatan] || ""));
-                                setEditingVotePanitia(r.angkatan);
-                              }}
-                              className={`tabular-nums ${isAdminUser ? "cursor-pointer hover:bg-blue-50 rounded px-1" : "cursor-default"} disabled:cursor-default`}
-                              title={isAdminUser ? "Klik untuk edit" : "Hanya admin yang bisa edit"}
-                            >
-                              {votesPanitia[r.angkatan] != null ? formatNum(votesPanitia[r.angkatan]) : <span className="text-gray-300">—</span>}
-                            </button>
-                          )}
+                        <td className="py-1 px-1 text-right tabular-nums">
+                          {(() => {
+                            const v1 = voteCounts?.perAngkatan?.find((p) => p.angkatan === r.angkatan)?.vote1 ?? 0;
+                            const yp = votesPanitia[r.angkatan];
+                            const aPct = yp && yp > 0 ? Math.round((v1 / yp) * 100) : null;
+                            const bPct = yp && r.dpt.total > 0 ? Math.round((yp / r.dpt.total) * 100) : null;
+                            return (
+                              <span className="inline-flex items-center gap-1">
+                                <span className="text-emerald-700 font-semibold">
+                                  {formatNum(v1)}
+                                  {aPct != null && (
+                                    <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({aPct}%)</span>
+                                  )}
+                                </span>
+                                <span className="text-gray-400">/</span>
+                                {editingVotePanitia === r.angkatan ? (
+                                  <span className="inline-flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      value={editVotePanitiaValue}
+                                      onChange={(e) => setEditVotePanitiaValue(e.target.value)}
+                                      autoFocus
+                                      className="w-14 px-1 py-0.5 text-right text-xs border border-blue-300 rounded"
+                                    />
+                                    <button
+                                      onClick={async () => {
+                                        const v = parseInt(editVotePanitiaValue, 10);
+                                        const next = { ...votesPanitia };
+                                        if (isNaN(v) || v <= 0) delete next[r.angkatan];
+                                        else next[r.angkatan] = v;
+                                        const ok = await saveVotesPanitia(next);
+                                        if (ok) { setVotesPanitia(next); setEditingVotePanitia(null); }
+                                      }}
+                                      className="text-[10px] text-emerald-600 hover:underline"
+                                    >save</button>
+                                    <button
+                                      onClick={() => setEditingVotePanitia(null)}
+                                      className="text-[10px] text-gray-400 hover:underline"
+                                    >×</button>
+                                  </span>
+                                ) : (
+                                  <button
+                                    disabled={!isAdminUser}
+                                    onClick={() => {
+                                      setEditVotePanitiaValue(String(votesPanitia[r.angkatan] || ""));
+                                      setEditingVotePanitia(r.angkatan);
+                                    }}
+                                    className={`text-[#0B27BC] font-semibold ${isAdminUser ? "cursor-pointer hover:bg-blue-50 rounded px-1" : "cursor-default"} disabled:cursor-default`}
+                                    title={isAdminUser ? "Klik untuk edit total vote panitia" : "Hanya admin yang bisa edit"}
+                                  >
+                                    {yp != null ? formatNum(yp) : <span className="text-gray-300">—</span>}
+                                    {bPct != null && (
+                                      <span className="text-[10px] font-normal text-blue-600 ml-0.5">({bPct}%)</span>
+                                    )}
+                                  </button>
+                                )}
+                              </span>
+                            );
+                          })()}
                         </td>
                       </tr>
                     ))}
@@ -2241,8 +2258,22 @@ export default function Dashboard() {
                           {formatNum(totals.belum)}
                           <span className="text-[10px] font-normal text-gray-500 ml-1">({pct(totals.belum)}%)</span>
                         </td>
-                        <td className="py-1 px-1 text-right text-[#0B27BC] tabular-nums">
-                          {formatNum(Object.values(votesPanitia).reduce((s, v) => s + (Number(v) || 0), 0))}
+                        <td className="py-1 px-1 text-right tabular-nums">
+                          {(() => {
+                            const totV1 = voteCounts?.vote1 ?? 0;
+                            const totPanitia = Object.values(votesPanitia).reduce((s, v) => s + (Number(v) || 0), 0);
+                            const aPct = totPanitia > 0 ? Math.round((totV1 / totPanitia) * 100) : null;
+                            return (
+                              <span>
+                                <span className="text-emerald-700">
+                                  {formatNum(totV1)}
+                                  {aPct != null && <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({aPct}%)</span>}
+                                </span>
+                                <span className="text-gray-400"> / </span>
+                                <span className="text-[#0B27BC]">{formatNum(totPanitia)}</span>
+                              </span>
+                            );
+                          })()}
                         </td>
                       </tr>
                     );
