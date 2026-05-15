@@ -940,10 +940,12 @@ export default function Dashboard() {
   const [batchView, setBatchView] = useState<"bar" | "heatmap">("bar");
   const [formDukunganCount, setFormDukunganCount] = useState(0);
   const { loading: roleLoading, role } = useRole();
+  const isAdminUser = role === "admin" || role === "super_admin";
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "batch">("overview");
   const [chartSort, setChartSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "angkatan", dir: "asc" });
   const [targetDukung, setTargetDukung] = useState<Record<number, number>>({});
+  const [votesPanitia, setVotesPanitia] = useState<Record<number, number>>({});
   const [targetGroups, setTargetGroups] = useState<{ A1_A5?: number; A6_A12?: number }>({});
   const funnelTableRef = useRef<HTMLDivElement>(null);
   const [downloadingFunnel, setDownloadingFunnel] = useState(false);
@@ -955,6 +957,31 @@ export default function Dashboard() {
     vote2: number;
     belumVote: number;
   } | null>(null);
+
+  // Inline edit state for Vote Panitia cells (admin only)
+  const [editingVotePanitia, setEditingVotePanitia] = useState<number | null>(null);
+  const [editVotePanitiaValue, setEditVotePanitiaValue] = useState<string>("");
+
+  const saveVotesPanitia = async (next: Record<number, number>) => {
+    const perStr: Record<string, number> = {};
+    for (const [k, v] of Object.entries(next)) perStr[String(k)] = v;
+    try {
+      const res = await fetch("/api/angkatan-votes-panitia", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ per_angkatan: perStr }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert("Gagal save: " + (err.error || res.statusText));
+        return false;
+      }
+      return true;
+    } catch (e) {
+      alert("Gagal save: " + String(e));
+      return false;
+    }
+  };
   const [funnelSort, setFunnelSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "angkatan", dir: "asc" });
   const [funnelAngkatanFilter, setFunnelAngkatanFilter] = useState<Set<number>>(new Set());
   const toggleFunnelAngkatan = (a: number) => {
@@ -1066,6 +1093,20 @@ export default function Dashboard() {
         }
         setTargetDukung(numMap);
         setTargetGroups(j.value.groups || {});
+      })
+      .catch(() => { /* silent */ });
+
+    fetch("/api/angkatan-votes-panitia")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j?.value) return;
+        const per = j.value.per_angkatan || {};
+        const numMap: Record<number, number> = {};
+        for (const [k, v] of Object.entries(per)) {
+          const n = Number(k);
+          if (!isNaN(n) && typeof v === "number") numMap[n] = v;
+        }
+        setVotesPanitia(numMap);
       })
       .catch(() => { /* silent */ });
   }, []);
@@ -2057,6 +2098,7 @@ export default function Dashboard() {
                     <th className="py-1 px-1 text-right">Sebelah</th>
                     <th className="py-1 px-1 text-right">Ragu-ragu</th>
                     <th className="py-1 px-1 text-right">Belum Menentukan</th>
+                    <th className="py-1 px-1 text-right">Vote Panitia (manual)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2103,6 +2145,50 @@ export default function Dashboard() {
                             </span>
                           ) : null}
                         </td>
+                        <td className="py-1 px-1 text-right text-[#0B27BC] font-semibold">
+                          {editingVotePanitia === r.angkatan ? (
+                            <span className="inline-flex items-center gap-1">
+                              <input
+                                type="number"
+                                value={editVotePanitiaValue}
+                                onChange={(e) => setEditVotePanitiaValue(e.target.value)}
+                                autoFocus
+                                className="w-16 px-1 py-0.5 text-right text-xs border border-blue-300 rounded"
+                              />
+                              <button
+                                onClick={async () => {
+                                  const v = parseInt(editVotePanitiaValue, 10);
+                                  const next = { ...votesPanitia };
+                                  if (isNaN(v) || v <= 0) delete next[r.angkatan];
+                                  else next[r.angkatan] = v;
+                                  const ok = await saveVotesPanitia(next);
+                                  if (ok) { setVotesPanitia(next); setEditingVotePanitia(null); }
+                                }}
+                                className="text-[10px] text-emerald-600 hover:underline"
+                              >
+                                save
+                              </button>
+                              <button
+                                onClick={() => setEditingVotePanitia(null)}
+                                className="text-[10px] text-gray-400 hover:underline"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              disabled={!isAdminUser}
+                              onClick={() => {
+                                setEditVotePanitiaValue(String(votesPanitia[r.angkatan] || ""));
+                                setEditingVotePanitia(r.angkatan);
+                              }}
+                              className={`tabular-nums ${isAdminUser ? "cursor-pointer hover:bg-blue-50 rounded px-1" : "cursor-default"} disabled:cursor-default`}
+                              title={isAdminUser ? "Klik untuk edit" : "Hanya admin yang bisa edit"}
+                            >
+                              {votesPanitia[r.angkatan] != null ? formatNum(votesPanitia[r.angkatan]) : <span className="text-gray-300">—</span>}
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                 </tbody>
@@ -2148,6 +2234,9 @@ export default function Dashboard() {
                         <td className="py-1 px-1 text-right text-gray-600">
                           {formatNum(totals.belum)}
                           <span className="text-[10px] font-normal text-gray-500 ml-1">({pct(totals.belum)}%)</span>
+                        </td>
+                        <td className="py-1 px-1 text-right text-[#0B27BC] tabular-nums">
+                          {formatNum(Object.values(votesPanitia).reduce((s, v) => s + (Number(v) || 0), 0))}
                         </td>
                       </tr>
                     );
