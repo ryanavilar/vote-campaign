@@ -1816,7 +1816,10 @@ export default function AdminAlumniPage() {
                   <div>
                     <label className="text-[10px] text-gray-400 mb-0.5 block">Vote</label>
                     <select value={fVote} onChange={(e) => setFVote(e.target.value)} className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white">
-                      <option value="all">Semua</option><option value="Sudah">Sudah</option><option value="Belum">Belum</option>
+                      <option value="all">Semua</option>
+                      <option value="1">Pilih 1</option>
+                      <option value="2">Pilih 2</option>
+                      <option value="Belum">Belum</option>
                     </select>
                   </div>
                 </div>
