@@ -2025,19 +2025,24 @@ export default function Dashboard() {
         )}
 
         {/* ═══════ QUICK COUNT — VOTE TALLY ═══════ */}
-        {voteCounts && (
+        {voteCounts && (() => {
+          const totalPanitia = Object.values(votesPanitia).reduce((s, v) => s + (Number(v) || 0), 0);
+          const denom = totalPanitia;
+          const pct = (n: number) => denom > 0 ? Math.round((n / denom) * 100) : 0;
+          return (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total DPT</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums">{formatNum(voteCounts.totalDpt)}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total Vote Panitia</p>
+              <p className="text-2xl font-bold text-foreground tabular-nums">{formatNum(totalPanitia)}</p>
+              <p className="text-[9px] text-muted-foreground mt-0.5">Denominator dari panitia (manual)</p>
             </div>
             <div className="bg-emerald-50 rounded-xl border-2 border-emerald-200 p-3 shadow-sm">
               <p className="text-[10px] text-emerald-700 uppercase tracking-wide font-semibold">🟢 Vote Kita (Pilih 1)</p>
               <p className="text-2xl font-bold text-emerald-700 tabular-nums">
                 {formatNum(voteCounts.vote1)}
-                {voteCounts.totalDpt > 0 && (
+                {denom > 0 && (
                   <span className="text-xs font-normal text-emerald-600 ml-1">
-                    ({Math.round((voteCounts.vote1 / voteCounts.totalDpt) * 100)}%)
+                    / {formatNum(denom)} ({pct(voteCounts.vote1)}%)
                   </span>
                 )}
               </p>
@@ -2046,26 +2051,27 @@ export default function Dashboard() {
               <p className="text-[10px] text-red-700 uppercase tracking-wide">🔴 Vote Sebelah (Pilih 2)</p>
               <p className="text-2xl font-bold text-red-700 tabular-nums">
                 {formatNum(voteCounts.vote2)}
-                {voteCounts.totalDpt > 0 && (
+                {denom > 0 && (
                   <span className="text-xs font-normal text-red-600 ml-1">
-                    ({Math.round((voteCounts.vote2 / voteCounts.totalDpt) * 100)}%)
+                    / {formatNum(denom)} ({pct(voteCounts.vote2)}%)
                   </span>
                 )}
               </p>
             </div>
             <div className="bg-gray-50 rounded-xl border border-gray-200 p-3 shadow-sm">
-              <p className="text-[10px] text-gray-700 uppercase tracking-wide">⚪ Belum Vote</p>
+              <p className="text-[10px] text-gray-700 uppercase tracking-wide">⚪ Belum Tercatat</p>
               <p className="text-2xl font-bold text-gray-700 tabular-nums">
-                {formatNum(voteCounts.belumVote)}
-                {voteCounts.totalDpt > 0 && (
+                {formatNum(Math.max(0, denom - voteCounts.vote1 - voteCounts.vote2))}
+                {denom > 0 && (
                   <span className="text-xs font-normal text-gray-500 ml-1">
-                    ({Math.round((voteCounts.belumVote / voteCounts.totalDpt) * 100)}%)
+                    ({pct(Math.max(0, denom - voteCounts.vote1 - voteCounts.vote2))}%)
                   </span>
                 )}
               </p>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ═══════ PER ANGKATAN — BREAKDOWN DUKUNGAN (DPT only) ═══════ */}
         {funnelLoaded && funnelStats && funnelStats.perAngkatan.length > 0 && (
