@@ -2268,6 +2268,7 @@ export default function Dashboard() {
                             const totV1 = voteCounts?.vote1 ?? 0;
                             const totPanitia = Object.values(votesPanitia).reduce((s, v) => s + (Number(v) || 0), 0);
                             const aPct = totPanitia > 0 ? Math.round((totV1 / totPanitia) * 100) : null;
+                            const bPct = totPanitia > 0 && totals.total > 0 ? Math.round((totPanitia / totals.total) * 100) : null;
                             return (
                               <span>
                                 <span className="text-emerald-700">
@@ -2275,7 +2276,10 @@ export default function Dashboard() {
                                   {aPct != null && <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({aPct}%)</span>}
                                 </span>
                                 <span className="text-gray-400"> / </span>
-                                <span className="text-[#0B27BC]">{formatNum(totPanitia)}</span>
+                                <span className="text-[#0B27BC]">
+                                  {formatNum(totPanitia)}
+                                  {bPct != null && <span className="text-[10px] font-normal text-blue-600 ml-0.5">({bPct}%)</span>}
+                                </span>
                               </span>
                             );
                           })()}
