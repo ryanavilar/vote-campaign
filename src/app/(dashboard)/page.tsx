@@ -2041,36 +2041,39 @@ export default function Dashboard() {
             </div>
             <div className="bg-emerald-50 rounded-xl border-2 border-emerald-200 p-3 shadow-sm">
               <p className="text-[10px] text-emerald-700 uppercase tracking-wide font-semibold">🟢 Vote Kita (Pilih 1)</p>
-              <p className="text-2xl font-bold text-emerald-700 tabular-nums">
+              <p className="text-2xl font-bold text-emerald-700 tabular-nums leading-tight">
                 {formatNum(voteCounts.vote1)}
                 {denom > 0 && (
-                  <span className="text-xs font-normal text-emerald-600 ml-1">
-                    / {formatNum(denom)} ({pct(voteCounts.vote1)}%)
-                  </span>
+                  <span className="text-base ml-1.5">({pct(voteCounts.vote1)}%)</span>
                 )}
               </p>
+              {denom > 0 && (
+                <p className="text-[9px] text-emerald-600/80 mt-0.5">vs {formatNum(denom)} vote panitia</p>
+              )}
             </div>
             <div className="bg-red-50 rounded-xl border border-red-200 p-3 shadow-sm">
               <p className="text-[10px] text-red-700 uppercase tracking-wide">🔴 Vote Sebelah (Pilih 2)</p>
-              <p className="text-2xl font-bold text-red-700 tabular-nums">
+              <p className="text-2xl font-bold text-red-700 tabular-nums leading-tight">
                 {formatNum(voteCounts.vote2)}
                 {denom > 0 && (
-                  <span className="text-xs font-normal text-red-600 ml-1">
-                    / {formatNum(denom)} ({pct(voteCounts.vote2)}%)
-                  </span>
+                  <span className="text-base ml-1.5">({pct(voteCounts.vote2)}%)</span>
                 )}
               </p>
+              {denom > 0 && (
+                <p className="text-[9px] text-red-600/80 mt-0.5">vs {formatNum(denom)} vote panitia</p>
+              )}
             </div>
             <div className="bg-gray-50 rounded-xl border border-gray-200 p-3 shadow-sm">
               <p className="text-[10px] text-gray-700 uppercase tracking-wide">⚪ Belum Tercatat</p>
-              <p className="text-2xl font-bold text-gray-700 tabular-nums">
+              <p className="text-2xl font-bold text-gray-700 tabular-nums leading-tight">
                 {formatNum(Math.max(0, denom - voteCounts.vote1 - voteCounts.vote2))}
                 {denom > 0 && (
-                  <span className="text-xs font-normal text-gray-500 ml-1">
-                    ({pct(Math.max(0, denom - voteCounts.vote1 - voteCounts.vote2))}%)
-                  </span>
+                  <span className="text-base ml-1.5">({pct(Math.max(0, denom - voteCounts.vote1 - voteCounts.vote2))}%)</span>
                 )}
               </p>
+              {denom > 0 && (
+                <p className="text-[9px] text-gray-500 mt-0.5">vs {formatNum(denom)} vote panitia</p>
+              )}
             </div>
           </div>
           );
