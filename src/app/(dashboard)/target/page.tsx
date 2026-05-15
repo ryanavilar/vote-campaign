@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import DeadlineBanner from "@/components/DeadlineBanner";
 import TierPendukungCard from "@/components/TierPendukungCard";
 import { formatNum } from "@/lib/format";
+import VoteSelect from "@/components/VoteSelect";
 import type { StatusValue } from "@/lib/types";
 import { classifyTier, type DptTier } from "@/lib/dptDeadline";
 import {
@@ -57,7 +58,7 @@ interface TargetRow {
   registrasi_website_dpt: StatusValue;
   sudah_dikontak: StatusValue;
   masuk_grup: StatusValue;
-  vote: StatusValue;
+  vote: string | null;
   dukungan: string | null;
   attendance_count: number;
 }
@@ -269,7 +270,7 @@ function computeNextAction(row: TargetRow): NextAction {
   if (row.status_dpt !== "Sudah") {
     return { key: "dpt", label: "Cek DPT resmi", priority: 5, color: "text-orange-600" };
   }
-  if (row.vote !== "Sudah") {
+  if (row.vote !== "1" && row.vote !== "2" && row.vote !== "Sudah") {
     return { key: "vote", label: "Pengingat Vote", priority: 6, color: "text-[#84303F]" };
   }
   return { key: "done", label: "✅ Lengkap", priority: 10, color: "text-emerald-700" };
@@ -284,7 +285,7 @@ function ProgressDots({ row }: { row: TargetRow }) {
     { key: "form", on: row.isi_form_dpt === "Sudah", label: "Form DPT" },
     { key: "web", on: row.registrasi_website_dpt === "Sudah", label: "Web DPT" },
     { key: "dpt", on: row.status_dpt === "Sudah", label: "DPT" },
-    { key: "vote", on: row.vote === "Sudah", label: "Vote" },
+    { key: "vote", on: row.vote === "1" || row.vote === "2" || row.vote === "Sudah", label: "Vote" },
   ];
   const done = stages.filter((s) => s.on).length;
   return (
@@ -338,7 +339,7 @@ function presetMatch(row: TargetRow, key: PresetKey): boolean {
     case "dukungBelumForm": return pendukung && row.isi_form_dpt !== "Sudah";
     case "formBelumWeb": return row.isi_form_dpt === "Sudah" && row.registrasi_website_dpt !== "Sudah";
     case "webBelumDpt": return row.registrasi_website_dpt === "Sudah" && row.status_dpt !== "Sudah";
-    case "dptBelumVote": return row.status_dpt === "Sudah" && row.vote !== "Sudah";
+    case "dptBelumVote": return row.status_dpt === "Sudah" && row.vote !== "1" && row.vote !== "2" && row.vote !== "Sudah";
   }
 }
 
@@ -483,7 +484,7 @@ export default function TargetPage() {
     for (const t of allTargets) {
       const contacted = t.sudah_dikontak === "Sudah" || t.masuk_grup === "Sudah";
       const pendukung = t.dukungan === "dukung" || t.dukungan === "terkonvert";
-      const tIsVote = t.vote === "Sudah";
+      const tIsVote = t.vote === "1" || t.vote === "2" || t.vote === "Sudah";
       const tIsDpt = t.status_dpt === "Sudah";
       const pa = ensure(t.angkatan);
       pa.total++;
@@ -1317,7 +1318,8 @@ export default function TargetPage() {
                       className="w-full px-2 py-1.5 text-xs border border-border rounded-lg bg-white"
                     >
                       <option value="all">Semua</option>
-                      <option value="Sudah">Sudah</option>
+                      <option value="1">Pilih 1</option>
+                      <option value="2">Pilih 2</option>
                       <option value="Belum">Belum</option>
                     </select>
                   </div>
@@ -1500,9 +1502,9 @@ export default function TargetPage() {
                         />
                       </td>
                       <td className="px-2 py-2 text-center">
-                        <StatusChip
+                        <VoteSelect
                           value={row.vote}
-                          onClick={() => toggleBinary(row, "vote")}
+                          onChange={(v) => handleFieldUpdate(row, "vote", v)}
                         />
                       </td>
                     </tr>
@@ -1634,10 +1636,9 @@ export default function TargetPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-[9px] text-gray-400 w-7">Vote</span>
-                      <StatusChip
+                      <VoteSelect
                         value={row.vote}
-                        onClick={isCampaigner ? undefined : () => toggleBinary(row, "vote")}
-                        readOnly={isCampaigner}
+                        onChange={(v) => handleFieldUpdate(row, "vote", v)}
                       />
                     </div>
                   </div>

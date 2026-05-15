@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import { useRole } from "@/lib/RoleContext";
 import { useToast } from "@/components/Toast";
 import DeadlineBanner from "@/components/DeadlineBanner";
+import VoteSelect from "@/components/VoteSelect";
 import TierPendukungCard from "@/components/TierPendukungCard";
 import { formatNum } from "@/lib/format";
 import type { StatusValue } from "@/lib/types";
@@ -258,7 +259,7 @@ function ProgressDots({ member }: { member: MemberInfo | null }) {
     { key: "form", label: "Form DPT", on: member?.isi_form_dpt === "Sudah" },
     { key: "web", label: "Web DPT", on: member?.registrasi_website_dpt === "Sudah" },
     { key: "dpt", label: "DPT Resmi", on: member?.status_dpt === "Sudah" },
-    { key: "vote", label: "Vote", on: member?.vote === "Sudah" },
+    { key: "vote", label: "Vote", on: member?.vote === "1" || member?.vote === "2" || member?.vote === "Sudah" },
   ];
   const done = stages.filter((s) => s.on).length;
   return (
@@ -1968,7 +1969,7 @@ export default function AdminAlumniPage() {
                           <StatusChip value={(member?.status_dpt as StatusValue) || null} onClick={() => toggleBinary(item, "status_dpt")} />
                         </td>
                         <td className="px-2 py-2 text-center">
-                          <StatusChip value={(member?.vote as StatusValue) || null} onClick={() => toggleBinary(item, "vote")} />
+                          <VoteSelect value={member?.vote || null} onChange={(v) => handleFieldUpdate(item, "vote", v)} />
                         </td>
                       </tr>
                     );
@@ -2100,7 +2101,7 @@ export default function AdminAlumniPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-gray-400 w-7">Vote</span>
-                        <StatusChip value={(member?.vote as StatusValue) || null} onClick={() => toggleBinary(item, "vote")} />
+                        <VoteSelect value={member?.vote || null} onChange={(v) => handleFieldUpdate(item, "vote", v)} />
                       </div>
                     </div>
                   </div>

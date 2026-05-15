@@ -3,8 +3,6 @@
 import { AlarmClock, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
-  GFORM_DEADLINE,
-  WEB_DEADLINE_OFFICIAL,
   EVOTE_START,
   EVOTE_END,
   ANNOUNCEMENT_DATE,
@@ -138,39 +136,28 @@ export default function DeadlineBanner() {
       </div>
       <div className="flex flex-col sm:flex-row gap-2">
         <DeadlineCard
-          label="1. GForm"
-          date={GFORM_DEADLINE}
-          sub="Isi form pendaftaran"
-          now={now}
-        />
-        <DeadlineCard
-          label="2. Selfie Web"
-          date={WEB_DEADLINE_OFFICIAL}
-          sub="Selfie web di evote.ikastara.id"
-          now={now}
-        />
-        <DeadlineCard
-          label="3. eVote Munas"
+          label="eVote Munas Dimulai"
           date={EVOTE_START}
           sub="Hari pemungutan suara dimulai"
           now={now}
           variant="event"
           emoji="🎉"
         />
+        <DeadlineCard
+          label="Pengumuman Hasil"
+          date={ANNOUNCEMENT_DATE}
+          sub="Penetapan Ketua Umum Munas XI"
+          now={now}
+          variant="event"
+          emoji="🏆"
+        />
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 border-t border-border/50 text-[10px] text-muted-foreground">
-        <span className="font-semibold text-foreground/70">Selanjutnya:</span>
+        <span className="font-semibold text-foreground/70">Catatan:</span>
         <span>
-          eVote tutup —{" "}
+          eVote ditutup —{" "}
           <span className="font-semibold text-foreground/80">
             {EVOTE_END.toLocaleDateString("id-ID", { day: "numeric", month: "short" })} 23:59 WIB
-          </span>
-        </span>
-        <span className="opacity-40">•</span>
-        <span>
-          Pengumuman Hasil —{" "}
-          <span className="font-semibold text-foreground/80">
-            {ANNOUNCEMENT_DATE.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
           </span>
         </span>
       </div>

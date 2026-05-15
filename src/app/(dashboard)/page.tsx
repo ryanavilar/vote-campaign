@@ -183,6 +183,10 @@ interface FunnelStats {
   };
 }
 
+// Toggle legacy dashboard sections (Peta Pertarungan, Funnel DPT, stats, etc).
+// Set to `true` to bring them back after Munas if needed.
+const SHOW_LEGACY: boolean = false;
+
 const STAGE_LABELS: Record<FunnelStageKey, string> = {
   terdata: "Terdata",
   contacted: "Terkontak",
@@ -945,6 +949,12 @@ export default function Dashboard() {
   const [downloadingFunnel, setDownloadingFunnel] = useState(false);
   const breakdownTableRef = useRef<HTMLDivElement>(null);
   const [downloadingBreakdown, setDownloadingBreakdown] = useState(false);
+  const [voteCounts, setVoteCounts] = useState<{
+    totalDpt: number;
+    vote1: number;
+    vote2: number;
+    belumVote: number;
+  } | null>(null);
   const [funnelSort, setFunnelSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "angkatan", dir: "asc" });
   const [funnelAngkatanFilter, setFunnelAngkatanFilter] = useState<Set<number>>(new Set());
   const toggleFunnelAngkatan = (a: number) => {
@@ -1108,6 +1118,12 @@ export default function Dashboard() {
     // Fetch funnel stats
     const funnelPromise = fetch("/api/stats/funnel")
       .then((res) => res.json())
+      .catch(() => null);
+
+    // Fetch vote count (kita / sebelah / belum)
+    fetch("/api/stats/vote-count")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((v) => { if (v) setVoteCounts(v); })
       .catch(() => null);
 
     // Progressive loading
@@ -1437,8 +1453,8 @@ export default function Dashboard() {
       <div className="px-4 sm:px-6 py-6 space-y-4">
         <DeadlineBanner />
 
-        {/* ═══════ PETA PERTARUNGAN ═══════ */}
-        {membersLoaded ? (
+        {/* ═══════ PETA PERTARUNGAN — hidden eVote phase ═══════ */}
+        {SHOW_LEGACY && membersLoaded ? (
           <div className="bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
             <div className="flex items-center gap-2 mb-4">
               <Crosshair className="w-5 h-5 text-[#0B27BC]" />
@@ -1520,8 +1536,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ═══════ FUNNEL DPT ═══════ */}
-        {funnelLoaded && funnelStats ? (
+        {/* ═══════ FUNNEL DPT — hidden eVote phase ═══════ */}
+        {SHOW_LEGACY && funnelLoaded && funnelStats ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 bg-white rounded-xl border border-border shadow-sm p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
@@ -1564,8 +1580,8 @@ export default function Dashboard() {
           <ChartSkeleton title="Funnel DPT → Vote" />
         )}
 
-        {/* ═══════ DPT METRICS + TEAM ACTION ═══════ */}
-        {funnelLoaded && funnelStats && (
+        {/* ═══════ DPT METRICS + TEAM ACTION — hidden eVote phase ═══════ */}
+        {SHOW_LEGACY && funnelLoaded && funnelStats && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
               <DptMetricsCard stats={funnelStats} />
@@ -1574,8 +1590,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ═══════ TIER PENDUKUNG (DPT registration urgency) ═══════ */}
-        {funnelLoaded && funnelStats && (
+        {/* ═══════ TIER PENDUKUNG — hidden eVote phase ═══════ */}
+        {SHOW_LEGACY && funnelLoaded && funnelStats && (
           <TierPendukungCard
             tiers={funnelStats.tiers.pendukung}
             pendukungTotal={funnelStats.dptMetrics.pendukungTotal}
@@ -1583,7 +1599,8 @@ export default function Dashboard() {
           />
         )}
 
-        {/* ═══════ STATS ROW ═══════ */}
+        {/* ═══════ STATS ROW — hidden eVote phase ═══════ */}
+        {SHOW_LEGACY && (
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {statsCards.map((card) => {
             const Icon = card.icon;
@@ -1620,9 +1637,10 @@ export default function Dashboard() {
             );
           })}
         </div>
+        )}
 
-        {/* ═══════ PETA DUKUNGAN — CUSTOM VIS ═══════ */}
-        {bothLoaded ? (
+        {/* ═══════ PETA DUKUNGAN — hidden eVote phase ═══════ */}
+        {SHOW_LEGACY && bothLoaded ? (
           <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h3 className="font-semibold text-foreground">
@@ -1741,8 +1759,8 @@ export default function Dashboard() {
           <ChartSkeleton title="Peta Dukungan per Angkatan" />
         )}
 
-        {/* ═══════ PER ANGKATAN — FUNNEL DPT ═══════ */}
-        {funnelLoaded && funnelStats && funnelStats.perAngkatan.length > 0 && (
+        {/* ═══════ PER ANGKATAN — FUNNEL DPT — hidden eVote phase ═══════ */}
+        {SHOW_LEGACY && funnelLoaded && funnelStats && funnelStats.perAngkatan.length > 0 && (
           <div ref={funnelTableRef} className="bg-white rounded-xl border border-border p-4 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-foreground flex items-center gap-1.5">
@@ -1965,6 +1983,49 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* ═══════ QUICK COUNT — VOTE TALLY ═══════ */}
+        {voteCounts && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Total DPT</p>
+              <p className="text-2xl font-bold text-foreground tabular-nums">{formatNum(voteCounts.totalDpt)}</p>
+            </div>
+            <div className="bg-emerald-50 rounded-xl border-2 border-emerald-200 p-3 shadow-sm">
+              <p className="text-[10px] text-emerald-700 uppercase tracking-wide font-semibold">🟢 Vote Kita (Pilih 1)</p>
+              <p className="text-2xl font-bold text-emerald-700 tabular-nums">
+                {formatNum(voteCounts.vote1)}
+                {voteCounts.totalDpt > 0 && (
+                  <span className="text-xs font-normal text-emerald-600 ml-1">
+                    ({Math.round((voteCounts.vote1 / voteCounts.totalDpt) * 100)}%)
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="bg-red-50 rounded-xl border border-red-200 p-3 shadow-sm">
+              <p className="text-[10px] text-red-700 uppercase tracking-wide">🔴 Vote Sebelah (Pilih 2)</p>
+              <p className="text-2xl font-bold text-red-700 tabular-nums">
+                {formatNum(voteCounts.vote2)}
+                {voteCounts.totalDpt > 0 && (
+                  <span className="text-xs font-normal text-red-600 ml-1">
+                    ({Math.round((voteCounts.vote2 / voteCounts.totalDpt) * 100)}%)
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-3 shadow-sm">
+              <p className="text-[10px] text-gray-700 uppercase tracking-wide">⚪ Belum Vote</p>
+              <p className="text-2xl font-bold text-gray-700 tabular-nums">
+                {formatNum(voteCounts.belumVote)}
+                {voteCounts.totalDpt > 0 && (
+                  <span className="text-xs font-normal text-gray-500 ml-1">
+                    ({Math.round((voteCounts.belumVote / voteCounts.totalDpt) * 100)}%)
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ═══════ PER ANGKATAN — BREAKDOWN DUKUNGAN (DPT only) ═══════ */}
         {funnelLoaded && funnelStats && funnelStats.perAngkatan.length > 0 && (
           <div ref={breakdownTableRef} className="bg-white rounded-xl border border-border p-4 shadow-sm">
@@ -2097,8 +2158,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ═══════ PROGRESS DONUTS — OWN ROW ═══════ */}
-        {bothLoaded ? (
+        {/* ═══════ PROGRESS DONUTS — hidden eVote phase ═══════ */}
+        {SHOW_LEGACY && bothLoaded ? (
           <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
             <h3 className="font-semibold text-foreground mb-4">
               Progress Operasional
@@ -2149,7 +2210,8 @@ export default function Dashboard() {
           <ChartSkeleton title="Progress Operasional" />
         )}
 
-        {/* ═══════ FORM LINKS ═══════ */}
+        {/* ═══════ FORM LINKS — hidden eVote phase ═══════ */}
+        {SHOW_LEGACY && (
         <div className="bg-white rounded-xl border border-border shadow-sm p-4">
           <div className="flex items-center gap-2 mb-3">
             <Link2 className="w-4 h-4 text-[#0B27BC]" />
@@ -2165,6 +2227,7 @@ export default function Dashboard() {
             onCopy={copyToClipboard}
           />
         </div>
+        )}
       </div>
       ) : (
         <div className="px-4 sm:px-6 py-6">
