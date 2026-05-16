@@ -2104,13 +2104,48 @@ export default function Dashboard() {
               <table className="w-full text-xs">
                 <thead className="sticky top-0 z-10 bg-white">
                   <tr className="text-[10px] text-muted-foreground border-b border-border">
-                    <th className="py-1 pr-2 text-left">Angkatan</th>
-                    <th className="py-1 px-1 text-right">Total DPT</th>
-                    <th className="py-1 px-1 text-right">Dukung</th>
-                    <th className="py-1 px-1 text-right">Sebelah</th>
-                    <th className="py-1 px-1 text-right">Ragu-ragu</th>
-                    <th className="py-1 px-1 text-right">Belum Menentukan</th>
-                    <th className="py-1 px-1 text-right">Vote</th>
+                    <th className="py-1 pr-2 text-left">
+                      <span className="inline-flex items-center gap-1" title="Kode angkatan TN">
+                        Angkatan
+                        <HelpCircle className="w-3 h-3 text-gray-300" />
+                      </span>
+                    </th>
+                    <th className="py-1 px-1 text-right">
+                      <span className="inline-flex items-center gap-1 justify-end" title="Jumlah alumni yang sudah jadi DPT resmi (status_dpt=Sudah).">
+                        Total DPT
+                        <HelpCircle className="w-3 h-3 text-gray-300" />
+                      </span>
+                    </th>
+                    <th className="py-1 px-1 text-right">
+                      <span className="inline-flex items-center gap-1 justify-end" title={"Alumni DPT yang dukungan=Dukung.\n\nFormat sel: jumlah / target (%target) · %DPT\n• %target = dukung / target dukung\n• %DPT = dukung / total DPT angkatan"}>
+                        Dukung
+                        <HelpCircle className="w-3 h-3 text-gray-300" />
+                      </span>
+                    </th>
+                    <th className="py-1 px-1 text-right">
+                      <span className="inline-flex items-center gap-1 justify-end" title={"Alumni DPT yang dukungan=Milih Sebelah (mendukung lawan).\n\nFormat sel: jumlah (%DPT angkatan)."}>
+                        Sebelah
+                        <HelpCircle className="w-3 h-3 text-gray-300" />
+                      </span>
+                    </th>
+                    <th className="py-1 px-1 text-right">
+                      <span className="inline-flex items-center gap-1 justify-end" title={"Alumni DPT yang dukungan=Ragu-ragu (belum yakin).\n\nFormat sel: jumlah (%DPT angkatan)."}>
+                        Ragu-ragu
+                        <HelpCircle className="w-3 h-3 text-gray-300" />
+                      </span>
+                    </th>
+                    <th className="py-1 px-1 text-right">
+                      <span className="inline-flex items-center gap-1 justify-end" title={"Alumni DPT yang belum ditandai dukungannya (kosong / null).\n\nFormat sel: jumlah (%DPT angkatan)."}>
+                        Belum Menentukan
+                        <HelpCircle className="w-3 h-3 text-gray-300" />
+                      </span>
+                    </th>
+                    <th className="py-1 px-1 text-right">
+                      <span className="inline-flex items-center gap-1 justify-end" title={"Tally vote per angkatan.\n\nFormat sel: pilih1 (a%) / vote_panitia (b%)\n• pilih1 = jumlah member dengan vote=1 (memilih kita)\n• a% = pilih1 / vote_panitia (share kita dari yg sudah vote)\n• vote_panitia = manual entry (admin klik untuk edit) — total suara per angkatan dari panitia\n• b% = vote_panitia / total DPT angkatan (turnout)"}>
+                        Vote
+                        <HelpCircle className="w-3 h-3 text-gray-300" />
+                      </span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
