@@ -951,6 +951,13 @@ export default function Dashboard() {
   const [downloadingFunnel, setDownloadingFunnel] = useState(false);
   const breakdownTableRef = useRef<HTMLDivElement>(null);
   const [downloadingBreakdown, setDownloadingBreakdown] = useState(false);
+  const [breakdownSort, setBreakdownSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "angkatan", dir: "asc" });
+  const toggleBreakdownSort = (key: string) => {
+    setBreakdownSort((prev) => {
+      if (prev.key === key) return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+      return { key, dir: key === "angkatan" ? "asc" : "desc" };
+    });
+  };
   const [voteCounts, setVoteCounts] = useState<{
     totalDpt: number;
     vote1: number;
@@ -2105,72 +2112,65 @@ export default function Dashboard() {
               <table className="w-full text-xs">
                 <thead className="sticky top-0 z-10 bg-white">
                   <tr className="text-[10px] text-muted-foreground border-b border-border">
-                    <th className="py-1 pr-2 text-left">
-                      <span className="inline-flex items-center gap-1" title="Kode angkatan TN">
-                        Angkatan
-                        <HelpCircle className="w-3 h-3 text-gray-300" />
-                      </span>
-                    </th>
-                    <th className="py-1 px-1 text-right">
-                      <span className="inline-flex items-center gap-1 justify-end" title="Jumlah alumni yang sudah jadi DPT resmi (status_dpt=Sudah).">
-                        Total DPT
-                        <HelpCircle className="w-3 h-3 text-gray-300" />
-                      </span>
-                    </th>
-                    <th className="py-1 px-1 text-right">
-                      <span className="inline-flex items-center gap-1 justify-end" title={"Alumni DPT yang dukungan=Dukung.\n\nFormat sel: jumlah / target (%target) · %DPT\n• %target = dukung / target dukung\n• %DPT = dukung / total DPT angkatan"}>
-                        Dukung
-                        <HelpCircle className="w-3 h-3 text-gray-300" />
-                      </span>
-                    </th>
-                    <th className="py-1 px-1 text-right">
-                      <span className="inline-flex items-center gap-1 justify-end" title={"Alumni DPT yang dukungan=Milih Sebelah (mendukung lawan).\n\nFormat sel: jumlah (%DPT angkatan)."}>
-                        Sebelah
-                        <HelpCircle className="w-3 h-3 text-gray-300" />
-                      </span>
-                    </th>
-                    <th className="py-1 px-1 text-right">
-                      <span className="inline-flex items-center gap-1 justify-end" title={"Alumni DPT yang dukungan=Ragu-ragu (belum yakin).\n\nFormat sel: jumlah (%DPT angkatan)."}>
-                        Ragu-ragu
-                        <HelpCircle className="w-3 h-3 text-gray-300" />
-                      </span>
-                    </th>
-                    <th className="py-1 px-1 text-right">
-                      <span className="inline-flex items-center gap-1 justify-end" title={"Alumni DPT yang belum ditandai dukungannya (kosong / null).\n\nFormat sel: jumlah (%DPT angkatan)."}>
-                        Belum Menentukan
-                        <HelpCircle className="w-3 h-3 text-gray-300" />
-                      </span>
-                    </th>
-                    <th className="py-1 px-1 text-right">
-                      <span className="inline-flex items-center gap-1 justify-end" title="Vote 01 — terdata pilih kita (vote=1). Format X (Y%): Y = X/vote_panitia.">
-                        Vote 01
-                        <HelpCircle className="w-3 h-3 text-emerald-300" />
-                      </span>
-                    </th>
-                    <th className="py-1 px-1 text-right">
-                      <span className="inline-flex items-center gap-1 justify-end" title="Vote 02 — terdata pilih sebelah (vote=2). Format X (Y%): Y = X/vote_panitia.">
-                        Vote 02
-                        <HelpCircle className="w-3 h-3 text-red-300" />
-                      </span>
-                    </th>
-                    <th className="py-1 px-1 text-right">
-                      <span className="inline-flex items-center gap-1 justify-end" title="Vote Tidak diketahui — sudah vote tapi pilihan ga diketahui (vote=TT). Format X (Y%): Y = X/vote_panitia.">
-                        Vote ?
-                        <HelpCircle className="w-3 h-3 text-gray-300" />
-                      </span>
-                    </th>
-                    <th className="py-1 px-1 text-right">
-                      <span className="inline-flex items-center gap-1 justify-end" title="Vote Panitia — total dari panitia per angkatan (manual edit admin). Format A (B%): B = A/total DPT angkatan (turnout).">
-                        Vote Panitia
-                        <HelpCircle className="w-3 h-3 text-blue-300" />
-                      </span>
-                    </th>
+                    {([
+                      { key: "angkatan", label: "Angkatan", align: "left", tip: "Kode angkatan TN" },
+                      { key: "totalDpt", label: "Total DPT", align: "right", tip: "Jumlah alumni yang sudah jadi DPT resmi (status_dpt=Sudah)." },
+                      { key: "dukung", label: "Dukung", align: "right", tip: "Alumni DPT yang dukungan=Dukung.\n\nFormat sel: jumlah / target (%target) · %DPT" },
+                      { key: "sebelah", label: "Sebelah", align: "right", tip: "Alumni DPT yang dukungan=Milih Sebelah.\n\nFormat sel: jumlah (%DPT)." },
+                      { key: "ragu", label: "Ragu-ragu", align: "right", tip: "Alumni DPT yang dukungan=Ragu-ragu.\n\nFormat sel: jumlah (%DPT)." },
+                      { key: "belum", label: "Belum Menentukan", align: "right", tip: "Alumni DPT belum ditandai dukungannya.\n\nFormat sel: jumlah (%DPT)." },
+                      { key: "v1", label: "Vote 01", align: "right", tip: "Vote 01 — terdata pilih kita (vote=1). Format X (Y%): Y = X/vote_panitia." },
+                      { key: "v2", label: "Vote 02", align: "right", tip: "Vote 02 — terdata pilih sebelah (vote=2). Format X (Y%): Y = X/vote_panitia." },
+                      { key: "vTT", label: "Vote ?", align: "right", tip: "Vote Tidak diketahui (vote=TT). Format X (Y%): Y = X/vote_panitia." },
+                      { key: "panitia", label: "Vote Panitia", align: "right", tip: "Vote Panitia (manual). Format A (B%): B = A/DPT total." },
+                    ] as const).map((col) => {
+                      const active = breakdownSort.key === col.key;
+                      return (
+                        <th key={col.key} className={`py-1 ${col.align === "left" ? "pr-2 text-left" : "px-1 text-right"}`}>
+                          <button
+                            onClick={() => toggleBreakdownSort(col.key)}
+                            title={col.tip}
+                            className={`inline-flex items-center gap-1 ${col.align === "right" ? "justify-end" : ""} hover:text-foreground transition-colors ${active ? "text-foreground font-semibold" : ""}`}
+                          >
+                            {col.label}
+                            {active ? (
+                              <span className="text-[9px]">{breakdownSort.dir === "asc" ? "▲" : "▼"}</span>
+                            ) : (
+                              <HelpCircle className="w-3 h-3 text-gray-300" />
+                            )}
+                          </button>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {[...funnelStats.perAngkatan]
-                    .sort((a, b) => a.angkatan - b.angkatan)
-                    .map((r) => (
+                  {(() => {
+                    const enriched = funnelStats.perAngkatan.map((r) => {
+                      const vc = voteCounts?.perAngkatan?.find((p) => p.angkatan === r.angkatan);
+                      return {
+                        r,
+                        keys: {
+                          angkatan: r.angkatan,
+                          totalDpt: r.dpt.total,
+                          dukung: r.dpt.dukung,
+                          sebelah: r.dpt.sebelah,
+                          ragu: r.dpt.ragu,
+                          belum: r.dpt.belum,
+                          v1: vc?.vote1 ?? 0,
+                          v2: vc?.vote2 ?? 0,
+                          vTT: vc?.voteTT ?? 0,
+                          panitia: votesPanitia[r.angkatan] ?? 0,
+                        } as Record<string, number>,
+                      };
+                    });
+                    enriched.sort((a, b) => {
+                      const k = breakdownSort.key;
+                      const av = a.keys[k] ?? 0;
+                      const bv = b.keys[k] ?? 0;
+                      return breakdownSort.dir === "asc" ? av - bv : bv - av;
+                    });
+                    return enriched.map(({ r }) => (
                       <tr key={r.angkatan} className="border-b border-border/50 hover:bg-gray-50">
                         <td className="py-1 pr-2 font-semibold text-[#0B27BC]">A{r.angkatan}</td>
                         <td className="py-1 px-1 text-right">{formatNum(r.dpt.total)}</td>
@@ -2281,7 +2281,8 @@ export default function Dashboard() {
                           );
                         })()}
                       </tr>
-                    ))}
+                    ));
+                  })()}
                 </tbody>
                 <tfoot className="sticky bottom-0 z-10 bg-white">
                   {(() => {
