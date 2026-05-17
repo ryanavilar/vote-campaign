@@ -2118,7 +2118,7 @@ export default function Dashboard() {
                       { key: "dukung", label: "Dukung", align: "right", tip: "Alumni DPT yang dukungan=Dukung.\n\nFormat sel: jumlah / target (%target) · %DPT" },
                       { key: "sebelah", label: "Sebelah", align: "right", tip: "Alumni DPT yang dukungan=Milih Sebelah.\n\nFormat sel: jumlah (%DPT)." },
                       { key: "raguBelum", label: "Ragu + Belum", align: "right", tip: "Alumni DPT yang dukungan=Ragu-ragu ATAU belum ditandai (kosong).\n\nFormat sel: jumlah (%DPT)." },
-                      { key: "v1", label: "Vote 01", align: "right", tip: "Vote 01 — terdata pilih kita (vote=1). Format X (Y%): Y = X/vote_panitia." },
+                      { key: "v1", label: "Vote 01", align: "right", tip: "Vote 01 — terdata pilih kita (vote=1).\n\nFormat: X (Y% pan · Z% duk)\n• Y% = X / vote_panitia (share dari yg sudah vote)\n• Z% = X / DPT+Dukung angkatan (eksekusi dukung jadi vote)" },
                       { key: "v2", label: "Vote 02", align: "right", tip: "Vote 02 — terdata pilih sebelah (vote=2). Format X (Y%): Y = X/vote_panitia." },
                       { key: "vTT", label: "Vote ?", align: "right", tip: "Vote Tidak diketahui (vote=TT). Format X (Y%): Y = X/vote_panitia." },
                       { key: "voteBelum", label: "Vote Belum Tercatat", align: "right", tip: "Vote yang panitia hitung tapi belum kita catat siapa.\n\nFormula: vote_panitia - vote1 - vote2 - voteTT (clamp ke 0).\nFormat X (Y%): Y = X/vote_panitia." },
@@ -2216,7 +2216,8 @@ export default function Dashboard() {
                             <>
                               <td className="py-1 px-1 text-right tabular-nums text-emerald-700 font-semibold">
                                 {formatNum(v1)}
-                                {pctOfPan(v1) != null && <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({pctOfPan(v1)}%)</span>}
+                                {pctOfPan(v1) != null && <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({pctOfPan(v1)}% pan)</span>}
+                                {r.dpt.dukung > 0 && <span className="text-[10px] font-normal text-emerald-500 ml-0.5">· {Math.round((v1 / r.dpt.dukung) * 100)}% duk</span>}
                               </td>
                               <td className="py-1 px-1 text-right tabular-nums text-red-600">
                                 {formatNum(v2)}
@@ -2339,7 +2340,8 @@ export default function Dashboard() {
                             <>
                               <td className="py-1 px-1 text-right text-emerald-700">
                                 {formatNum(totV1)}
-                                {pctOfPan(totV1) != null && <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({pctOfPan(totV1)}%)</span>}
+                                {pctOfPan(totV1) != null && <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({pctOfPan(totV1)}% pan)</span>}
+                                {totals.dukung > 0 && <span className="text-[10px] font-normal text-emerald-500 ml-0.5">· {Math.round((totV1 / totals.dukung) * 100)}% duk</span>}
                               </td>
                               <td className="py-1 px-1 text-right text-red-600">
                                 {formatNum(totV2)}
