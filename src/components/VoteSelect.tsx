@@ -3,6 +3,7 @@
 const VOTE_SELECT_STYLES: Record<string, string> = {
   "1": "bg-emerald-100 text-emerald-700 border-emerald-200",
   "2": "bg-red-100 text-red-700 border-red-200",
+  TT: "bg-gray-200 text-gray-700 border-gray-300",
   Sudah: "bg-emerald-100 text-emerald-700 border-emerald-200",
 };
 
@@ -31,6 +32,7 @@ export default function VoteSelect({
       <option value="">—</option>
       <option value="1">Pilih 1</option>
       <option value="2">Pilih 2</option>
+      <option value="TT">Tidak Tahu</option>
     </select>
   );
 }

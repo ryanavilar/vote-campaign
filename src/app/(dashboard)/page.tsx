@@ -955,8 +955,9 @@ export default function Dashboard() {
     totalDpt: number;
     vote1: number;
     vote2: number;
+    voteTT: number;
     belumVote: number;
-    perAngkatan?: Array<{ angkatan: number; total: number; vote1: number; vote2: number; belum: number }>;
+    perAngkatan?: Array<{ angkatan: number; total: number; vote1: number; vote2: number; voteTT: number; belum: number }>;
   } | null>(null);
 
   // Inline edit state for Vote Panitia cells (admin only)
@@ -2141,9 +2142,27 @@ export default function Dashboard() {
                       </span>
                     </th>
                     <th className="py-1 px-1 text-right">
-                      <span className="inline-flex items-center gap-1 justify-end" title={"Tally vote per angkatan.\n\nFormat sel: pilih1 (a%) / vote_panitia (b%)\n• pilih1 = jumlah member dengan vote=1 (memilih kita)\n• a% = pilih1 / vote_panitia (share kita dari yg sudah vote)\n• vote_panitia = manual entry (admin klik untuk edit) — total suara per angkatan dari panitia\n• b% = vote_panitia / total DPT angkatan (turnout)"}>
-                        Vote
+                      <span className="inline-flex items-center gap-1 justify-end" title="Vote 01 — terdata pilih kita (vote=1). Format X (Y%): Y = X/vote_panitia.">
+                        Vote 01
+                        <HelpCircle className="w-3 h-3 text-emerald-300" />
+                      </span>
+                    </th>
+                    <th className="py-1 px-1 text-right">
+                      <span className="inline-flex items-center gap-1 justify-end" title="Vote 02 — terdata pilih sebelah (vote=2). Format X (Y%): Y = X/vote_panitia.">
+                        Vote 02
+                        <HelpCircle className="w-3 h-3 text-red-300" />
+                      </span>
+                    </th>
+                    <th className="py-1 px-1 text-right">
+                      <span className="inline-flex items-center gap-1 justify-end" title="Vote Tidak diketahui — sudah vote tapi pilihan ga diketahui (vote=TT). Format X (Y%): Y = X/vote_panitia.">
+                        Vote ?
                         <HelpCircle className="w-3 h-3 text-gray-300" />
+                      </span>
+                    </th>
+                    <th className="py-1 px-1 text-right">
+                      <span className="inline-flex items-center gap-1 justify-end" title="Vote Panitia — total dari panitia per angkatan (manual edit admin). Format A (B%): B = A/total DPT angkatan (turnout).">
+                        Vote Panitia
+                        <HelpCircle className="w-3 h-3 text-blue-300" />
                       </span>
                     </th>
                   </tr>
@@ -2192,21 +2211,30 @@ export default function Dashboard() {
                             </span>
                           ) : null}
                         </td>
-                        <td className="py-1 px-1 text-right tabular-nums">
-                          {(() => {
-                            const v1 = voteCounts?.perAngkatan?.find((p) => p.angkatan === r.angkatan)?.vote1 ?? 0;
-                            const yp = votesPanitia[r.angkatan];
-                            const aPct = yp && yp > 0 ? Math.round((v1 / yp) * 100) : null;
-                            const bPct = yp && r.dpt.total > 0 ? Math.round((yp / r.dpt.total) * 100) : null;
-                            return (
-                              <span className="inline-flex items-center gap-1">
-                                <span className="text-emerald-700 font-semibold">
-                                  {formatNum(v1)}
-                                  {aPct != null && (
-                                    <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({aPct}%)</span>
-                                  )}
-                                </span>
-                                <span className="text-gray-400">/</span>
+                        {(() => {
+                          const vc = voteCounts?.perAngkatan?.find((p) => p.angkatan === r.angkatan);
+                          const v1 = vc?.vote1 ?? 0;
+                          const v2 = vc?.vote2 ?? 0;
+                          const vTT = vc?.voteTT ?? 0;
+                          const yp = votesPanitia[r.angkatan];
+                          const ypNum = typeof yp === "number" ? yp : 0;
+                          const pctOfPan = (x: number) => ypNum > 0 ? Math.round((x / ypNum) * 100) : null;
+                          const bPct = ypNum > 0 && r.dpt.total > 0 ? Math.round((ypNum / r.dpt.total) * 100) : null;
+                          return (
+                            <>
+                              <td className="py-1 px-1 text-right tabular-nums text-emerald-700 font-semibold">
+                                {formatNum(v1)}
+                                {pctOfPan(v1) != null && <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({pctOfPan(v1)}%)</span>}
+                              </td>
+                              <td className="py-1 px-1 text-right tabular-nums text-red-600">
+                                {formatNum(v2)}
+                                {pctOfPan(v2) != null && <span className="text-[10px] font-normal text-red-500/80 ml-0.5">({pctOfPan(v2)}%)</span>}
+                              </td>
+                              <td className="py-1 px-1 text-right tabular-nums text-gray-600">
+                                {formatNum(vTT)}
+                                {pctOfPan(vTT) != null && <span className="text-[10px] font-normal text-gray-500 ml-0.5">({pctOfPan(vTT)}%)</span>}
+                              </td>
+                              <td className="py-1 px-1 text-right tabular-nums">
                                 {editingVotePanitia === r.angkatan ? (
                                   <span className="inline-flex items-center gap-1">
                                     <input
@@ -2248,10 +2276,10 @@ export default function Dashboard() {
                                     )}
                                   </button>
                                 )}
-                              </span>
-                            );
-                          })()}
-                        </td>
+                              </td>
+                            </>
+                          );
+                        })()}
                       </tr>
                     ))}
                 </tbody>
@@ -2298,27 +2326,34 @@ export default function Dashboard() {
                           {formatNum(totals.belum)}
                           <span className="text-[10px] font-normal text-gray-500 ml-1">({pct(totals.belum)}%)</span>
                         </td>
-                        <td className="py-1 px-1 text-right tabular-nums">
-                          {(() => {
-                            const totV1 = voteCounts?.vote1 ?? 0;
-                            const totPanitia = Object.values(votesPanitia).reduce((s, v) => s + (Number(v) || 0), 0);
-                            const aPct = totPanitia > 0 ? Math.round((totV1 / totPanitia) * 100) : null;
-                            const bPct = totPanitia > 0 && totals.total > 0 ? Math.round((totPanitia / totals.total) * 100) : null;
-                            return (
-                              <span>
-                                <span className="text-emerald-700">
-                                  {formatNum(totV1)}
-                                  {aPct != null && <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({aPct}%)</span>}
-                                </span>
-                                <span className="text-gray-400"> / </span>
-                                <span className="text-[#0B27BC]">
-                                  {formatNum(totPanitia)}
-                                  {bPct != null && <span className="text-[10px] font-normal text-blue-600 ml-0.5">({bPct}%)</span>}
-                                </span>
-                              </span>
-                            );
-                          })()}
-                        </td>
+                        {(() => {
+                          const totV1 = voteCounts?.vote1 ?? 0;
+                          const totV2 = voteCounts?.vote2 ?? 0;
+                          const totTT = voteCounts?.voteTT ?? 0;
+                          const totPanitia = Object.values(votesPanitia).reduce((s, v) => s + (Number(v) || 0), 0);
+                          const pctOfPan = (x: number) => totPanitia > 0 ? Math.round((x / totPanitia) * 100) : null;
+                          const bPct = totPanitia > 0 && totals.total > 0 ? Math.round((totPanitia / totals.total) * 100) : null;
+                          return (
+                            <>
+                              <td className="py-1 px-1 text-right text-emerald-700">
+                                {formatNum(totV1)}
+                                {pctOfPan(totV1) != null && <span className="text-[10px] font-normal text-emerald-600 ml-0.5">({pctOfPan(totV1)}%)</span>}
+                              </td>
+                              <td className="py-1 px-1 text-right text-red-600">
+                                {formatNum(totV2)}
+                                {pctOfPan(totV2) != null && <span className="text-[10px] font-normal text-red-500/80 ml-0.5">({pctOfPan(totV2)}%)</span>}
+                              </td>
+                              <td className="py-1 px-1 text-right text-gray-600">
+                                {formatNum(totTT)}
+                                {pctOfPan(totTT) != null && <span className="text-[10px] font-normal text-gray-500 ml-0.5">({pctOfPan(totTT)}%)</span>}
+                              </td>
+                              <td className="py-1 px-1 text-right text-[#0B27BC]">
+                                {formatNum(totPanitia)}
+                                {bPct != null && <span className="text-[10px] font-normal text-blue-600 ml-0.5">({bPct}%)</span>}
+                              </td>
+                            </>
+                          );
+                        })()}
                       </tr>
                     );
                   })()}

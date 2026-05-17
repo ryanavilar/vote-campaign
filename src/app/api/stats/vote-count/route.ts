@@ -12,8 +12,9 @@ interface VoteCounts {
   totalDpt: number;
   vote1: number;       // pilih kita
   vote2: number;       // pilih sebelah
+  voteTT: number;      // sudah vote tapi tidak tahu pilihannya
   belumVote: number;   // DPT tapi belum vote
-  perAngkatan: Array<{ angkatan: number; total: number; vote1: number; vote2: number; belum: number }>;
+  perAngkatan: Array<{ angkatan: number; total: number; vote1: number; vote2: number; voteTT: number; belum: number }>;
 }
 
 export async function GET() {
@@ -31,15 +32,16 @@ export async function GET() {
   }
   mem = mem.filter((m) => m.is_non_alumni !== true && m.status_dpt === "Sudah");
 
-  const out: VoteCounts = { totalDpt: mem.length, vote1: 0, vote2: 0, belumVote: 0, perAngkatan: [] };
-  const byAng = new Map<number, { total: number; vote1: number; vote2: number; belum: number }>();
+  const out: VoteCounts = { totalDpt: mem.length, vote1: 0, vote2: 0, voteTT: 0, belumVote: 0, perAngkatan: [] };
+  const byAng = new Map<number, { total: number; vote1: number; vote2: number; voteTT: number; belum: number }>();
   for (const m of mem) {
     const ang = m.angkatan;
-    if (!byAng.has(ang)) byAng.set(ang, { total: 0, vote1: 0, vote2: 0, belum: 0 });
+    if (!byAng.has(ang)) byAng.set(ang, { total: 0, vote1: 0, vote2: 0, voteTT: 0, belum: 0 });
     const e = byAng.get(ang)!;
     e.total++;
     if (m.vote === "1") { out.vote1++; e.vote1++; }
     else if (m.vote === "2") { out.vote2++; e.vote2++; }
+    else if (m.vote === "TT") { out.voteTT++; e.voteTT++; }
     else { out.belumVote++; e.belum++; }
   }
   out.perAngkatan = [...byAng.entries()]

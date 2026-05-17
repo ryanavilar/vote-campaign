@@ -270,7 +270,7 @@ function computeNextAction(row: TargetRow): NextAction {
   if (row.status_dpt !== "Sudah") {
     return { key: "dpt", label: "Cek DPT resmi", priority: 5, color: "text-orange-600" };
   }
-  if (row.vote !== "1" && row.vote !== "2" && row.vote !== "Sudah") {
+  if (row.vote !== "1" && row.vote !== "2" && row.vote !== "TT" && row.vote !== "Sudah") {
     return { key: "vote", label: "Pengingat Vote", priority: 6, color: "text-[#84303F]" };
   }
   return { key: "done", label: "✅ Lengkap", priority: 10, color: "text-emerald-700" };
@@ -285,7 +285,7 @@ function ProgressDots({ row }: { row: TargetRow }) {
     { key: "form", on: row.isi_form_dpt === "Sudah", label: "Form DPT" },
     { key: "web", on: row.registrasi_website_dpt === "Sudah", label: "Web DPT" },
     { key: "dpt", on: row.status_dpt === "Sudah", label: "DPT" },
-    { key: "vote", on: row.vote === "1" || row.vote === "2" || row.vote === "Sudah", label: "Vote" },
+    { key: "vote", on: row.vote === "1" || row.vote === "2" || row.vote === "TT" || row.vote === "Sudah", label: "Vote" },
   ];
   const done = stages.filter((s) => s.on).length;
   return (
@@ -339,7 +339,7 @@ function presetMatch(row: TargetRow, key: PresetKey): boolean {
     case "dukungBelumForm": return pendukung && row.isi_form_dpt !== "Sudah";
     case "formBelumWeb": return row.isi_form_dpt === "Sudah" && row.registrasi_website_dpt !== "Sudah";
     case "webBelumDpt": return row.registrasi_website_dpt === "Sudah" && row.status_dpt !== "Sudah";
-    case "dptBelumVote": return row.status_dpt === "Sudah" && row.vote !== "1" && row.vote !== "2" && row.vote !== "Sudah";
+    case "dptBelumVote": return row.status_dpt === "Sudah" && row.vote !== "1" && row.vote !== "2" && row.vote !== "TT" && row.vote !== "Sudah";
   }
 }
 
@@ -484,7 +484,7 @@ export default function TargetPage() {
     for (const t of allTargets) {
       const contacted = t.sudah_dikontak === "Sudah" || t.masuk_grup === "Sudah";
       const pendukung = t.dukungan === "dukung" || t.dukungan === "terkonvert";
-      const tIsVote = t.vote === "1" || t.vote === "2" || t.vote === "Sudah";
+      const tIsVote = t.vote === "1" || t.vote === "2" || t.vote === "TT" || t.vote === "Sudah";
       const tIsDpt = t.status_dpt === "Sudah";
       const pa = ensure(t.angkatan);
       pa.total++;
@@ -1320,6 +1320,7 @@ export default function TargetPage() {
                       <option value="all">Semua</option>
                       <option value="1">Pilih 1</option>
                       <option value="2">Pilih 2</option>
+                      <option value="TT">Tidak Tahu</option>
                       <option value="Belum">Belum</option>
                     </select>
                   </div>

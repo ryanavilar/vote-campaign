@@ -259,7 +259,7 @@ function ProgressDots({ member }: { member: MemberInfo | null }) {
     { key: "form", label: "Form DPT", on: member?.isi_form_dpt === "Sudah" },
     { key: "web", label: "Web DPT", on: member?.registrasi_website_dpt === "Sudah" },
     { key: "dpt", label: "DPT Resmi", on: member?.status_dpt === "Sudah" },
-    { key: "vote", label: "Vote", on: member?.vote === "1" || member?.vote === "2" || member?.vote === "Sudah" },
+    { key: "vote", label: "Vote", on: member?.vote === "1" || member?.vote === "2" || member?.vote === "TT" || member?.vote === "Sudah" },
   ];
   const done = stages.filter((s) => s.on).length;
   return (
@@ -1819,6 +1819,7 @@ export default function AdminAlumniPage() {
                       <option value="all">Semua</option>
                       <option value="1">Pilih 1</option>
                       <option value="2">Pilih 2</option>
+                      <option value="TT">Tidak Tahu</option>
                       <option value="Belum">Belum</option>
                     </select>
                   </div>
