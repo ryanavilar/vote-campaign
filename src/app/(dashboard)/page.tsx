@@ -2117,11 +2117,11 @@ export default function Dashboard() {
                       { key: "totalDpt", label: "Total DPT", align: "right", tip: "Jumlah alumni yang sudah jadi DPT resmi (status_dpt=Sudah)." },
                       { key: "dukung", label: "Dukung", align: "right", tip: "Alumni DPT yang dukungan=Dukung.\n\nFormat sel: jumlah / target (%target) · %DPT" },
                       { key: "sebelah", label: "Sebelah", align: "right", tip: "Alumni DPT yang dukungan=Milih Sebelah.\n\nFormat sel: jumlah (%DPT)." },
-                      { key: "ragu", label: "Ragu-ragu", align: "right", tip: "Alumni DPT yang dukungan=Ragu-ragu.\n\nFormat sel: jumlah (%DPT)." },
-                      { key: "belum", label: "Belum Menentukan", align: "right", tip: "Alumni DPT belum ditandai dukungannya.\n\nFormat sel: jumlah (%DPT)." },
+                      { key: "raguBelum", label: "Ragu + Belum", align: "right", tip: "Alumni DPT yang dukungan=Ragu-ragu ATAU belum ditandai (kosong).\n\nFormat sel: jumlah (%DPT)." },
                       { key: "v1", label: "Vote 01", align: "right", tip: "Vote 01 — terdata pilih kita (vote=1). Format X (Y%): Y = X/vote_panitia." },
                       { key: "v2", label: "Vote 02", align: "right", tip: "Vote 02 — terdata pilih sebelah (vote=2). Format X (Y%): Y = X/vote_panitia." },
                       { key: "vTT", label: "Vote ?", align: "right", tip: "Vote Tidak diketahui (vote=TT). Format X (Y%): Y = X/vote_panitia." },
+                      { key: "voteBelum", label: "Vote Belum Tercatat", align: "right", tip: "DPT yang belum tercatat vote-nya (vote=null/Belum). Format X (Y%): Y = X/vote_panitia." },
                       { key: "panitia", label: "Vote Panitia", align: "right", tip: "Vote Panitia (manual). Format A (B%): B = A/DPT total." },
                     ] as const).map((col) => {
                       const active = breakdownSort.key === col.key;
@@ -2155,11 +2155,11 @@ export default function Dashboard() {
                           totalDpt: r.dpt.total,
                           dukung: r.dpt.dukung,
                           sebelah: r.dpt.sebelah,
-                          ragu: r.dpt.ragu,
-                          belum: r.dpt.belum,
+                          raguBelum: r.dpt.ragu + r.dpt.belum,
                           v1: vc?.vote1 ?? 0,
                           v2: vc?.vote2 ?? 0,
                           vTT: vc?.voteTT ?? 0,
+                          voteBelum: vc?.belum ?? 0,
                           panitia: votesPanitia[r.angkatan] ?? 0,
                         } as Record<string, number>,
                       };
@@ -2196,18 +2196,10 @@ export default function Dashboard() {
                           ) : null}
                         </td>
                         <td className="py-1 px-1 text-right text-yellow-700">
-                          {formatNum(r.dpt.ragu)}
+                          {formatNum(r.dpt.ragu + r.dpt.belum)}
                           {r.dpt.total > 0 ? (
                             <span className="text-[10px] font-normal text-yellow-600/80 ml-1">
-                              ({Math.round((r.dpt.ragu / r.dpt.total) * 100)}%)
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="py-1 px-1 text-right text-gray-600">
-                          {formatNum(r.dpt.belum)}
-                          {r.dpt.total > 0 ? (
-                            <span className="text-[10px] font-normal text-gray-500 ml-1">
-                              ({Math.round((r.dpt.belum / r.dpt.total) * 100)}%)
+                              ({Math.round(((r.dpt.ragu + r.dpt.belum) / r.dpt.total) * 100)}%)
                             </span>
                           ) : null}
                         </td>
@@ -2233,6 +2225,18 @@ export default function Dashboard() {
                               <td className="py-1 px-1 text-right tabular-nums text-gray-600">
                                 {formatNum(vTT)}
                                 {pctOfPan(vTT) != null && <span className="text-[10px] font-normal text-gray-500 ml-0.5">({pctOfPan(vTT)}%)</span>}
+                              </td>
+                              <td className="py-1 px-1 text-right tabular-nums text-slate-600">
+                                {(() => {
+                                  const vBel = vc?.belum ?? 0;
+                                  const p = pctOfPan(vBel);
+                                  return (
+                                    <>
+                                      {formatNum(vBel)}
+                                      {p != null && <span className="text-[10px] font-normal text-slate-500 ml-0.5">({p}%)</span>}
+                                    </>
+                                  );
+                                })()}
                               </td>
                               <td className="py-1 px-1 text-right tabular-nums">
                                 {editingVotePanitia === r.angkatan ? (
@@ -2320,17 +2324,14 @@ export default function Dashboard() {
                           <span className="text-[10px] font-normal text-red-500/80 ml-1">({pct(totals.sebelah)}%)</span>
                         </td>
                         <td className="py-1 px-1 text-right text-yellow-700">
-                          {formatNum(totals.ragu)}
-                          <span className="text-[10px] font-normal text-yellow-600/80 ml-1">({pct(totals.ragu)}%)</span>
-                        </td>
-                        <td className="py-1 px-1 text-right text-gray-600">
-                          {formatNum(totals.belum)}
-                          <span className="text-[10px] font-normal text-gray-500 ml-1">({pct(totals.belum)}%)</span>
+                          {formatNum(totals.ragu + totals.belum)}
+                          <span className="text-[10px] font-normal text-yellow-600/80 ml-1">({pct(totals.ragu + totals.belum)}%)</span>
                         </td>
                         {(() => {
                           const totV1 = voteCounts?.vote1 ?? 0;
                           const totV2 = voteCounts?.vote2 ?? 0;
                           const totTT = voteCounts?.voteTT ?? 0;
+                          const totVBelum = voteCounts?.belumVote ?? 0;
                           const totPanitia = Object.values(votesPanitia).reduce((s, v) => s + (Number(v) || 0), 0);
                           const pctOfPan = (x: number) => totPanitia > 0 ? Math.round((x / totPanitia) * 100) : null;
                           const bPct = totPanitia > 0 && totals.total > 0 ? Math.round((totPanitia / totals.total) * 100) : null;
@@ -2347,6 +2348,10 @@ export default function Dashboard() {
                               <td className="py-1 px-1 text-right text-gray-600">
                                 {formatNum(totTT)}
                                 {pctOfPan(totTT) != null && <span className="text-[10px] font-normal text-gray-500 ml-0.5">({pctOfPan(totTT)}%)</span>}
+                              </td>
+                              <td className="py-1 px-1 text-right text-slate-600">
+                                {formatNum(totVBelum)}
+                                {pctOfPan(totVBelum) != null && <span className="text-[10px] font-normal text-slate-500 ml-0.5">({pctOfPan(totVBelum)}%)</span>}
                               </td>
                               <td className="py-1 px-1 text-right text-[#0B27BC]">
                                 {formatNum(totPanitia)}
