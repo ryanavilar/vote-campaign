@@ -2121,7 +2121,7 @@ export default function Dashboard() {
                       { key: "v1", label: "Vote 01", align: "right", tip: "Vote 01 — terdata pilih kita (vote=1). Format X (Y%): Y = X/vote_panitia." },
                       { key: "v2", label: "Vote 02", align: "right", tip: "Vote 02 — terdata pilih sebelah (vote=2). Format X (Y%): Y = X/vote_panitia." },
                       { key: "vTT", label: "Vote ?", align: "right", tip: "Vote Tidak diketahui (vote=TT). Format X (Y%): Y = X/vote_panitia." },
-                      { key: "voteBelum", label: "Vote Belum Tercatat", align: "right", tip: "DPT yang belum tercatat vote-nya (vote=null/Belum). Format X (Y%): Y = X/vote_panitia." },
+                      { key: "voteBelum", label: "Vote Belum Tercatat", align: "right", tip: "Vote yang panitia hitung tapi belum kita catat siapa.\n\nFormula: vote_panitia - vote1 - vote2 - voteTT (clamp ke 0).\nFormat X (Y%): Y = X/vote_panitia." },
                       { key: "panitia", label: "Vote Panitia", align: "right", tip: "Vote Panitia (manual). Format A (B%): B = A/DPT total." },
                     ] as const).map((col) => {
                       const active = breakdownSort.key === col.key;
@@ -2159,7 +2159,7 @@ export default function Dashboard() {
                           v1: vc?.vote1 ?? 0,
                           v2: vc?.vote2 ?? 0,
                           vTT: vc?.voteTT ?? 0,
-                          voteBelum: vc?.belum ?? 0,
+                          voteBelum: Math.max(0, (votesPanitia[r.angkatan] ?? 0) - (vc?.vote1 ?? 0) - (vc?.vote2 ?? 0) - (vc?.voteTT ?? 0)),
                           panitia: votesPanitia[r.angkatan] ?? 0,
                         } as Record<string, number>,
                       };
@@ -2228,7 +2228,7 @@ export default function Dashboard() {
                               </td>
                               <td className="py-1 px-1 text-right tabular-nums text-slate-600">
                                 {(() => {
-                                  const vBel = vc?.belum ?? 0;
+                                  const vBel = Math.max(0, ypNum - v1 - v2 - vTT);
                                   const p = pctOfPan(vBel);
                                   return (
                                     <>
@@ -2331,8 +2331,8 @@ export default function Dashboard() {
                           const totV1 = voteCounts?.vote1 ?? 0;
                           const totV2 = voteCounts?.vote2 ?? 0;
                           const totTT = voteCounts?.voteTT ?? 0;
-                          const totVBelum = voteCounts?.belumVote ?? 0;
                           const totPanitia = Object.values(votesPanitia).reduce((s, v) => s + (Number(v) || 0), 0);
+                          const totVBelum = Math.max(0, totPanitia - totV1 - totV2 - totTT);
                           const pctOfPan = (x: number) => totPanitia > 0 ? Math.round((x / totPanitia) * 100) : null;
                           const bPct = totPanitia > 0 && totals.total > 0 ? Math.round((totPanitia / totals.total) * 100) : null;
                           return (
