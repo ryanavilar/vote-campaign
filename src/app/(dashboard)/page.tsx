@@ -2121,7 +2121,8 @@ export default function Dashboard() {
                       { key: "v1", label: "Vote 01", align: "right", tip: "Vote 01 — terdata pilih kita (vote=1).\n\nFormat: X (Y% pan · Z% duk)\n• Y% = X / vote_panitia (share dari yg sudah vote)\n• Z% = X / DPT+Dukung angkatan (eksekusi dukung jadi vote)" },
                       { key: "v2", label: "Vote 02", align: "right", tip: "Vote 02 — terdata pilih sebelah (vote=2). Format X (Y%): Y = X/vote_panitia." },
                       { key: "vTT", label: "Vote ?", align: "right", tip: "Vote Tidak diketahui (vote=TT). Format X (Y%): Y = X/vote_panitia." },
-                      { key: "voteBelum", label: "Vote Belum Tercatat", align: "right", tip: "Vote yang panitia hitung tapi belum kita catat siapa.\n\nFormula: vote_panitia - vote1 - vote2 - voteTT (clamp ke 0).\nFormat X (Y%): Y = X/vote_panitia." },
+                      { key: "voteBelum", label: "Vote blm Catat", align: "right", tip: "Vote yang panitia hitung tapi belum kita catat siapa.\n\nFormula: vote_panitia - vote1 - vote2 - voteTT (clamp ke 0).\nFormat X (Y%): Y = X/vote_panitia." },
+                      { key: "potensi", label: "Potensi Vote", align: "right", tip: "Pendukung yang belum tercatat memilih kita.\n\nFormula: DPT+Dukung - Vote 01 (clamp ke 0).\nFormat X (Y%): Y = X/DPT+Dukung." },
                       { key: "panitia", label: "Vote Panitia", align: "right", tip: "Vote Panitia (manual). Format A (B%): B = A/DPT total." },
                     ] as const).map((col) => {
                       const active = breakdownSort.key === col.key;
@@ -2160,6 +2161,7 @@ export default function Dashboard() {
                           v2: vc?.vote2 ?? 0,
                           vTT: vc?.voteTT ?? 0,
                           voteBelum: Math.max(0, (votesPanitia[r.angkatan] ?? 0) - (vc?.vote1 ?? 0) - (vc?.vote2 ?? 0) - (vc?.voteTT ?? 0)),
+                          potensi: Math.max(0, r.dpt.dukung - (vc?.vote1 ?? 0)),
                           panitia: votesPanitia[r.angkatan] ?? 0,
                         } as Record<string, number>,
                       };
@@ -2179,11 +2181,6 @@ export default function Dashboard() {
                           {targetDukung[r.angkatan] ? (
                             <span className="text-[10px] font-normal text-muted-foreground ml-1">
                               / {targetDukung[r.angkatan]} ({Math.round((r.dpt.dukung / targetDukung[r.angkatan]) * 100)}%)
-                            </span>
-                          ) : null}
-                          {r.dpt.total > 0 ? (
-                            <span className="text-[10px] font-normal text-emerald-600 ml-1">
-                              · {Math.round((r.dpt.dukung / r.dpt.total) * 100)}% DPT
                             </span>
                           ) : null}
                         </td>
@@ -2235,6 +2232,18 @@ export default function Dashboard() {
                                     <>
                                       {formatNum(vBel)}
                                       {p != null && <span className="text-[10px] font-normal text-slate-500 ml-0.5">({p}%)</span>}
+                                    </>
+                                  );
+                                })()}
+                              </td>
+                              <td className="py-1 px-1 text-right tabular-nums text-amber-700">
+                                {(() => {
+                                  const potensi = Math.max(0, r.dpt.dukung - v1);
+                                  const p = r.dpt.dukung > 0 ? Math.round((potensi / r.dpt.dukung) * 100) : null;
+                                  return (
+                                    <>
+                                      {formatNum(potensi)}
+                                      {p != null && <span className="text-[10px] font-normal text-amber-600 ml-0.5">({p}%)</span>}
                                     </>
                                   );
                                 })()}
@@ -2314,11 +2323,6 @@ export default function Dashboard() {
                               / {formatNum(targetTotal)} ({Math.round((totals.dukung / targetTotal) * 100)}%)
                             </span>
                           ) : null}
-                          {totals.total > 0 ? (
-                            <span className="text-[10px] font-normal text-emerald-600 ml-1">
-                              · {pct(totals.dukung)}% DPT
-                            </span>
-                          ) : null}
                         </td>
                         <td className="py-1 px-1 text-right text-red-600">
                           {formatNum(totals.sebelah)}
@@ -2354,6 +2358,18 @@ export default function Dashboard() {
                               <td className="py-1 px-1 text-right text-slate-600">
                                 {formatNum(totVBelum)}
                                 {pctOfPan(totVBelum) != null && <span className="text-[10px] font-normal text-slate-500 ml-0.5">({pctOfPan(totVBelum)}%)</span>}
+                              </td>
+                              <td className="py-1 px-1 text-right text-amber-700">
+                                {(() => {
+                                  const totPotensi = Math.max(0, totals.dukung - totV1);
+                                  const p = totals.dukung > 0 ? Math.round((totPotensi / totals.dukung) * 100) : null;
+                                  return (
+                                    <>
+                                      {formatNum(totPotensi)}
+                                      {p != null && <span className="text-[10px] font-normal text-amber-600 ml-0.5">({p}%)</span>}
+                                    </>
+                                  );
+                                })()}
                               </td>
                               <td className="py-1 px-1 text-right text-[#0B27BC]">
                                 {formatNum(totPanitia)}
