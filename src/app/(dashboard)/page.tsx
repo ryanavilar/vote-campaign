@@ -2039,7 +2039,7 @@ export default function Dashboard() {
         {voteCounts && (() => {
           const totalPanitia = Object.values(votesPanitia).reduce((s, v) => s + (Number(v) || 0), 0);
           const denom = totalPanitia;
-          const pct = (n: number) => denom > 0 ? Math.round((n / denom) * 100) : 0;
+          const pct = (n: number) => denom > 0 ? ((n / denom) * 100).toFixed(2) : "0.00";
           return (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="bg-white rounded-xl border border-border p-3 shadow-sm">
